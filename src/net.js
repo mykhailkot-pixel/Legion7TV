@@ -1,10 +1,28 @@
-// Сеть через GM_xmlhttpRequest: он не подчиняется CSP сайта.
-const ALLOWED = ['7tv.io', 'cdn.7tv.app', 'api.ivr.fi'];
+import { store } from './store.js';
 
-// Прокси (необязательно). '' = ходить напрямую.
-// Если включаешь: добавь домен прокси в @connect в header.txt.
-const PROXY = '';
+const ALLOWED = ['7tv.io', 'cdn.7tv.app', 'api.ivr.fi'];
 const ROUTES = { '7tv.io': 'api', 'cdn.7tv.app': 'cdn', 'api.ivr.fi': 'ivr' };
+
+// Прокси по умолчанию для всех, кто не настроил свой. '' = напрямую.
+const DEFAULT_PROXY = '';
+
+export const normProxy = (v) => {
+    v = String(v || '').trim().replace(/\/+$/, '');
+    try { const u = new URL(v); return u.protocol === 'https:' ? u.origin : ''; } catch { return ''; }
+};
+
+let proxy = (() => {
+    const v = store.get('t7proxy');
+    return normProxy(typeof v === 'string' ? v : DEFAULT_PROXY);
+})();
+let proxyDownUntil = 0;
+
+export const getProxy = () => proxy;
+export function setProxy(v) {
+    proxy = normProxy(v);
+    proxyDownUntil = 0;
+    store.set('t7proxy', proxy);   // пустая строка = осознанно «без прокси»
+}
 
 const urlOk = (url) => {
     try { const u = new URL(url); return u.protocol === 'https:' && ALLOWED.includes(u.hostname); }
@@ -13,13 +31,12 @@ const urlOk = (url) => {
 
 function viaProxy(url) {
     const u = new URL(url);
-    const k = ROUTES[u.hostname];
-    return PROXY && k ? `${PROXY}/${k}${u.pathname}${u.search}` : url;
+    return `${proxy}/${ROUTES[u.hostname]}${u.pathname}${u.search}`;
 }
 
-const gmOnce = (url, responseType) => new Promise((resolve, reject) => {
+const gmOnce = (url, responseType, timeout) => new Promise((resolve, reject) => {
     GM_xmlhttpRequest({
-        method: 'GET', url, responseType, timeout: 15000,
+        method: 'GET', url, responseType, timeout,
         onload: (r) => (r.status >= 200 && r.status < 300) ? resolve(r) : reject(new Error(url + ' -> ' + r.status)),
         onerror: reject, ontimeout: reject
     });
@@ -27,13 +44,22 @@ const gmOnce = (url, responseType) => new Promise((resolve, reject) => {
 
 const gm = async (url, responseType) => {
     if (!urlOk(url)) throw new Error('url not allowed');
-    const tries = PROXY ? [viaProxy(url), url] : [url];   // сначала прокси, потом напрямую
-    let last;
-    for (const t of tries) {
-        try { return await gmOnce(t, responseType); } catch (e) { last = e; }
+    if (proxy && Date.now() > proxyDownUntil) {
+        try { return await gmOnce(viaProxy(url), responseType, 6000); }
+        catch { proxyDownUntil = Date.now() + 120000; }   // 2 минуты идём напрямую
     }
-    throw last;
+    return gmOnce(url, responseType, 15000);
 };
+
+// проверка прокси из настроек
+export async function testProxy(v) {
+    const p = normProxy(v);
+    if (!p) throw new Error('нужен адрес вида https://имя.workers.dev');
+    const r = await gmOnce(p + '/api/v3/emote-sets/global', undefined, 8000);
+    const j = JSON.parse(r.responseText);
+    if (!j || !Array.isArray(j.emotes)) throw new Error('ответ не похож на 7TV');
+    return j.emotes.length;
+}
 
 export const getJson = async (url) => JSON.parse((await gm(url)).responseText);
 

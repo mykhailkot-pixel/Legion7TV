@@ -7,6 +7,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
+// @connect      workers.dev
 // @connect      7tv.io
 // @connect      cdn.7tv.app
 // @connect      api.ivr.fi
@@ -21,7 +22,7 @@
 
 (() => {
   // src/styles.css
-  var styles_default = ".t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}\r\n.t7-e{height:var(--t7-h,1.9em);width:auto;min-width:var(--t7-h,1.9em);vertical-align:middle;display:inline-block}\r\n.t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}\r\n.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}\r\n\r\nform.cy-chat-f .t7-btn{\r\n    flex:none;align-self:stretch;margin:0 0 0 4px;padding:0 8px;min-height:28px;height:auto;width:auto;\r\n    box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f.t7-btn:hover{background:rgb(165,100,255)}\r\n\r\n.t7-pop{position:fixed;z-index:2147483000;display:flex;flex-direction:column;gap:8px;box-sizing:border-box;\r\n    padding:10px;background:#1b1b24;color:#eee;border:1px solid rgba(255,255,255,.18);border-radius:10px;\r\n    box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.3 system-ui,sans-serif}\r\n.t7-pop *{box-sizing:border-box}\r\n.t7-pop [hidden]{display:none!important}\r\n.t7-pop button{font:inherit;cursor:pointer}\r\n.t7-pop.t7-drag{will-change:transform;transition:none}\r\n.t7-pop.t7-drag .t7-gr{pointer-events:none}\r\n\r\n.t7-h{display:flex;justify-content:space-between;align-items:center;font-size:15px;cursor:grab;touch-action:none;user-select:none}\r\n.t7-h:active{cursor:grabbing}\r\n.t7-x{background:none;border:0;color:#ccc;font-size:20px;line-height:1;padding:0 4px}\r\n.t7-gr{flex:1;min-height:156px;overflow-y:auto;overscroll-behavior:contain}\r\n\r\n.t7-nf{display:flex;gap:6px;align-items:flex-end}\r\n.t7-nf label{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#aaa}\r\n.t7-pop input[type=text],.t7-pop input[type=search]{width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);\r\n    background:#0f0f15;color:#fff;font:13px system-ui,sans-serif}\r\n.t7-nf button{padding:6px 10px;border-radius:6px;border:0;background:#9146ff;color:#fff}\r\n.t7-st{font-size:11px;color:#aaa;min-height:1.3em}\r\n\r\n.t7-sz{display:flex;align-items:center;gap:8px;font-size:12px;color:#aaa}\r\n.t7-szb{display:flex;gap:4px}\r\n.t7-szb button{min-width:34px;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:#0f0f15;color:#ddd}\r\n.t7-szb button[aria-pressed=true]{background:#9146ff;border-color:#9146ff;color:#fff}\r\n\r\n.t7-gr{flex:1;min-height:140px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-sh{margin:6px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#aaa}\r\n.t7-gw{display:flex;flex-wrap:wrap;gap:2px}\r\n.t7-it{width:40px;height:40px;padding:3px;border:0;border-radius:6px;background:transparent;display:inline-flex;align-items:center;justify-content:center}\r\n.t7-it:hover,.t7-it:focus-visible{background:rgba(255,255,255,.14)}\r\n.t7-it img{max-width:100%;max-height:100%;object-fit:contain}\r\n.t7-emp{padding:16px 4px;color:#aaa;text-align:center}\r\n\r\n.t7-rs{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;\r\n    border-radius:0 0 10px 0;\r\n    background:linear-gradient(135deg,transparent 0 55%,#888 55% 62%,transparent 62% 72%,#888 72% 79%,transparent 79%)}\r\n\r\n.t7-hb{display:flex;align-items:center;gap:2px}\r\n.t7-g{background:none;border:0;color:#ccc;font-size:16px;line-height:1;padding:2px 5px;border-radius:6px}\r\n.t7-g:hover,.t7-x:hover{background:rgba(255,255,255,.14);color:#fff}\r\n\r\n.t7-set{position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;\r\n    padding:12px;background:rgba(0,0,0,.5);font:13px/1.3 system-ui,sans-serif}\r\n.t7-set *{box-sizing:border-box}\r\n.t7-sw{width:380px;max-width:100%;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:16px;\r\n    padding:14px;background:#1b1b24;color:#eee;border:1px solid rgba(255,255,255,.18);border-radius:12px;\r\n    box-shadow:0 12px 40px rgba(0,0,0,.6)}\r\n.t7-sw button{font:inherit;cursor:pointer}\r\n.t7-sth{display:flex;justify-content:space-between;align-items:center;font-size:15px}\r\n.t7-sec{display:flex;flex-direction:column;gap:6px}\r\n.t7-sec>h4{margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#aaa}\r\n.t7-row{display:flex;gap:6px;align-items:flex-end}\r\n.t7-wrap{flex-wrap:wrap}\r\n.t7-fl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#aaa}\r\n.t7-sw input[type=text]{width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);\r\n    background:#0f0f15;color:#fff;font:13px system-ui,sans-serif}\r\n.t7-chk{display:flex;gap:8px;align-items:center;cursor:pointer}\r\n.t7-b{padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:#0f0f15;color:#ddd}\r\n.t7-b:hover{background:#1d1d29}\r\n.t7-b.p{background:#9146ff;border-color:#9146ff;color:#fff}\r\n.t7-sst{font-size:11px;color:#aaa;min-height:1.3em}";
+  var styles_default = ".t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}\r\n.t7-e{height:var(--t7-h,1.9em);width:auto;min-width:var(--t7-h,1.9em);vertical-align:middle;display:inline-block}\r\n.t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}\r\n.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}\r\n\r\nform.cy-chat-f .t7-btn{\r\n    flex:none;align-self:stretch;margin:0 0 0 4px;padding:0 8px;min-height:28px;height:auto;width:auto;\r\n    box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f.t7-btn:hover{background:rgb(165,100,255)}\r\n\r\n.t7-pop{position:fixed;z-index:2147483000;display:flex;flex-direction:column;gap:8px;box-sizing:border-box;\r\n    padding:10px;background:#1b1b24;color:#eee;border:1px solid rgba(255,255,255,.18);border-radius:10px;\r\n    box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.3 system-ui,sans-serif}\r\n.t7-pop *{box-sizing:border-box}\r\n.t7-pop [hidden]{display:none!important}\r\n.t7-pop button{font:inherit;cursor:pointer}\r\n.t7-pop.t7-drag{will-change:transform;transition:none}\r\n.t7-pop.t7-drag .t7-gr{pointer-events:none}\r\n\r\n.t7-h{display:flex;justify-content:space-between;align-items:center;font-size:15px;cursor:grab;touch-action:none;user-select:none}\r\n.t7-h:active{cursor:grabbing}\r\n.t7-x{background:none;border:0;color:#ccc;font-size:20px;line-height:1;padding:0 4px}\r\n.t7-gr{flex:1;min-height:156px;overflow-y:auto;overscroll-behavior:contain}\r\n\r\n.t7-nf{display:flex;gap:6px;align-items:flex-end}\r\n.t7-nf label{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#aaa}\r\n.t7-pop input[type=text],.t7-pop input[type=search]{width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);\r\n    background:#0f0f15;color:#fff;font:13px system-ui,sans-serif}\r\n.t7-nf button{padding:6px 10px;border-radius:6px;border:0;background:#9146ff;color:#fff}\r\n.t7-st{font-size:11px;color:#aaa;min-height:1.3em}\r\n\r\n.t7-sz{display:flex;align-items:center;gap:8px;font-size:12px;color:#aaa}\r\n.t7-szb{display:flex;gap:4px}\r\n.t7-szb button{min-width:34px;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:#0f0f15;color:#ddd}\r\n.t7-szb button[aria-pressed=true]{background:#9146ff;border-color:#9146ff;color:#fff}\r\n\r\n.t7-gr{flex:1;min-height:140px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-sh{margin:6px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#aaa}\r\n.t7-gw{display:flex;flex-wrap:wrap;gap:2px}\r\n.t7-it{width:40px;height:40px;padding:3px;border:0;border-radius:6px;background:transparent;display:inline-flex;align-items:center;justify-content:center}\r\n.t7-it:hover,.t7-it:focus-visible{background:rgba(255,255,255,.14)}\r\n.t7-it img{max-width:100%;max-height:100%;object-fit:contain}\r\n.t7-emp{padding:16px 4px;color:#aaa;text-align:center}\r\n\r\n.t7-rs{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;\r\n    border-radius:0 0 10px 0;\r\n    background:linear-gradient(135deg,transparent 0 55%,#888 55% 62%,transparent 62% 72%,#888 72% 79%,transparent 79%)}\r\n\r\n.t7-hb{display:flex;align-items:center;gap:2px}\r\n.t7-g{background:none;border:0;color:#ccc;font-size:16px;line-height:1;padding:2px 5px;border-radius:6px}\r\n.t7-g:hover,.t7-x:hover{background:rgba(255,255,255,.14);color:#fff}\r\n\r\n.t7-set{position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;\r\n    padding:12px;background:rgba(0,0,0,.5);font:13px/1.3 system-ui,sans-serif}\r\n.t7-set *{box-sizing:border-box}\r\n.t7-sw{width:380px;max-width:100%;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:16px;\r\n    padding:14px;background:#1b1b24;color:#eee;border:1px solid rgba(255,255,255,.18);border-radius:12px;\r\n    box-shadow:0 12px 40px rgba(0,0,0,.6)}\r\n.t7-sw button{font:inherit;cursor:pointer}\r\n.t7-sth{display:flex;justify-content:space-between;align-items:center;font-size:15px}\r\n.t7-sec{display:flex;flex-direction:column;gap:6px}\r\n.t7-sec>h4{margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#aaa}\r\n.t7-row{display:flex;gap:6px;align-items:flex-end}\r\n.t7-wrap{flex-wrap:wrap}\r\n.t7-fl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#aaa}\r\n.t7-sw input[type=text]{width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);\r\n    background:#0f0f15;color:#fff;font:13px system-ui,sans-serif}\r\n.t7-chk{display:flex;gap:8px;align-items:center;cursor:pointer}\r\n.t7-b{padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:#0f0f15;color:#ddd}\r\n.t7-b:hover{background:#1d1d29}\r\n.t7-b.p{background:#9146ff;border-color:#9146ff;color:#fff}\r\n.t7-sst{font-size:11px;color:#aaa;min-height:1.3em}\r\n.t7-sth{cursor:grab;touch-action:none;user-select:none}\r\n.t7-sth:active{cursor:grabbing}\r\n.t7-sw.t7-drag{will-change:transform}";
 
   // src/config.js
   var CACHE_TTL = 60 * 60 * 1e3;
@@ -82,8 +83,22 @@
 
   // src/net.js
   var ALLOWED = ["7tv.io", "cdn.7tv.app", "api.ivr.fi"];
-  var PROXY = "";
   var ROUTES = { "7tv.io": "api", "cdn.7tv.app": "cdn", "api.ivr.fi": "ivr" };
+  var DEFAULT_PROXY = "";
+  var normProxy = (v) => {
+    v = String(v || "").trim().replace(/\/+$/, "");
+    try {
+      const u = new URL(v);
+      return u.protocol === "https:" ? u.origin : "";
+    } catch {
+      return "";
+    }
+  };
+  var proxy = (() => {
+    const v = store.get("t7proxy");
+    return normProxy(typeof v === "string" ? v : DEFAULT_PROXY);
+  })();
+  var proxyDownUntil = 0;
   var urlOk = (url) => {
     try {
       const u = new URL(url);
@@ -94,15 +109,14 @@
   };
   function viaProxy(url) {
     const u = new URL(url);
-    const k = ROUTES[u.hostname];
-    return PROXY && k ? `${PROXY}/${k}${u.pathname}${u.search}` : url;
+    return `${proxy}/${ROUTES[u.hostname]}${u.pathname}${u.search}`;
   }
-  var gmOnce = (url, responseType) => new Promise((resolve, reject) => {
+  var gmOnce = (url, responseType, timeout) => new Promise((resolve, reject) => {
     GM_xmlhttpRequest({
       method: "GET",
       url,
       responseType,
-      timeout: 15e3,
+      timeout,
       onload: (r) => r.status >= 200 && r.status < 300 ? resolve(r) : reject(new Error(url + " -> " + r.status)),
       onerror: reject,
       ontimeout: reject
@@ -110,16 +124,14 @@
   });
   var gm = async (url, responseType) => {
     if (!urlOk(url)) throw new Error("url not allowed");
-    const tries = PROXY ? [viaProxy(url), url] : [url];
-    let last;
-    for (const t of tries) {
+    if (proxy && Date.now() > proxyDownUntil) {
       try {
-        return await gmOnce(t, responseType);
-      } catch (e) {
-        last = e;
+        return await gmOnce(viaProxy(url), responseType, 6e3);
+      } catch {
+        proxyDownUntil = Date.now() + 12e4;
       }
     }
-    throw last;
+    return gmOnce(url, responseType, 15e3);
   };
   var getJson = async (url) => JSON.parse((await gm(url)).responseText);
   var getBuf = async (url) => {
@@ -391,6 +403,73 @@
   var applySize = () => document.documentElement.style.setProperty("--t7-h", SIZES[S2.size].h);
 
   // src/settings.js
+  var SOFF = (() => {
+    const p = store.get("t7spos");
+    return p && Number.isFinite(p.x) && Number.isFinite(p.y) ? p : { x: 0, y: 0 };
+  })();
+  function setupDrag(el) {
+    const win = el.querySelector(".t7-sw");
+    const hd = el.querySelector(".t7-sth");
+    const put = () => {
+      win.style.transform = SOFF.x || SOFF.y ? `translate(${SOFF.x}px, ${SOFF.y}px)` : "";
+    };
+    put();
+    const r0 = win.getBoundingClientRect();
+    let fx = 0, fy = 0;
+    if (r0.left < 8) fx = 8 - r0.left;
+    else if (r0.right > innerWidth - 8) fx = innerWidth - 8 - r0.right;
+    if (r0.top < 8) fy = 8 - r0.top;
+    else if (r0.bottom > innerHeight - 8) fy = innerHeight - 8 - r0.bottom;
+    if (fx || fy) {
+      SOFF = { x: SOFF.x + fx, y: SOFF.y + fy };
+      put();
+    }
+    hd.addEventListener("pointerdown", (e) => {
+      if (e.target.closest("button") || e.button > 0) return;
+      const r = win.getBoundingClientRect();
+      const sx = e.clientX, sy = e.clientY, pid = e.pointerId, ox = SOFF.x, oy = SOFF.y;
+      let started = false, nx = ox, ny = oy, raf = 0;
+      const apply = () => {
+        raf = 0;
+        SOFF = { x: nx, y: ny };
+        put();
+      };
+      const move = (ev) => {
+        if (!started) {
+          if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 4) return;
+          started = true;
+          win.classList.add("t7-drag");
+          try {
+            hd.setPointerCapture(pid);
+          } catch {
+          }
+        }
+        nx = ox + clamp(ev.clientX - sx, 8 - r.left, innerWidth - r.width - 8 - r.left);
+        ny = oy + clamp(ev.clientY - sy, 8 - r.top, innerHeight - r.height - 8 - r.top);
+        if (!raf) raf = requestAnimationFrame(apply);
+      };
+      const up = () => {
+        hd.removeEventListener("pointermove", move);
+        hd.removeEventListener("pointerup", up);
+        hd.removeEventListener("pointercancel", up);
+        if (raf) cancelAnimationFrame(raf);
+        if (!started) return;
+        win.classList.remove("t7-drag");
+        SOFF = { x: nx, y: ny };
+        put();
+        store.set("t7spos", SOFF);
+      };
+      hd.addEventListener("pointermove", move);
+      hd.addEventListener("pointerup", up);
+      hd.addEventListener("pointercancel", up);
+    });
+    hd.addEventListener("dblclick", (e) => {
+      if (e.target.closest("button")) return;
+      SOFF = { x: 0, y: 0 };
+      store.set("t7spos", null);
+      put();
+    });
+  }
   function updateSetStatus(t) {
     const e = st.set && st.set.querySelector(".t7-sst");
     if (e) e.textContent = t;
@@ -497,10 +576,15 @@
         store.set("t7pos", null);
         store.set("t7win", null);
         st.hooks.place();
+        SOFF = { x: 0, y: 0 };
+        store.set("t7spos", null);
+        el.querySelector(".t7-sw").style.transform = "";
         setStatus("\u041F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u043E\u043A\u043E\u0448\u043A\u0430 \u0441\u0431\u0440\u043E\u0448\u0435\u043D\u043E");
       }
     });
     document.body.appendChild(el);
+    const px = el.querySelector(".t7-px"), pxs = el.querySelector(".t7-pxs");
+    setupDrag(el);
     updateSetStatus(st.status);
     document.addEventListener("keydown", onKey, true);
   }
@@ -662,7 +746,7 @@
     document.removeEventListener("keydown", onKey2, true);
     removeEventListener("resize", place);
   }
-  function setupDrag(pop) {
+  function setupDrag2(pop) {
     const hd = pop.querySelector(".t7-h");
     hd.addEventListener("pointerdown", (e) => {
       if (e.target.closest("button") || e.button > 0) return;
@@ -779,7 +863,7 @@
         <div class="t7-gr"></div>
         <div class="t7-rs" title="\u041F\u043E\u0442\u044F\u043D\u0438, \u0447\u0442\u043E\u0431\u044B \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0440\u0430\u0437\u043C\u0435\u0440"></div>`;
     ["keydown", "keyup", "keypress"].forEach((t) => pop.addEventListener(t, (e) => e.stopPropagation()));
-    setupDrag(pop);
+    setupDrag2(pop);
     setupResize(pop);
     pop.querySelector(".t7-x").onclick = () => {
       const a = st.anchor;

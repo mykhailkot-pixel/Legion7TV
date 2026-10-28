@@ -5,6 +5,67 @@ import { parseNick } from './util.js';
 import { reload, setStatus } from './emotes.js';
 import { rescanAll, applySize } from './chat.js';
 import { clearImgs } from './imgcache.js';
+import { clamp } from './util.js';
+
+// смещение окна настроек от центра экрана
+let SOFF = (() => {
+    const p = store.get('t7spos');
+    return p && Number.isFinite(p.x) && Number.isFinite(p.y) ? p : { x: 0, y: 0 };
+})();
+
+function setupDrag(el) {
+    const win = el.querySelector('.t7-sw');
+    const hd = el.querySelector('.t7-sth');
+    const put = () => { win.style.transform = (SOFF.x || SOFF.y) ? `translate(${SOFF.x}px, ${SOFF.y}px)` : ''; };
+
+    // если экран стал меньше, чем при прошлом открытии, возвращаем окно в видимую область
+    put();
+    const r0 = win.getBoundingClientRect();
+    let fx = 0, fy = 0;
+    if (r0.left < 8) fx = 8 - r0.left; else if (r0.right > innerWidth - 8) fx = innerWidth - 8 - r0.right;
+    if (r0.top < 8) fy = 8 - r0.top; else if (r0.bottom > innerHeight - 8) fy = innerHeight - 8 - r0.bottom;
+    if (fx || fy) { SOFF = { x: SOFF.x + fx, y: SOFF.y + fy }; put(); }
+
+    hd.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('button') || e.button > 0) return;   // кнопка × остаётся кнопкой
+        const r = win.getBoundingClientRect();
+        const sx = e.clientX, sy = e.clientY, pid = e.pointerId, ox = SOFF.x, oy = SOFF.y;
+        let started = false, nx = ox, ny = oy, raf = 0;
+        const apply = () => { raf = 0; SOFF = { x: nx, y: ny }; put(); };
+        const move = (ev) => {
+            if (!started) {
+                if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 4) return;
+                started = true;
+                win.classList.add('t7-drag');
+                try { hd.setPointerCapture(pid); } catch {}
+            }
+            nx = ox + clamp(ev.clientX - sx, 8 - r.left, innerWidth - r.width - 8 - r.left);
+            ny = oy + clamp(ev.clientY - sy, 8 - r.top, innerHeight - r.height - 8 - r.top);
+            if (!raf) raf = requestAnimationFrame(apply);
+        };
+        const up = () => {
+            hd.removeEventListener('pointermove', move);
+            hd.removeEventListener('pointerup', up);
+            hd.removeEventListener('pointercancel', up);
+            if (raf) cancelAnimationFrame(raf);
+            if (!started) return;
+            win.classList.remove('t7-drag');
+            SOFF = { x: nx, y: ny };
+            put();
+            store.set('t7spos', SOFF);
+        };
+        hd.addEventListener('pointermove', move);
+        hd.addEventListener('pointerup', up);
+        hd.addEventListener('pointercancel', up);
+    });
+
+    hd.addEventListener('dblclick', (e) => {
+        if (e.target.closest('button')) return;
+        SOFF = { x: 0, y: 0 };
+        store.set('t7spos', null);
+        put();
+    });
+}
 
 export function updateSetStatus(t) {
     const e = st.set && st.set.querySelector('.t7-sst');
@@ -116,11 +177,16 @@ export function openSettings() {
             store.set('t7pos', null);
             store.set('t7win', null);
             st.hooks.place();
+            SOFF = { x: 0, y: 0 };
+            store.set('t7spos', null);
+            el.querySelector('.t7-sw').style.transform = '';
             setStatus('Положение окошка сброшено');
         }
     });
 
     document.body.appendChild(el);
+    const px = el.querySelector('.t7-px'), pxs = el.querySelector('.t7-pxs');
+    setupDrag(el);
     updateSetStatus(st.status);
     document.addEventListener('keydown', onKey, true);
 }
