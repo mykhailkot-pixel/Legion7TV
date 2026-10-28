@@ -1,7 +1,8 @@
 <div align="center", style="font-weight: bold;">
-  **7TV для чата Multidonate Play**
+  7TV для чата Multidonate Play
 </div>  
 Скрипт для Tampermonkey: добавляет в чат игры эмоуты 7TV. Названия эмоутов в сообщениях заменяются картинками, а справа от кнопки отправки появляется кнопка 7TV.
+
 
 **Установка**
 Установи расширение Tampermonkey (Chrome, Edge, Firefox, Opera).
