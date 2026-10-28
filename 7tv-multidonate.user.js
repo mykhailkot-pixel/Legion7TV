@@ -11,6 +11,12 @@
 // @connect      cdn.7tv.app
 // @connect      api.ivr.fi
 // @run-at       document-idle
+// @author       ProCto_Fliy
+// @icon         https://cdn.7tv.app/emote/01F71VQYHR000D3ZZ6Q11NR7TV/2x.webp
+// @homepageURL  https://github.com/mykhailkot-pixel/Legion7TV
+// @updateURL    https://raw.githubusercontent.com/mykhailkot-pixel/Legion7TV/raw/refs/heads/main/7tv-multidonate.user.js
+// @downloadURL  https://raw.githubusercontent.com/mykhailkot-pixel/Legion7TV/raw/refs/heads/main/7tv-multidonate.user.js
+// @license      MIT
 // ==/UserScript==
 
 (function () {
