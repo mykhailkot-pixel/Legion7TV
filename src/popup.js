@@ -1,10 +1,9 @@
-import { SIZES, pageChan } from './config.js';
-import { S, EM, st } from './state.js';
+import { EM, st } from './state.js';
 import { store } from './store.js';
-import { clamp, parseNick } from './util.js';
+import { clamp } from './util.js';
 import { fetchImg } from './imgcache.js';
-import { reload, urlFor, setStatus } from './emotes.js';
-import { rescanAll, applySize } from './chat.js';
+import { urlFor } from './emotes.js';
+import { openSettings } from './settings.js';
 
 export function updateStatus(t) {
     const e = st.pop && st.pop.querySelector('.t7-st');
@@ -113,7 +112,7 @@ function minH(pop) {
 }
 
 /* ---------- положение и размер окошка ---------- */
-function place() {
+export function place() {
     const pop = st.pop, anchor = st.anchor;
     if (!pop || !anchor || !anchor.isConnected) return;
     pop.style.transform = '';
@@ -150,9 +149,11 @@ function place() {
 
 /* ---------- закрытие ---------- */
 function onOutside(e) {
+    if (e.target.closest && e.target.closest('.t7-set')) return;   // клики в настройках не закрывают окошко
     if (st.pop && !st.pop.contains(e.target) && !(st.anchor && st.anchor.contains(e.target))) closePop();
 }
 function onKey(e) {
+    if (st.set) return;   // Esc сначала закрывает настройки
     if (e.key === 'Escape' && st.pop) {
         e.stopPropagation();
         const a = st.anchor;
@@ -180,22 +181,30 @@ function markSize(pop) {
 function setupDrag(pop) {
     const hd = pop.querySelector('.t7-h');
     hd.addEventListener('pointerdown', (e) => {
-        if (e.target.closest('.t7-x') || e.button > 0) return;
+        if (e.target.closest('button') || e.button > 0) return;   // кнопки в заголовке остаются кнопками
         const r = pop.getBoundingClientRect();
-        const sx = e.clientX, sy = e.clientY;
-        // фиксируем текущее положение и высоту: во время drag раскладка не пересчитывается
-        pop.style.left = r.left + 'px';
-        pop.style.top = r.top + 'px';
-        pop.style.bottom = 'auto';
-        pop.style.maxHeight = r.height + 'px';
-        pop.classList.add('t7-drag');
-        let nx = r.left, ny = r.top, raf = 0;
-        try { hd.setPointerCapture(e.pointerId); } catch {}
+        const sx = e.clientX, sy = e.clientY, pid = e.pointerId;
+        let started = false, nx = r.left, ny = r.top, raf = 0;
+
         const apply = () => {
             raf = 0;
             pop.style.transform = `translate(${nx - r.left}px, ${ny - r.top}px)`;
         };
+        const start = () => {
+            started = true;
+            // фиксируем текущее положение и высоту: во время drag раскладка не пересчитывается
+            pop.style.left = r.left + 'px';
+            pop.style.top = r.top + 'px';
+            pop.style.bottom = 'auto';
+            pop.style.maxHeight = r.height + 'px';
+            pop.classList.add('t7-drag');
+            try { hd.setPointerCapture(pid); } catch {}
+        };
         const move = (ev) => {
+            if (!started) {
+                if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 4) return;   // ещё просто клик
+                start();
+            }
             nx = clamp(r.left + ev.clientX - sx, 8, innerWidth - r.width - 8);
             ny = clamp(r.top + ev.clientY - sy, 8, innerHeight - 120);
             if (!raf) raf = requestAnimationFrame(apply);
@@ -205,7 +214,7 @@ function setupDrag(pop) {
             hd.removeEventListener('pointerup', up);
             hd.removeEventListener('pointercancel', up);
             if (raf) cancelAnimationFrame(raf);
-            if (st.pop !== pop) return;
+            if (!started || st.pop !== pop) return;
             pop.classList.remove('t7-drag');
             st.pos = { x: nx, y: ny };
             store.set('t7pos', st.pos);
@@ -217,7 +226,7 @@ function setupDrag(pop) {
     });
     // двойной клик по заголовку - вернуть позицию и размер по умолчанию
     hd.addEventListener('dblclick', (e) => {
-        if (e.target.closest('.t7-x')) return;
+        if (e.target.closest('button')) return;
         st.pos = null;
         st.win = null;
         store.set('t7pos', null);
@@ -282,50 +291,21 @@ function openPop(btn) {
     pop.setAttribute('role', 'dialog');
     pop.setAttribute('aria-label', 'Эмоуты 7TV');
     pop.innerHTML = `
-        <div class="t7-h"><b>7TV</b><button type="button" class="t7-x" aria-label="Закрыть">×</button></div>
-        <form class="t7-nf">
-            <label>Ник стримера на Twitch<input type="text" class="t7-nick" maxlength="80" autocomplete="off" spellcheck="false"></label>
-            <button type="submit">Загрузить</button>
-        </form>
-        <div class="t7-st" role="status"></div>
-        <div class="t7-sz"><span>Размер</span><div class="t7-szb">${Object.keys(SIZES).map((k) => `<button type="button" data-sz="${k}" aria-pressed="false">${SIZES[k].label}</button>`).join('')}</div></div>
+        <div class="t7-h"><b>7TV</b><span class="t7-hb"><button type="button" class="t7-g" aria-label="Настройки" title="Настройки">⚙</button><button type="button" class="t7-x" aria-label="Закрыть">×</button></span></div>
         <input type="search" class="t7-q" placeholder="Поиск эмоутов" autocomplete="off" aria-label="Поиск эмоутов">
         <div class="t7-gr"></div>
         <div class="t7-rs" title="Потяни, чтобы изменить размер"></div>`;
-    // игра не должна ловить нажатия клавиш, пока печатаем в окошке
     ['keydown', 'keyup', 'keypress'].forEach((t) => pop.addEventListener(t, (e) => e.stopPropagation()));
 
     setupDrag(pop);
     setupResize(pop);
-
-    const nickInp = pop.querySelector('.t7-nick');
-    nickInp.value = S.nick;
-    nickInp.placeholder = pageChan || 'например, zakvielchannel';
 
     pop.querySelector('.t7-x').onclick = () => {
         const a = st.anchor;
         closePop();
         if (a) a.focus({ preventScroll: true });
     };
-    pop.querySelector('.t7-nf').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const raw = nickInp.value.trim();
-        const n = raw ? parseNick(raw) : pageChan;
-        if (raw && !n) { setStatus('Неверный ник: нужны латинские буквы, цифры и _'); return; }
-        S.nick = n;
-        nickInp.value = n;
-        store.set('t7nick:' + pageChan, n);
-        reload(true);
-    });
-    pop.querySelector('.t7-szb').addEventListener('click', (e) => {
-        const b = e.target.closest('[data-sz]');
-        if (!b || b.dataset.sz === S.size) return;
-        S.size = b.dataset.sz;
-        store.set('t7size', S.size);
-        applySize();
-        markSize(pop);
-        rescanAll();
-    });
+    pop.querySelector('.t7-g').onclick = openSettings;
     pop.querySelector('.t7-q').addEventListener('input', filterGrid);
 
     const gr = pop.querySelector('.t7-gr');
@@ -336,8 +316,6 @@ function openPop(btn) {
     st.io = new IntersectionObserver(onVis, { root: gr, rootMargin: '120px' });
 
     document.body.appendChild(pop);
-    markSize(pop);
-    updateStatus(st.status);
     renderGrid();
     place();
     document.addEventListener('pointerdown', onOutside, true);

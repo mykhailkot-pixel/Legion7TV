@@ -21,7 +21,7 @@
 
 (() => {
   // src/styles.css
-  var styles_default = ".t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}\r\n.t7-e{height:var(--t7-h,1.9em);width:auto;min-width:var(--t7-h,1.9em);vertical-align:middle;display:inline-block}\r\n.t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}\r\n.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}\r\n\r\n.t7-btn{flex:none;margin-left:4px;padding:0 8px;min-height:28px;border:1px solid rgba(255,255,255,.25);\r\n    border-radius:6px;background:rgba(145,70,255,.9);color:#fff;font:700 11px/1 system-ui,sans-serif;cursor:pointer}\r\n.t7-btn:hover{background:rgb(165,100,255)}\r\n\r\n.t7-pop{position:fixed;z-index:2147483000;display:flex;flex-direction:column;gap:8px;box-sizing:border-box;\r\n    padding:10px;background:#1b1b24;color:#eee;border:1px solid rgba(255,255,255,.18);border-radius:10px;\r\n    box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.3 system-ui,sans-serif}\r\n.t7-pop *{box-sizing:border-box}\r\n.t7-pop [hidden]{display:none!important}\r\n.t7-pop button{font:inherit;cursor:pointer}\r\n.t7-pop.t7-drag{will-change:transform;transition:none}\r\n.t7-pop.t7-drag .t7-gr{pointer-events:none}\r\n\r\n.t7-h{display:flex;justify-content:space-between;align-items:center;font-size:15px;cursor:grab;touch-action:none;user-select:none}\r\n.t7-h:active{cursor:grabbing}\r\n.t7-x{background:none;border:0;color:#ccc;font-size:20px;line-height:1;padding:0 4px}\r\n.t7-gr{flex:1;min-height:156px;overflow-y:auto;overscroll-behavior:contain}\r\n\r\n.t7-nf{display:flex;gap:6px;align-items:flex-end}\r\n.t7-nf label{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#aaa}\r\n.t7-pop input[type=text],.t7-pop input[type=search]{width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);\r\n    background:#0f0f15;color:#fff;font:13px system-ui,sans-serif}\r\n.t7-nf button{padding:6px 10px;border-radius:6px;border:0;background:#9146ff;color:#fff}\r\n.t7-st{font-size:11px;color:#aaa;min-height:1.3em}\r\n\r\n.t7-sz{display:flex;align-items:center;gap:8px;font-size:12px;color:#aaa}\r\n.t7-szb{display:flex;gap:4px}\r\n.t7-szb button{min-width:34px;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:#0f0f15;color:#ddd}\r\n.t7-szb button[aria-pressed=true]{background:#9146ff;border-color:#9146ff;color:#fff}\r\n\r\n.t7-gr{flex:1;min-height:140px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-sh{margin:6px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#aaa}\r\n.t7-gw{display:flex;flex-wrap:wrap;gap:2px}\r\n.t7-it{width:40px;height:40px;padding:3px;border:0;border-radius:6px;background:transparent;display:inline-flex;align-items:center;justify-content:center}\r\n.t7-it:hover,.t7-it:focus-visible{background:rgba(255,255,255,.14)}\r\n.t7-it img{max-width:100%;max-height:100%;object-fit:contain}\r\n.t7-emp{padding:16px 4px;color:#aaa;text-align:center}\r\n\r\n.t7-rs{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;\r\n    border-radius:0 0 10px 0;\r\n    background:linear-gradient(135deg,transparent 0 55%,#888 55% 62%,transparent 62% 72%,#888 72% 79%,transparent 79%)}";
+  var styles_default = ".t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}\r\n.t7-e{height:var(--t7-h,1.9em);width:auto;min-width:var(--t7-h,1.9em);vertical-align:middle;display:inline-block}\r\n.t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}\r\n.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}\r\n\r\nform.cy-chat-f .t7-btn{\r\n    flex:none;align-self:stretch;margin:0 0 0 4px;padding:0 8px;min-height:28px;height:auto;width:auto;\r\n    box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f.t7-btn:hover{background:rgb(165,100,255)}\r\n\r\n.t7-pop{position:fixed;z-index:2147483000;display:flex;flex-direction:column;gap:8px;box-sizing:border-box;\r\n    padding:10px;background:#1b1b24;color:#eee;border:1px solid rgba(255,255,255,.18);border-radius:10px;\r\n    box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.3 system-ui,sans-serif}\r\n.t7-pop *{box-sizing:border-box}\r\n.t7-pop [hidden]{display:none!important}\r\n.t7-pop button{font:inherit;cursor:pointer}\r\n.t7-pop.t7-drag{will-change:transform;transition:none}\r\n.t7-pop.t7-drag .t7-gr{pointer-events:none}\r\n\r\n.t7-h{display:flex;justify-content:space-between;align-items:center;font-size:15px;cursor:grab;touch-action:none;user-select:none}\r\n.t7-h:active{cursor:grabbing}\r\n.t7-x{background:none;border:0;color:#ccc;font-size:20px;line-height:1;padding:0 4px}\r\n.t7-gr{flex:1;min-height:156px;overflow-y:auto;overscroll-behavior:contain}\r\n\r\n.t7-nf{display:flex;gap:6px;align-items:flex-end}\r\n.t7-nf label{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#aaa}\r\n.t7-pop input[type=text],.t7-pop input[type=search]{width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);\r\n    background:#0f0f15;color:#fff;font:13px system-ui,sans-serif}\r\n.t7-nf button{padding:6px 10px;border-radius:6px;border:0;background:#9146ff;color:#fff}\r\n.t7-st{font-size:11px;color:#aaa;min-height:1.3em}\r\n\r\n.t7-sz{display:flex;align-items:center;gap:8px;font-size:12px;color:#aaa}\r\n.t7-szb{display:flex;gap:4px}\r\n.t7-szb button{min-width:34px;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:#0f0f15;color:#ddd}\r\n.t7-szb button[aria-pressed=true]{background:#9146ff;border-color:#9146ff;color:#fff}\r\n\r\n.t7-gr{flex:1;min-height:140px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-sh{margin:6px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#aaa}\r\n.t7-gw{display:flex;flex-wrap:wrap;gap:2px}\r\n.t7-it{width:40px;height:40px;padding:3px;border:0;border-radius:6px;background:transparent;display:inline-flex;align-items:center;justify-content:center}\r\n.t7-it:hover,.t7-it:focus-visible{background:rgba(255,255,255,.14)}\r\n.t7-it img{max-width:100%;max-height:100%;object-fit:contain}\r\n.t7-emp{padding:16px 4px;color:#aaa;text-align:center}\r\n\r\n.t7-rs{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;\r\n    border-radius:0 0 10px 0;\r\n    background:linear-gradient(135deg,transparent 0 55%,#888 55% 62%,transparent 62% 72%,#888 72% 79%,transparent 79%)}\r\n\r\n.t7-hb{display:flex;align-items:center;gap:2px}\r\n.t7-g{background:none;border:0;color:#ccc;font-size:16px;line-height:1;padding:2px 5px;border-radius:6px}\r\n.t7-g:hover,.t7-x:hover{background:rgba(255,255,255,.14);color:#fff}\r\n\r\n.t7-set{position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;\r\n    padding:12px;background:rgba(0,0,0,.5);font:13px/1.3 system-ui,sans-serif}\r\n.t7-set *{box-sizing:border-box}\r\n.t7-sw{width:380px;max-width:100%;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:16px;\r\n    padding:14px;background:#1b1b24;color:#eee;border:1px solid rgba(255,255,255,.18);border-radius:12px;\r\n    box-shadow:0 12px 40px rgba(0,0,0,.6)}\r\n.t7-sw button{font:inherit;cursor:pointer}\r\n.t7-sth{display:flex;justify-content:space-between;align-items:center;font-size:15px}\r\n.t7-sec{display:flex;flex-direction:column;gap:6px}\r\n.t7-sec>h4{margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#aaa}\r\n.t7-row{display:flex;gap:6px;align-items:flex-end}\r\n.t7-wrap{flex-wrap:wrap}\r\n.t7-fl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#aaa}\r\n.t7-sw input[type=text]{width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);\r\n    background:#0f0f15;color:#fff;font:13px system-ui,sans-serif}\r\n.t7-chk{display:flex;gap:8px;align-items:center;cursor:pointer}\r\n.t7-b{padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:#0f0f15;color:#ddd}\r\n.t7-b:hover{background:#1d1d29}\r\n.t7-b.p{background:#9146ff;border-color:#9146ff;color:#fff}\r\n.t7-sst{font-size:11px;color:#aaa;min-height:1.3em}";
 
   // src/config.js
   var CACHE_TTL = 60 * 60 * 1e3;
@@ -37,7 +37,7 @@
   })();
 
   // src/state.js
-  var S = { nick: pageChan, size: "m" };
+  var S2 = { nick: pageChan, size: "m", on: true };
   var EM = {};
   var st = {
     pos: null,
@@ -57,6 +57,8 @@
       status() {
       },
       emotes() {
+      },
+      place() {
       }
     }
   };
@@ -203,7 +205,7 @@
   async function reload(force) {
     const my = ++st.loadToken;
     if (force) setStatus("\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430\u2026");
-    const { map, msg, stale } = await loadEmotes(S.nick, force);
+    const { map, msg, stale } = await loadEmotes(S2.nick, force);
     if (my !== st.loadToken) return;
     for (const k of Object.keys(EM)) delete EM[k];
     Object.assign(EM, map);
@@ -252,7 +254,8 @@
     };
     return {
       get: (k) => tx("readonly", (s) => s.get(k)),
-      set: (k, v) => tx("readwrite", (s) => s.put(v, k))
+      set: (k, v) => tx("readwrite", (s) => s.put(v, k)),
+      clear: () => tx("readwrite", (s) => s.clear())
     };
   })();
   var Q = { hi: [], lo: [], run: 0, max: 8 };
@@ -286,6 +289,10 @@
     imgCache.set(url, p);
     return p;
   }
+  async function clearImgs() {
+    imgCache.clear();
+    await DB.clear();
+  }
 
   // src/chat.js
   document.addEventListener("scroll", (e) => {
@@ -308,7 +315,7 @@
     img.alt = name;
     img.title = name;
     img.addEventListener("load", () => stickFrom(img));
-    fetchImg(urlFor(em, SIZES[S.size].n), true).then(
+    fetchImg(urlFor(em, SIZES[S2.size].n), true).then(
       (d) => {
         img.src = d;
       },
@@ -319,10 +326,12 @@
     );
     return img;
   }
+  var NONE = {};
   function processSpan(sp) {
+    const act = S2.on ? EM : NONE;
     const src = sp.dataset.t7o != null ? sp.dataset.t7o : sp.textContent;
     const parts = src.split(/(\s+)/);
-    if (!parts.some((p) => has(EM, p))) {
+    if (!parts.some((p) => has(act, p))) {
       if (sp.dataset.t7o != null) {
         sp.textContent = src;
         delete sp.dataset.t7o;
@@ -379,13 +388,124 @@
     });
     scan();
   }
-  var applySize = () => document.documentElement.style.setProperty("--t7-h", SIZES[S.size].h);
+  var applySize = () => document.documentElement.style.setProperty("--t7-h", SIZES[S2.size].h);
 
-  // src/popup.js
-  function updateStatus(t) {
-    const e = st.pop && st.pop.querySelector(".t7-st");
+  // src/settings.js
+  function updateSetStatus(t) {
+    const e = st.set && st.set.querySelector(".t7-sst");
     if (e) e.textContent = t;
   }
+  function onKey(e) {
+    if (e.key === "Escape" && st.set) {
+      e.stopPropagation();
+      closeSettings();
+    }
+  }
+  function closeSettings() {
+    if (!st.set) return;
+    st.set.remove();
+    st.set = null;
+    document.removeEventListener("keydown", onKey, true);
+  }
+  function openSettings() {
+    if (st.set) return;
+    const el = document.createElement("div");
+    st.set = el;
+    el.className = "t7-set";
+    el.innerHTML = `
+        <div class="t7-sw" role="dialog" aria-modal="true" aria-label="\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 7TV">
+            <div class="t7-sth"><b>\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 7TV</b><button type="button" class="t7-x" aria-label="\u0417\u0430\u043A\u0440\u044B\u0442\u044C">\xD7</button></div>
+
+            <div class="t7-sec">
+                <h4>\u042D\u043C\u043E\u0443\u0442\u044B</h4>
+                <label class="t7-chk"><input type="checkbox" class="t7-on"> \u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u044D\u043C\u043E\u0443\u0442\u044B 7TV \u0432 \u0447\u0430\u0442\u0435</label>
+            </div>
+
+            <div class="t7-sec">
+                <h4>\u041A\u0430\u043D\u0430\u043B</h4>
+                <form class="t7-row">
+                    <label class="t7-fl">\u041D\u0438\u043A \u0441\u0442\u0440\u0438\u043C\u0435\u0440\u0430 \u043D\u0430 Twitch<input type="text" class="t7-nick" maxlength="80" autocomplete="off" spellcheck="false"></label>
+                    <button type="submit" class="t7-b p">\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C</button>
+                </form>
+                <div class="t7-sst" role="status"></div>
+            </div>
+
+            <div class="t7-sec">
+                <h4>\u0420\u0430\u0437\u043C\u0435\u0440 \u044D\u043C\u043E\u0443\u0442\u043E\u0432 \u0432 \u0447\u0430\u0442\u0435</h4>
+                <div class="t7-szb">${Object.keys(SIZES).map((k) => `<button type="button" data-sz="${k}" aria-pressed="false">${SIZES[k].label}</button>`).join("")}</div>
+            </div>
+
+            <div class="t7-sec">
+                <h4>\u0414\u0430\u043D\u043D\u044B\u0435</h4>
+                <div class="t7-row t7-wrap">
+                    <button type="button" class="t7-b" data-act="refresh">\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C \u0441\u043F\u0438\u0441\u043E\u043A</button>
+                    <button type="button" class="t7-b" data-act="cache">\u041E\u0447\u0438\u0441\u0442\u0438\u0442\u044C \u043A\u0435\u0448 \u043A\u0430\u0440\u0442\u0438\u043D\u043E\u043A</button>
+                    <button type="button" class="t7-b" data-act="pos">\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u043E\u043A\u043E\u0448\u043A\u0430</button>
+                </div>
+            </div>
+        </div>`;
+    ["keydown", "keyup", "keypress"].forEach((t) => el.addEventListener(t, (e) => e.stopPropagation()));
+    el.addEventListener("pointerdown", (e) => {
+      if (e.target === el) closeSettings();
+    });
+    el.querySelector(".t7-x").onclick = closeSettings;
+    const on = el.querySelector(".t7-on");
+    on.checked = S2.on;
+    on.addEventListener("change", () => {
+      S2.on = on.checked;
+      store.set("t7on", S2.on);
+      rescanAll();
+    });
+    const nickInp = el.querySelector(".t7-nick");
+    nickInp.value = S2.nick;
+    nickInp.placeholder = pageChan || "\u043D\u0430\u043F\u0440\u0438\u043C\u0435\u0440, zakvielchannel";
+    el.querySelector("form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const raw = nickInp.value.trim();
+      const n = raw ? parseNick(raw) : pageChan;
+      if (raw && !n) {
+        setStatus("\u041D\u0435\u0432\u0435\u0440\u043D\u044B\u0439 \u043D\u0438\u043A: \u043D\u0443\u0436\u043D\u044B \u043B\u0430\u0442\u0438\u043D\u0441\u043A\u0438\u0435 \u0431\u0443\u043A\u0432\u044B, \u0446\u0438\u0444\u0440\u044B \u0438 _");
+        return;
+      }
+      S2.nick = n;
+      nickInp.value = n;
+      store.set("t7nick:" + pageChan, n);
+      reload(true);
+    });
+    const mark = () => el.querySelectorAll("[data-sz]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.sz === S2.size)));
+    mark();
+    el.querySelector(".t7-szb").addEventListener("click", (e) => {
+      const b = e.target.closest("[data-sz]");
+      if (!b || b.dataset.sz === S2.size) return;
+      S2.size = b.dataset.sz;
+      store.set("t7size", S2.size);
+      applySize();
+      mark();
+      rescanAll();
+    });
+    el.addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-act]");
+      if (!b) return;
+      if (b.dataset.act === "refresh") reload(true);
+      else if (b.dataset.act === "cache") {
+        await clearImgs();
+        setStatus("\u041A\u0435\u0448 \u043A\u0430\u0440\u0442\u0438\u043D\u043E\u043A \u043E\u0447\u0438\u0449\u0435\u043D");
+        st.hooks.emotes();
+      } else if (b.dataset.act === "pos") {
+        st.pos = null;
+        st.win = null;
+        store.set("t7pos", null);
+        store.set("t7win", null);
+        st.hooks.place();
+        setStatus("\u041F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u043E\u043A\u043E\u0448\u043A\u0430 \u0441\u0431\u0440\u043E\u0448\u0435\u043D\u043E");
+      }
+    });
+    document.body.appendChild(el);
+    updateSetStatus(st.status);
+    document.addEventListener("keydown", onKey, true);
+  }
+
+  // src/popup.js
   function chatInput() {
     const f = st.anchor && st.anchor.closest("form");
     return f && f.querySelector("input[type=text]");
@@ -520,9 +640,11 @@
     }
   }
   function onOutside(e) {
+    if (e.target.closest && e.target.closest(".t7-set")) return;
     if (st.pop && !st.pop.contains(e.target) && !(st.anchor && st.anchor.contains(e.target))) closePop();
   }
-  function onKey(e) {
+  function onKey2(e) {
+    if (st.set) return;
     if (e.key === "Escape" && st.pop) {
       e.stopPropagation();
       const a = st.anchor;
@@ -537,33 +659,37 @@
     if (st.io) st.io.disconnect();
     st.io = null;
     document.removeEventListener("pointerdown", onOutside, true);
-    document.removeEventListener("keydown", onKey, true);
+    document.removeEventListener("keydown", onKey2, true);
     removeEventListener("resize", place);
-  }
-  function markSize(pop) {
-    pop.querySelectorAll("[data-sz]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.sz === S.size)));
   }
   function setupDrag(pop) {
     const hd = pop.querySelector(".t7-h");
     hd.addEventListener("pointerdown", (e) => {
-      if (e.target.closest(".t7-x") || e.button > 0) return;
+      if (e.target.closest("button") || e.button > 0) return;
       const r = pop.getBoundingClientRect();
-      const sx = e.clientX, sy = e.clientY;
-      pop.style.left = r.left + "px";
-      pop.style.top = r.top + "px";
-      pop.style.bottom = "auto";
-      pop.style.maxHeight = r.height + "px";
-      pop.classList.add("t7-drag");
-      let nx = r.left, ny = r.top, raf = 0;
-      try {
-        hd.setPointerCapture(e.pointerId);
-      } catch {
-      }
+      const sx = e.clientX, sy = e.clientY, pid = e.pointerId;
+      let started = false, nx = r.left, ny = r.top, raf = 0;
       const apply = () => {
         raf = 0;
         pop.style.transform = `translate(${nx - r.left}px, ${ny - r.top}px)`;
       };
+      const start = () => {
+        started = true;
+        pop.style.left = r.left + "px";
+        pop.style.top = r.top + "px";
+        pop.style.bottom = "auto";
+        pop.style.maxHeight = r.height + "px";
+        pop.classList.add("t7-drag");
+        try {
+          hd.setPointerCapture(pid);
+        } catch {
+        }
+      };
       const move = (ev) => {
+        if (!started) {
+          if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 4) return;
+          start();
+        }
         nx = clamp(r.left + ev.clientX - sx, 8, innerWidth - r.width - 8);
         ny = clamp(r.top + ev.clientY - sy, 8, innerHeight - 120);
         if (!raf) raf = requestAnimationFrame(apply);
@@ -573,7 +699,7 @@
         hd.removeEventListener("pointerup", up);
         hd.removeEventListener("pointercancel", up);
         if (raf) cancelAnimationFrame(raf);
-        if (st.pop !== pop) return;
+        if (!started || st.pop !== pop) return;
         pop.classList.remove("t7-drag");
         st.pos = { x: nx, y: ny };
         store.set("t7pos", st.pos);
@@ -584,7 +710,7 @@
       hd.addEventListener("pointercancel", up);
     });
     hd.addEventListener("dblclick", (e) => {
-      if (e.target.closest(".t7-x")) return;
+      if (e.target.closest("button")) return;
       st.pos = null;
       st.win = null;
       store.set("t7pos", null);
@@ -648,49 +774,19 @@
     pop.setAttribute("role", "dialog");
     pop.setAttribute("aria-label", "\u042D\u043C\u043E\u0443\u0442\u044B 7TV");
     pop.innerHTML = `
-        <div class="t7-h"><b>7TV</b><button type="button" class="t7-x" aria-label="\u0417\u0430\u043A\u0440\u044B\u0442\u044C">\xD7</button></div>
-        <form class="t7-nf">
-            <label>\u041D\u0438\u043A \u0441\u0442\u0440\u0438\u043C\u0435\u0440\u0430 \u043D\u0430 Twitch<input type="text" class="t7-nick" maxlength="80" autocomplete="off" spellcheck="false"></label>
-            <button type="submit">\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C</button>
-        </form>
-        <div class="t7-st" role="status"></div>
-        <div class="t7-sz"><span>\u0420\u0430\u0437\u043C\u0435\u0440</span><div class="t7-szb">${Object.keys(SIZES).map((k) => `<button type="button" data-sz="${k}" aria-pressed="false">${SIZES[k].label}</button>`).join("")}</div></div>
+        <div class="t7-h"><b>7TV</b><span class="t7-hb"><button type="button" class="t7-g" aria-label="\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438" title="\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438">\u2699</button><button type="button" class="t7-x" aria-label="\u0417\u0430\u043A\u0440\u044B\u0442\u044C">\xD7</button></span></div>
         <input type="search" class="t7-q" placeholder="\u041F\u043E\u0438\u0441\u043A \u044D\u043C\u043E\u0443\u0442\u043E\u0432" autocomplete="off" aria-label="\u041F\u043E\u0438\u0441\u043A \u044D\u043C\u043E\u0443\u0442\u043E\u0432">
         <div class="t7-gr"></div>
         <div class="t7-rs" title="\u041F\u043E\u0442\u044F\u043D\u0438, \u0447\u0442\u043E\u0431\u044B \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0440\u0430\u0437\u043C\u0435\u0440"></div>`;
     ["keydown", "keyup", "keypress"].forEach((t) => pop.addEventListener(t, (e) => e.stopPropagation()));
     setupDrag(pop);
     setupResize(pop);
-    const nickInp = pop.querySelector(".t7-nick");
-    nickInp.value = S.nick;
-    nickInp.placeholder = pageChan || "\u043D\u0430\u043F\u0440\u0438\u043C\u0435\u0440, zakvielchannel";
     pop.querySelector(".t7-x").onclick = () => {
       const a = st.anchor;
       closePop();
       if (a) a.focus({ preventScroll: true });
     };
-    pop.querySelector(".t7-nf").addEventListener("submit", (e) => {
-      e.preventDefault();
-      const raw = nickInp.value.trim();
-      const n = raw ? parseNick(raw) : pageChan;
-      if (raw && !n) {
-        setStatus("\u041D\u0435\u0432\u0435\u0440\u043D\u044B\u0439 \u043D\u0438\u043A: \u043D\u0443\u0436\u043D\u044B \u043B\u0430\u0442\u0438\u043D\u0441\u043A\u0438\u0435 \u0431\u0443\u043A\u0432\u044B, \u0446\u0438\u0444\u0440\u044B \u0438 _");
-        return;
-      }
-      S.nick = n;
-      nickInp.value = n;
-      store.set("t7nick:" + pageChan, n);
-      reload(true);
-    });
-    pop.querySelector(".t7-szb").addEventListener("click", (e) => {
-      const b = e.target.closest("[data-sz]");
-      if (!b || b.dataset.sz === S.size) return;
-      S.size = b.dataset.sz;
-      store.set("t7size", S.size);
-      applySize();
-      markSize(pop);
-      rescanAll();
-    });
+    pop.querySelector(".t7-g").onclick = openSettings;
     pop.querySelector(".t7-q").addEventListener("input", filterGrid);
     const gr = pop.querySelector(".t7-gr");
     gr.addEventListener("click", (e) => {
@@ -699,12 +795,10 @@
     });
     st.io = new IntersectionObserver(onVis, { root: gr, rootMargin: "120px" });
     document.body.appendChild(pop);
-    markSize(pop);
-    updateStatus(st.status);
     renderGrid();
     place();
     document.addEventListener("pointerdown", onOutside, true);
-    document.addEventListener("keydown", onKey, true);
+    document.addEventListener("keydown", onKey2, true);
     addEventListener("resize", place);
   }
   function togglePop(btn) {
@@ -744,14 +838,20 @@
     style.textContent = styles_default;
     document.head.appendChild(style);
     const sz = store.get("t7size");
-    if (SIZES[sz]) S.size = sz;
-    S.nick = store.get("t7nick:" + pageChan) || pageChan;
+    if (SIZES[sz]) S2.size = sz;
+    S2.nick = store.get("t7nick:" + pageChan) || pageChan;
     const p = store.get("t7pos");
     if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) st.pos = p;
     const w = store.get("t7win");
     if (w && Number.isFinite(w.w) && Number.isFinite(w.h)) st.win = w;
     applySize();
-    st.hooks.status = updateStatus;
+    if (store.get("t7on") === false) S2.on = false;
+    st.hooks.status = updateSetStatus;
+    st.hooks.place = place;
+    st.hooks.emotes = () => {
+      rescanAll();
+      renderGrid();
+    };
     st.hooks.emotes = () => {
       rescanAll();
       renderGrid();

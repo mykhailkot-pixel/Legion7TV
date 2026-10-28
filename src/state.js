@@ -1,7 +1,7 @@
 import { pageChan } from './config.js';
 
 // настройки
-export const S = { nick: pageChan, size: 'm' };
+export const S = { nick: pageChan, size: 'm', on: true };
 
 // имя эмоута -> { base, f:[файлы], zw, g }
 export const EM = {};
@@ -17,6 +17,7 @@ export const st = {
     loadToken: 0,
     hooks: {          // подключаются в main.js (чтобы модули не импортировали друг друга по кругу)
         status() {},
-        emotes() {}
+        emotes() {},
+        place()  {} 
     }
 };

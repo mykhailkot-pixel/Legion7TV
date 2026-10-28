@@ -37,10 +37,13 @@ function makeImg(name, em, cls) {
     return img;
 }
 
+const NONE = {};
+
 function processSpan(sp) {
+    const act = S.on ? EM : NONE;   // эмоуты выключены - возвращаем обычный текст
     const src = sp.dataset.t7o != null ? sp.dataset.t7o : sp.textContent;
     const parts = src.split(/(\s+)/);
-    if (!parts.some((p) => has(EM, p))) {
+    if (!parts.some((p) => has(act, p))) {
         if (sp.dataset.t7o != null) { sp.textContent = src; delete sp.dataset.t7o; }
         return;
     }

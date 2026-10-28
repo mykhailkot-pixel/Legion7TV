@@ -25,7 +25,8 @@ const DB = (() => {
     };
     return {
         get: (k) => tx('readonly', (s) => s.get(k)),
-        set: (k, v) => tx('readwrite', (s) => s.put(v, k))
+        set: (k, v) => tx('readwrite', (s) => s.put(v, k)),
+        clear: () => tx('readwrite', (s) => s.clear())
     };
 })();
 
@@ -56,4 +57,9 @@ export function fetchImg(url, hi) {
     p.catch(() => imgCache.delete(url));
     imgCache.set(url, p);
     return p;
+}
+
+export async function clearImgs() {
+    imgCache.clear();
+    await DB.clear();
 }

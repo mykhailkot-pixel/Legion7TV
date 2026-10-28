@@ -4,8 +4,10 @@ import { S, st } from './state.js';
 import { store } from './store.js';
 import { reload } from './emotes.js';
 import { scan, rescanAll, applySize } from './chat.js';
-import { updateStatus, renderGrid } from './popup.js';
+import { renderGrid, place } from './popup.js';
+import { updateSetStatus } from './settings.js';
 import { ensureButtons } from './buttons.js';
+
 
 function init() {
     const style = document.createElement('style');
@@ -21,9 +23,12 @@ function init() {
     const w = store.get('t7win');
     if (w && Number.isFinite(w.w) && Number.isFinite(w.h)) st.win = w;
     applySize();
+    if (store.get('t7on') === false) S.on = false;
+    st.hooks.status = updateSetStatus;
+    st.hooks.place = place;
+    st.hooks.emotes = () => { rescanAll(); renderGrid(); };
 
     // связи между модулями
-    st.hooks.status = updateStatus;
     st.hooks.emotes = () => { rescanAll(); renderGrid(); };
 
     // чат дорисовывается через innerHTML / insertAdjacentHTML, поэтому следим за страницей
