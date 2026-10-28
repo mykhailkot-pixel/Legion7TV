@@ -1,0 +1,8 @@
+{
+  "name": "7tv-multidonate",
+  "version": "3.4.0",
+  "private": true,
+  "type": "module",
+  "scripts": { "build": "node build.mjs" },
+  "devDependencies": { "esbuild": "^0.21.0" }
+}
