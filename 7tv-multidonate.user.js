@@ -2,7 +2,7 @@
 // @author       ProCto_Fliy
 // @name         Legion chat extentions (7TV, более удобный чат и тд)
 // @namespace    https://play.multidonate.ru/
-// @version      4.6.0
+// @version      4.7.0
 // @description  Эмоуты 7TV в чате: кнопка 7TV, ник стримера, размер, список эмоутов, быстрый кеш
 // @match        https://play.multidonate.ru/*
 // @icon         https://cdn.7tv.app/emote/01F71VQYHR000D3ZZ6Q11NR7TV/2x.webp
@@ -21,7 +21,7 @@
 // @license      MIT
 // ==/UserScript==
 (() => {
-  var styles_default = '.t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}\r\n.t7-e{display:inline-block;vertical-align:middle;height:var(--t7-h,1.9em);width:auto;min-width:var(--t7-h,1.9em)}\r\n.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}\r\n.t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}\r\n\r\n\r\nform.cy-chat-f .t7-btn{\r\n    flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;\r\n    box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f .t7-btn:hover{background:rgb(165,100,255)}\r\nform.cy-chat-f{position:relative}\r\n.t7-ping-menu{position:absolute;left:0;right:0;bottom:calc(100% + 5px);z-index:20;display:flex;flex-direction:column;max-height:168px;overflow-y:auto;padding:4px;border:1px solid rgba(255,255,255,.2);border-radius:6px;background:#1b1b24;box-shadow:0 6px 18px rgba(0,0,0,.4)}\r\n.t7-ping-menu[hidden]{display:none}\r\n.t7-ping-option{padding:6px 8px;border:0;border-radius:4px;background:transparent;color:#eee;text-align:left;font:13px/1.3 system-ui,sans-serif}\r\n.t7-ping-option:hover,.t7-ping-option:focus-visible{background:rgba(255,255,255,.14)}\r\n\r\n\r\n.t7-pop,.t7-set{\r\n    --t7-bg:#1b1b24;--t7-bg-in:#0f0f15;--t7-fg:#eee;--t7-mute:#aaa;\r\n    --t7-line:rgba(255,255,255,.2);--t7-hover:rgba(255,255,255,.14);--t7-acc:#9146ff}\r\n.t7-pop *,.t7-set *{box-sizing:border-box}\r\n.t7-pop button,.t7-sw button{font:inherit;cursor:pointer}\r\n.t7-pop [hidden]{display:none!important}\r\n\r\n\r\n.t7-x,.t7-g{background:none;border:0;color:#ccc;line-height:1;border-radius:6px}\r\n.t7-x{font-size:20px;padding:0 4px}\r\n.t7-g{font-size:16px;padding:2px 5px}\r\n.t7-x:hover,.t7-g:hover{background:var(--t7-hover);color:#fff}\r\n\r\n\r\n.t7-pop{\r\n    position:fixed;z-index:2147483000;display:flex;flex-direction:column;gap:8px;\r\n    padding:10px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:10px;\r\n    box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.3 system-ui,sans-serif}\r\n.t7-pop.t7-drag{will-change:transform;transition:none}\r\n.t7-pop.t7-drag .t7-gr{pointer-events:none}\r\n\r\n.t7-h,.t7-sth{display:flex;justify-content:space-between;align-items:center;\r\n    font-size:15px;cursor:grab;touch-action:none;user-select:none}\r\n.t7-h:active,.t7-sth:active{cursor:grabbing}\r\n.t7-hb{display:flex;align-items:center;gap:2px}\r\n\r\n.t7-pop input[type=search]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-views{display:flex;gap:3px;padding:2px;border:1px solid var(--t7-line);border-radius:6px;background:var(--t7-bg-in)}\r\n.t7-views button{flex:1;padding:5px 7px;border:0;border-radius:4px;background:transparent;color:var(--t7-mute);font-size:12px}\r\n.t7-views button[aria-selected=true]{background:var(--t7-hover);color:var(--t7-fg)}\r\n\r\n.t7-gr{flex:1;min-height:156px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-sh{margin:6px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--t7-mute)}\r\n.t7-gw{display:flex;flex-wrap:wrap;gap:2px}\r\n.t7-it{display:inline-flex;align-items:center;justify-content:center;\r\n    width:var(--t7-tile,40px);height:var(--t7-tile,40px);padding:3px;border:0;border-radius:6px;background:transparent}\r\n.t7-it:hover,.t7-it:focus-visible{background:var(--t7-hover)}\r\n.t7-it img{width:100%;height:100%;object-fit:contain}\r\n.t7-item{position:relative;flex:none;width:var(--t7-tile,40px);height:var(--t7-tile,40px)}\r\n.t7-item .t7-it{width:100%;height:100%}\r\n.t7-fav{position:absolute;top:0;right:0;z-index:1;display:grid;place-items:center;width:17px;height:17px;padding:0;border:0;border-radius:4px;background:rgba(15,15,21,.82);color:#e5c76b;font:14px/1 system-ui,sans-serif;opacity:.78}\r\n.t7-fav:hover,.t7-fav:focus-visible{opacity:1;background:var(--t7-hover)}\r\n.t7-emp{padding:16px 4px;color:var(--t7-mute);text-align:center}\r\n\r\n.t7-rs{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;\r\n    border-radius:0 0 10px 0;\r\n    background:linear-gradient(135deg,transparent 0 55%,#888 55% 62%,transparent 62% 72%,#888 72% 79%,transparent 79%)}\r\n\r\n\r\n.t7-set{\r\n    position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;\r\n    padding:12px;background:rgba(0,0,0,.5);font:13px/1.3 system-ui,sans-serif}\r\n.t7-sw{\r\n    width:380px;max-width:100%;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:16px;\r\n    padding:14px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.6)}\r\n.t7-sw.t7-drag{will-change:transform}\r\n\r\n.t7-sec{display:flex;flex-direction:column;gap:6px}\r\n.t7-sec>h4{margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--t7-mute)}\r\n.t7-row{display:flex;gap:6px;align-items:flex-end}\r\n.t7-wrap{flex-wrap:wrap}\r\n.t7-fl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t7-mute)}\r\n.t7-chk{display:flex;gap:8px;align-items:center;cursor:pointer}\r\n.t7-sst{min-height:1.3em;font-size:11px;color:var(--t7-mute)}\r\n\r\n.t7-sw input[type=text],.t7-sw input[type=number]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-sw textarea,.t7-sw select{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-sw textarea{resize:vertical;min-height:44px}\r\n.t7-volume{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:8px}\r\n.t7-volume input{grid-column:1/-1;width:100%;margin:2px 0}\r\n.t7-volume output,.t7-ping-status{font-size:11px;color:var(--t7-mute)}\r\n.t7-ping-status{min-height:1.3em}\r\n\r\n.t7-b{padding:6px 10px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-b:hover{background:#1d1d29}\r\n.t7-b.p{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n\r\n.t7-szb{display:flex;gap:4px}\r\n.t7-szb button{min-width:34px;padding:4px 8px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-szb button[aria-pressed=true]{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n\r\n\r\n.cy-chat-tabs:not([hidden]){\r\n    display:flex;flex-wrap:nowrap;gap:2px;width:100%;max-width:100%;min-width:0;box-sizing:border-box;\r\n    overflow-x:auto;overflow-y:hidden;scrollbar-width:none}\r\n.cy-chat-tabs::-webkit-scrollbar{display:none}\r\n.cy-chat-tabs>button[data-tab]{\r\n    flex:0 0 auto;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:3px;\r\n    padding:5px 6px;font-size:11px;line-height:1.2;white-space:nowrap;overflow:visible}\r\n.cy-chat-tabs>button .cy-chat-tn{flex:none;margin:0;min-width:1.5em;padding:1px 4px;line-height:1.3;text-align:center;overflow:visible}\r\n.cy-chat-h .t7-chat-filter{display:inline-flex;align-items:center;gap:4px;margin-left:auto;padding:3px 5px;border-radius:4px;font:11px/1.2 system-ui,sans-serif;white-space:nowrap;cursor:pointer;user-select:none}\r\n.cy-chat-h .t7-chat-filter input{width:13px;height:13px;margin:0;accent-color:#ffc94d;flex:none}\r\n.cy-chat-h .t7-chat-filter span{white-space:nowrap}\r\n\r\n\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn,\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{\r\n    flex:none;display:inline-block;box-sizing:border-box;min-width:18px;height:18px;margin:0 0 0 4px;padding:0 5px;\r\n    border-radius:9px;font:700 11px/18px system-ui,sans-serif;text-align:center;text-indent:0;overflow:visible}\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn{background:#e53935;color:#fff}\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{background:#ffc94d;color:#1b1b24}\r\n.cy-chat .cy-chat-n[hidden],\r\n.cy-chat .cy-chat-tn[hidden],\r\n.cy-chat .cy-chat-tp[hidden],\r\n.cy-chat .cy-chat-pn[hidden]{display:none!important}\r\n.cy-chat-l>li.t7-ping-hidden{display:none!important}\r\n.cy-chat-l[data-t7-no-pings="true"]:after{display:block;padding:12px 6px;color:#aaa;font:12px/1.4 system-ui,sans-serif;text-align:center;content:"\u041F\u0438\u043D\u0433\u043E\u0432 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442"}\r\n.cy-chat-l>li.t7-filtered{font-style:italic}\r\n.cy-chat-l>li>.t7-filter-label{display:inline-block;margin-right:5px;padding:2px 6px;border-radius:4px;background:rgba(255,201,77,.14);color:#ffca66;font-size:13px;font-weight:700;white-space:nowrap}\r\n.cy-chat-l>li.t7-filtered>:not(.t7-filter-label){display:none!important}\r\n.cy-chat-l,.cy-chat-l li,.cy-chat-l li span,.cy-chat-l li a{-webkit-user-select:text!important;user-select:text!important}\r\n.cy-chat-l a.t7-link{color:#8edbff;text-decoration:underline;text-underline-offset:2px;cursor:pointer}';
+  var styles_default = '.t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}\r\n.t7-e{display:inline-block;vertical-align:middle;height:var(--t7-h,1.9em);width:auto;min-width:var(--t7-h,1.9em)}\r\n.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}\r\n.t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}\r\n\r\n\r\nform.cy-chat-f .t7-btn{\r\n    flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;\r\n    box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f .t7-btn:hover{background:rgb(165,100,255)}\r\nform.cy-chat-f{position:relative}\r\nform.cy-chat-f>.t7-ping-menu{position:absolute;left:auto;right:0;bottom:calc(100% + 5px);z-index:20;display:flex;flex-direction:column;width:min(210px,calc(100vw - 24px));max-height:132px;overflow-y:auto;padding:3px;border:1px solid rgba(255,255,255,.16);border-radius:6px;background:rgba(24,24,32,.88);box-shadow:0 5px 14px rgba(0,0,0,.28);backdrop-filter:blur(5px)}\r\nform.cy-chat-f>.t7-ping-menu[hidden]{display:none}\r\nform.cy-chat-f>.t7-ping-menu>.t7-ping-option{display:block;flex:none;width:100%;min-width:0;min-height:0;height:auto;margin:0;padding:4px 8px;border:0;border-radius:4px;background:transparent;color:#eee;text-align:left;text-transform:none;font:12px/1.25 system-ui,sans-serif;box-shadow:none}\r\nform.cy-chat-f>.t7-ping-menu>.t7-ping-option:hover,form.cy-chat-f>.t7-ping-menu>.t7-ping-option:focus-visible{background:rgba(255,255,255,.12);color:#fff;outline:none}\r\n\r\n\r\n.t7-pop,.t7-set{\r\n    --t7-bg:#1b1b24;--t7-bg-in:#0f0f15;--t7-fg:#eee;--t7-mute:#aaa;\r\n    --t7-line:rgba(255,255,255,.2);--t7-hover:rgba(255,255,255,.14);--t7-acc:#9146ff}\r\n.t7-pop *,.t7-set *{box-sizing:border-box}\r\n.t7-pop button,.t7-sw button{font:inherit;cursor:pointer}\r\n.t7-pop [hidden]{display:none!important}\r\n\r\n\r\n.t7-x,.t7-g{background:none;border:0;color:#ccc;line-height:1;border-radius:6px}\r\n.t7-x{font-size:20px;padding:0 4px}\r\n.t7-g{font-size:16px;padding:2px 5px}\r\n.t7-x:hover,.t7-g:hover{background:var(--t7-hover);color:#fff}\r\n\r\n\r\n.t7-pop{\r\n    position:fixed;z-index:2147483000;display:flex;flex-direction:column;gap:8px;\r\n    padding:10px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:10px;\r\n    box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.3 system-ui,sans-serif}\r\n.t7-pop.t7-drag{will-change:transform;transition:none}\r\n.t7-pop.t7-drag .t7-gr{pointer-events:none}\r\n\r\n.t7-h,.t7-sth{display:flex;justify-content:space-between;align-items:center;\r\n    font-size:15px;cursor:grab;touch-action:none;user-select:none}\r\n.t7-h:active,.t7-sth:active{cursor:grabbing}\r\n.t7-hb{display:flex;align-items:center;gap:2px}\r\n\r\n.t7-pop input[type=search]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-views{display:flex;gap:3px;padding:2px;border:1px solid var(--t7-line);border-radius:6px;background:var(--t7-bg-in)}\r\n.t7-views button{flex:1;padding:5px 7px;border:0;border-radius:4px;background:transparent;color:var(--t7-mute);font-size:12px}\r\n.t7-views button[aria-selected=true]{background:var(--t7-hover);color:var(--t7-fg)}\r\n\r\n.t7-gr{flex:1;min-height:156px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-sh{margin:6px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--t7-mute)}\r\n.t7-gw{display:flex;flex-wrap:wrap;gap:2px}\r\n.t7-it{display:inline-flex;align-items:center;justify-content:center;\r\n    width:var(--t7-tile,40px);height:var(--t7-tile,40px);padding:3px;border:0;border-radius:6px;background:transparent}\r\n.t7-it:hover,.t7-it:focus-visible{background:var(--t7-hover)}\r\n.t7-it img{width:100%;height:100%;object-fit:contain}\r\n.t7-item{position:relative;flex:none;width:var(--t7-tile,40px);height:var(--t7-tile,40px)}\r\n.t7-item .t7-it{width:100%;height:100%}\r\n.t7-fav{position:absolute;top:0;right:0;z-index:1;display:grid;place-items:center;width:17px;height:17px;padding:0;border:0;border-radius:4px;background:rgba(15,15,21,.82);color:#e5c76b;font:14px/1 system-ui,sans-serif;opacity:.78}\r\n.t7-fav:hover,.t7-fav:focus-visible{opacity:1;background:var(--t7-hover)}\r\n.t7-emp{padding:16px 4px;color:var(--t7-mute);text-align:center}\r\n\r\n.t7-rs{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;\r\n    border-radius:0 0 10px 0;\r\n    background:linear-gradient(135deg,transparent 0 55%,#888 55% 62%,transparent 62% 72%,#888 72% 79%,transparent 79%)}\r\n\r\n\r\n.t7-set{\r\n    position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;\r\n    padding:12px;background:rgba(0,0,0,.5);font:13px/1.3 system-ui,sans-serif}\r\n.t7-sw{\r\n    width:380px;max-width:100%;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:16px;\r\n    padding:14px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.6)}\r\n.t7-sw.t7-drag{will-change:transform}\r\n\r\n.t7-sec{display:flex;flex-direction:column;gap:6px}\r\n.t7-sec>h4{margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--t7-mute)}\r\n.t7-row{display:flex;gap:6px;align-items:flex-end}\r\n.t7-wrap{flex-wrap:wrap}\r\n.t7-fl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t7-mute)}\r\n.t7-chk{display:flex;gap:8px;align-items:center;cursor:pointer}\r\n.t7-sst{min-height:1.3em;font-size:11px;color:var(--t7-mute)}\r\n\r\n.t7-sw input[type=text],.t7-sw input[type=number]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-sw textarea,.t7-sw select{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-sw textarea{resize:vertical;min-height:44px}\r\n.t7-volume{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:8px}\r\n.t7-volume input{grid-column:1/-1;width:100%;margin:2px 0}\r\n.t7-volume output,.t7-ping-status{font-size:11px;color:var(--t7-mute)}\r\n.t7-ping-status{min-height:1.3em}\r\n\r\n.t7-b{padding:6px 10px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-b:hover{background:#1d1d29}\r\n.t7-b.p{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n\r\n.t7-szb{display:flex;gap:4px}\r\n.t7-szb button{min-width:34px;padding:4px 8px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-szb button[aria-pressed=true]{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n\r\n\r\n.cy-chat-tabs:not([hidden]){\r\n    display:flex;flex-wrap:nowrap;gap:2px;width:100%;max-width:100%;min-width:0;box-sizing:border-box;\r\n    overflow-x:auto;overflow-y:hidden;scrollbar-width:none}\r\n.cy-chat-tabs::-webkit-scrollbar{display:none}\r\n.cy-chat-tabs>button[data-tab]{\r\n    flex:0 0 auto;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:3px;\r\n    padding:5px 6px;font-size:11px;line-height:1.2;white-space:nowrap;overflow:visible}\r\n.cy-chat-tabs>button .cy-chat-tn{flex:none;margin:0;min-width:1.5em;padding:1px 4px;line-height:1.3;text-align:center;overflow:visible}\r\n.cy-chat-h .t7-chat-filter{display:inline-flex;align-items:center;gap:4px;margin-left:auto;padding:3px 5px;border-radius:4px;font:11px/1.2 system-ui,sans-serif;white-space:nowrap;cursor:pointer;user-select:none}\r\n.cy-chat-h .t7-chat-filter input{width:13px;height:13px;margin:0;accent-color:#ffc94d;flex:none}\r\n.cy-chat-h .t7-chat-filter span{white-space:nowrap}\r\n\r\n\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn,\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{\r\n    flex:none;display:inline-block;box-sizing:border-box;min-width:18px;height:18px;margin:0 0 0 4px;padding:0 5px;\r\n    border-radius:9px;font:700 11px/18px system-ui,sans-serif;text-align:center;text-indent:0;overflow:visible}\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn{background:#e53935;color:#fff}\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{background:#ffc94d;color:#1b1b24}\r\n.cy-chat .cy-chat-n[hidden],\r\n.cy-chat .cy-chat-tn[hidden],\r\n.cy-chat .cy-chat-tp[hidden],\r\n.cy-chat .cy-chat-pn[hidden]{display:none!important}\r\n.cy-chat-l>li.t7-ping-hidden{display:none!important}\r\n.cy-chat-l[data-t7-no-pings="true"]:after{display:block;padding:12px 6px;color:#aaa;font:12px/1.4 system-ui,sans-serif;text-align:center;content:"\u041F\u0438\u043D\u0433\u043E\u0432 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442"}\r\n.cy-chat-l>li.t7-filtered{font-style:italic}\r\n.cy-chat-l>li>.t7-filter-label{display:inline-block;margin-right:5px;padding:2px 6px;border-radius:4px;background:rgba(255,201,77,.14);color:#ffca66;font-size:13px;font-weight:700;white-space:nowrap}\r\n.cy-chat-l>li.t7-filtered>:not(.t7-filter-label){display:none!important}\r\n.cy-chat-l,.cy-chat-l li,.cy-chat-l li span,.cy-chat-l li a{-webkit-user-select:text!important;user-select:text!important}\r\n.cy-chat-l a.t7-link{color:#8edbff;text-decoration:underline;text-underline-offset:2px;cursor:pointer}';
   var CACHE_TTL = 60 * 60 * 1e3;
   var SIZES = {
     s: { h: "1.3em", n: 2, p: 32, label: "S" },
@@ -492,6 +492,7 @@
     volume: 0.5,
     selectedPreset: "bell",
     customSound: "",
+    tabCompletion: true,
     aliases: [],
     blacklist: [],
     stopWords: []
@@ -505,6 +506,7 @@
     config.volume = Number.isFinite(config.volume) ? Math.max(0, Math.min(1, config.volume)) : DEFAULTS.volume;
     config.selectedPreset = PRESETS.has(config.selectedPreset) ? config.selectedPreset : DEFAULTS.selectedPreset;
     config.customSound = typeof config.customSound === "string" && config.customSound.startsWith("data:audio/") ? config.customSound : "";
+    config.tabCompletion = config.tabCompletion !== false;
     for (const key of ["aliases", "blacklist", "stopWords"]) {
       config[key] = Array.isArray(config[key]) ? normalizeList(config[key].join("\n")) : [];
     }
@@ -528,6 +530,19 @@
       this.config[key] = normalizeList(value);
       this.save();
       if (this.onChange) this.onChange();
+    }
+    setTabCompletion(enabled) {
+      this.config.tabCompletion = !!enabled;
+      this.save();
+      document.dispatchEvent(new Event("t7-tab-completion-change"));
+    }
+    toggleBlacklist(login) {
+      const user = String(login || "").trim().toLowerCase();
+      if (!user) return false;
+      const blocked = this.config.blacklist.includes(user);
+      const next = blocked ? this.config.blacklist.filter((item) => item !== user) : [...this.config.blacklist, user];
+      this.setList("blacklist", next.join("\n"));
+      return !blocked;
     }
     setVolume(value) {
       const volume = Number(value);
@@ -775,6 +790,7 @@
             </div>
             <div class="t7-sec">
                 <h4>\u041F\u0438\u043D\u0433\u0438 \u0438 \u0444\u0438\u043B\u044C\u0442\u0440\u044B</h4>
+                <label class="t7-chk"><input type="checkbox" class="t7-tab-completion"> \u0414\u043E\u043F\u043E\u043B\u043D\u044F\u0442\u044C \u043D\u0438\u043A \u043F\u043E Tab</label>
                 <label class="t7-fl">\u041D\u0438\u043A\u0438 \u0438 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u044B \u0434\u043B\u044F \u043F\u0438\u043D\u0433\u0430<textarea class="t7-ping-aliases" rows="2" placeholder="\u043D\u0438\u043A, nick, @\u043D\u0438\u043A"></textarea></label>
                 <label class="t7-fl">\u0427\u0435\u0440\u043D\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A \u043D\u0438\u043A\u043E\u0432<textarea class="t7-ping-blacklist" rows="2" placeholder="\u043F\u043E \u043E\u0434\u043D\u043E\u043C\u0443 \u043D\u0438\u043A\u0443 \u043D\u0430 \u0441\u0442\u0440\u043E\u043A\u0443"></textarea></label>
                 <label class="t7-fl">\u0418\u0433\u043D\u043E\u0440\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0441\u043E \u0441\u043B\u043E\u0432\u0430\u043C\u0438 \u0438\u043B\u0438 \u0444\u0440\u0430\u0437\u0430\u043C\u0438<textarea class="t7-ping-stopwords" rows="2" placeholder="\u043F\u043E \u043E\u0434\u043D\u043E\u043C\u0443 \u0441\u043B\u043E\u0432\u0443 \u0438\u043B\u0438 \u0444\u0440\u0430\u0437\u0435 \u043D\u0430 \u0441\u0442\u0440\u043E\u043A\u0443"></textarea></label>
@@ -834,6 +850,9 @@
       input.value = pingSystem.config[key].join("\n");
       input.addEventListener("change", () => pingSystem.setList(key, input.value));
     }
+    const tabCompletion = el.querySelector(".t7-tab-completion");
+    tabCompletion.checked = pingSystem.config.tabCompletion;
+    tabCompletion.addEventListener("change", () => pingSystem.setTabCompletion(tabCompletion.checked));
     const preset = el.querySelector(".t7-ping-preset");
     const customOption = preset.querySelector('option[value="custom"]');
     customOption.disabled = !pingSystem.config.customSound;
@@ -1293,6 +1312,51 @@
       openPop(btn);
     }
   }
+  function bindMessageHistory(form, input) {
+    const history = [];
+    let index = 0;
+    let draft = "";
+    let changingHistory = false;
+    const setValue = (value) => {
+      changingHistory = true;
+      input.value = value;
+      input.setSelectionRange(value.length, value.length);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      changingHistory = false;
+    };
+    const remember = (value) => {
+      const message = String(value || "").trim();
+      if (!message) return;
+      if (history[history.length - 1] !== message) {
+        history.push(message);
+        if (history.length > 50) history.shift();
+      }
+      index = history.length;
+      draft = "";
+    };
+    input.addEventListener("input", () => {
+      if (changingHistory) return;
+      index = history.length;
+      draft = input.value;
+    });
+    input.addEventListener("keydown", (e) => {
+      if (e.altKey || e.ctrlKey || e.metaKey || !history.length) return;
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        e.stopPropagation();
+        if (index === history.length) draft = input.value;
+        index = Math.max(0, index - 1);
+        setValue(history[index]);
+      } else if (e.key === "ArrowDown" && index < history.length) {
+        e.preventDefault();
+        e.stopPropagation();
+        index++;
+        setValue(index === history.length ? draft : history[index]);
+      }
+    }, true);
+    form.addEventListener("submit", () => remember(input.value), true);
+    return remember;
+  }
   function bindPingAutocomplete(form, input) {
     const menu = document.createElement("div");
     menu.className = "t7-ping-menu";
@@ -1329,6 +1393,11 @@
       menu.hidden = true;
     };
     const update = () => {
+      if (!pingSystem.config.tabCompletion) {
+        menu.replaceChildren();
+        menu.hidden = true;
+        return;
+      }
       const token = getToken();
       const matches = token && candidates(token.query);
       menu.replaceChildren();
@@ -1349,6 +1418,7 @@
       menu.hidden = false;
     };
     input.addEventListener("input", update);
+    document.addEventListener("t7-tab-completion-change", update);
     input.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !menu.hidden) {
         menu.hidden = true;
@@ -1368,8 +1438,12 @@
       const input = f.querySelector("input[type=text]");
       if (input && !f.dataset.t7RecentBound) {
         f.dataset.t7RecentBound = "1";
+        const remember = bindMessageHistory(f, input);
         bindPingAutocomplete(f, input);
-        const record = () => recordRecentFromMessage(input.value);
+        const record = () => {
+          remember(input.value);
+          recordRecentFromMessage(input.value);
+        };
         f.addEventListener("submit", record, true);
         input.addEventListener("keydown", (e) => {
           if (e.key === "Enter" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !e.isComposing && e.keyCode !== 229)
@@ -1401,7 +1475,19 @@
   var ORDER = ["g", "dm", "ev", "tr", "mn"];
   var MINE_ID = "home";
   var PING_ONLY_KEY = "t7PingOnly";
+  var PING_ARCHIVE_KEY = "t7PingArchive";
+  var PING_ARCHIVE_LIMIT = 500;
   var pingOnly = store.get(PING_ONLY_KEY) === true;
+  var storedPingArchive = store.get(PING_ARCHIVE_KEY) || {};
+  var pingArchive = {
+    city: Array.isArray(storedPingArchive.city) ? storedPingArchive.city.filter((m) => m && m.id != null) : [],
+    mine: Array.isArray(storedPingArchive.mine) ? storedPingArchive.mine.filter((m) => m && m.id != null) : []
+  };
+  var pingArchiveIds = {
+    city: new Set(pingArchive.city.map((m) => String(m.id))),
+    mine: new Set(pingArchive.mine.map((m) => String(m.id)))
+  };
+  var injectedPingIds = { city: /* @__PURE__ */ new Set(), mine: /* @__PURE__ */ new Set() };
   var buf = { city: [], mine: [] };
   var inst = { city: null, mine: null };
   var filterObservers = { city: null, mine: null };
@@ -1432,6 +1518,7 @@
     const forceUnread = !!(chat && sourceRoom && sourceRoom !== lastRoom);
     const wasOpen = forceUnread && chat.C.open;
     if (forceUnread) chat.C.open = false;
+    if (pingOnly) stripArchivedPings(room);
     let applied = false;
     try {
       inst[room].raw.apply(d);
@@ -1441,7 +1528,10 @@
     } finally {
       if (forceUnread) chat.C.open = wasOpen;
     }
-    if (applied) countPings(room, d && d.chat);
+    if (applied) {
+      countPings(room, d && d.chat);
+      if (pingOnly) refreshPingArchive(room);
+    }
   }
   var mineHist = 0;
   async function loadMineHistory(K) {
@@ -1461,6 +1551,8 @@
       }
       const msgs = src.map(tagMn).filter((m) => m && m.id);
       push("mine", msgs);
+      rememberPingMessages("mine", msgs);
+      rememberPingMessages("city", msgs);
       const i = inst.city;
       const c = i && i.K.state() && i.K.state().chat;
       if (!c || !c.on) return;
@@ -1468,6 +1560,7 @@
       for (const m of msgs.slice(-80)) if (!have.has(m.id)) c.list.push(m);
       c.list.sort((a, b) => (a.at || 0) - (b.at || 0));
       i.raw.render();
+      if (pingOnly) refreshPingArchive("city");
     } catch (e) {
       mineHist = 0;
       console.warn("[mine-tabs] \u0438\u0441\u0442\u043E\u0440\u0438\u044F \u0448\u0430\u0445\u0442\u044B", e);
@@ -1601,9 +1694,68 @@
   function tabOfMsg(C, m) {
     return m.tb || (m.ev ? C.tr ? "ev" : "g" : m.k === "tr" ? "tr" : m.k === "dm" ? "dm" : "g");
   }
+  function isPingMessage(room, m, me) {
+    const o = chatOf(room);
+    if (!m || m.id == null || String(m.l || "").toLowerCase() === me || m.ev || m.sys) return false;
+    if (o && o.C.ign && o.C.ign.has(m.l)) return false;
+    if (pingSystem.shouldIgnore(m.l, m.t)) return false;
+    return pingSystem.isPinged(m.t, me ? [me] : []);
+  }
+  function rememberPingMessages(room, msgs) {
+    const i = inst[room] || inst[room === "mine" ? "city" : "mine"];
+    const x = i && i.K.X();
+    const me = String(x && x.login && x.login() || "").toLowerCase();
+    const items = pingArchive[room];
+    const ids = pingArchiveIds[room];
+    let changed = false;
+    for (const m of msgs || []) {
+      if (!isPingMessage(room, m, me)) continue;
+      const id = String(m.id);
+      if (ids.has(id)) continue;
+      items.push(m);
+      ids.add(id);
+      changed = true;
+    }
+    if (!changed) return;
+    items.sort((a, b) => (a.at || 0) - (b.at || 0));
+    while (items.length > PING_ARCHIVE_LIMIT) ids.delete(String(items.shift().id));
+    store.set(PING_ARCHIVE_KEY, pingArchive);
+  }
+  function stripArchivedPings(room) {
+    const o = chatOf(room);
+    const injected = injectedPingIds[room];
+    if (o && o.C.list && injected.size) {
+      const list = o.C.list.filter((m) => !injected.has(String(m.id)));
+      o.C.list.splice(0, o.C.list.length, ...list);
+    }
+    injected.clear();
+  }
+  function syncPingArchive(room) {
+    const o = chatOf(room);
+    if (!o || !o.C.list) return false;
+    const changed = injectedPingIds[room].size > 0;
+    stripArchivedPings(room);
+    if (!pingOnly) return changed;
+    const ids = new Set(o.C.list.map((m) => String(m.id)));
+    const extra = pingArchive[room].filter((m) => !ids.has(String(m.id)));
+    if (!extra.length) return changed;
+    extra.forEach((m) => injectedPingIds[room].add(String(m.id)));
+    o.C.list.push(...extra);
+    o.C.list.sort((a, b) => (a.at || 0) - (b.at || 0));
+    return true;
+  }
+  function refreshPingArchive(room) {
+    if (!syncPingArchive(room)) return;
+    const i = inst[room];
+    if (!i) return;
+    i.raw.render();
+    markFilteredMessages(room);
+    applyPingOnly(room);
+  }
   function countPings(room, msgs) {
     const o = chatOf(room);
     if (!o) return;
+    rememberPingMessages(room, msgs);
     const x = inst[room].K.X();
     const me = String(x && x.login && x.login() || "").toLowerCase();
     const pg = pings[room];
@@ -1675,6 +1827,7 @@
       const o = chatOf(room);
       const input = o && o.S.el && o.S.el.querySelector(".t7-chat-filter input");
       if (input) input.checked = pingOnly;
+      refreshPingArchive(room);
       applyPingOnly(room);
     }
   }
@@ -1731,6 +1884,28 @@
     addPingOnlyControl(room, box);
     box.addEventListener("click", () => paint(room));
     const list = box.querySelector(".cy-chat-l");
+    if (list && !list.dataset.t7BlacklistMenu) {
+      list.dataset.t7BlacklistMenu = "1";
+      list.addEventListener("contextmenu", (e) => {
+        const nick = e.target.closest("b[data-nick]");
+        if (!nick || !list.contains(nick)) return;
+        const login = String(nick.dataset.nick || "").trim();
+        if (!login) return;
+        requestAnimationFrame(() => {
+          const menu = document.querySelector(".cy-nm");
+          if (!menu || menu.dataset.t7BlacklistAction) return;
+          menu.dataset.t7BlacklistAction = "1";
+          const blocked = pingSystem.config.blacklist.includes(login.toLowerCase());
+          const action = document.createElement("button");
+          action.type = "button";
+          action.setAttribute("role", "menuitem");
+          action.dataset.nm = "t7-blacklist";
+          action.textContent = blocked ? "\u0423\u0431\u0440\u0430\u0442\u044C \u0438\u0437 \u0427\u0421" : "\u0412 \u0447\u0451\u0440\u043D\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A";
+          action.addEventListener("click", () => pingSystem.toggleBlacklist(login));
+          menu.appendChild(action);
+        });
+      }, true);
+    }
     if (list && !filterObservers[room]) {
       filterObservers[room] = new MutationObserver(() => {
         markFilteredMessages(room);
@@ -1753,6 +1928,7 @@
         pingBind(room);
       },
       enter(r) {
+        if (pingOnly) stripArchivedPings(room);
         let rr = r;
         if (r && Array.isArray(r.chat)) {
           const own = mine ? r.chat.map(tagMn) : r.chat;
@@ -1761,6 +1937,8 @@
           rr = { ...r, chat: own.concat(extra).sort(byTime2) };
         }
         raw.enter(rr);
+        injectedPingIds[room].clear();
+        if (rr && Array.isArray(rr.chat)) rememberPingMessages(room, rr.chat);
         setupTabs(K);
         pings[room] = {};
         pingBind(room);
@@ -1776,8 +1954,10 @@
             console.warn("[mine-tabs] \u0438\u0441\u0442\u043E\u0440\u0438\u044F", e);
           }
         }
+        if (pingOnly) refreshPingArchive(room);
       },
       apply(d) {
+        if (pingOnly) stripArchivedPings(room);
         let dd = d;
         if (d && Array.isArray(d.chat)) {
           const own = mine ? d.chat.map(tagMn) : d.chat;
@@ -1786,6 +1966,7 @@
         }
         raw.apply(dd);
         if (dd && dd.chat) countPings(room, dd.chat);
+        if (pingOnly) refreshPingArchive(room);
       }
     };
   }
@@ -1813,7 +1994,20 @@
       try {
         if (d) {
           if (Array.isArray(d.chat) && d.chat.length) push("city", d.chat);
-          if (Array.isArray(d.chatDel) && d.chatDel.length) drop(d.chatDel);
+          if (Array.isArray(d.chatDel) && d.chatDel.length) {
+            drop(d.chatDel);
+            const deleted = new Set(d.chatDel.map(String));
+            let changed = false;
+            for (const room of ["city", "mine"]) {
+              const kept = pingArchive[room].filter((m) => !deleted.has(String(m.id)));
+              if (kept.length !== pingArchive[room].length) {
+                pingArchive[room] = kept;
+                pingArchiveIds[room] = new Set(kept.map((m) => String(m.id)));
+                changed = true;
+              }
+            }
+            if (changed) store.set(PING_ARCHIVE_KEY, pingArchive);
+          }
           if (d.chat || d.chatDel) forward("mine", { chat: d.chat, chatDel: d.chatDel }, "city");
         }
       } catch (e) {
@@ -1893,17 +2087,35 @@
       renderGrid();
     };
     let queued = false;
-    const schedule = () => {
-      if (queued) return;
+    let needsButtons = false;
+    let needsScan = false;
+    const contains = (node, selector) => node.nodeType === 1 && (node.matches(selector) || node.querySelector(selector));
+    const schedule = (records) => {
+      for (const record of records) {
+        if (record.type !== "childList") continue;
+        const target = record.target.nodeType === 1 ? record.target : record.target.parentElement;
+        const form = target && target.closest("form.cy-chat-f");
+        if (form && form.querySelector("input[type=text]") && !form.dataset.t7RecentBound) needsButtons = true;
+        for (const node of record.addedNodes) {
+          if (contains(node, "form.cy-chat-f")) needsButtons = true;
+          if (contains(node, ".cy-chat-l li")) needsScan = true;
+        }
+      }
+      if (!needsButtons && !needsScan || queued) return;
       queued = true;
       requestAnimationFrame(() => {
         queued = false;
-        ensureButtons();
-        scan();
+        const addButtons = needsButtons;
+        const scanMessages = needsScan;
+        needsButtons = false;
+        needsScan = false;
+        if (addButtons) ensureButtons();
+        if (scanMessages) scan();
       });
     };
     new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
     ensureButtons();
+    scan();
     reload(false);
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });

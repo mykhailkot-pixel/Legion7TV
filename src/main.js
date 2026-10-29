@@ -34,13 +34,35 @@ function init() {
 
     // чат дорисовывается через innerHTML / insertAdjacentHTML, поэтому следим за страницей
     let queued = false;
-    const schedule = () => {
-        if (queued) return;
+    let needsButtons = false;
+    let needsScan = false;
+    const contains = (node, selector) => node.nodeType === 1 && (node.matches(selector) || node.querySelector(selector));
+    const schedule = (records) => {
+        for (const record of records) {
+            if (record.type !== 'childList') continue;
+            const target = record.target.nodeType === 1 ? record.target : record.target.parentElement;
+            const form = target && target.closest('form.cy-chat-f');
+            if (form && form.querySelector('input[type=text]') && !form.dataset.t7RecentBound) needsButtons = true;
+            for (const node of record.addedNodes) {
+                if (contains(node, 'form.cy-chat-f')) needsButtons = true;
+                if (contains(node, '.cy-chat-l li')) needsScan = true;
+            }
+        }
+        if ((!needsButtons && !needsScan) || queued) return;
         queued = true;
-        requestAnimationFrame(() => { queued = false; ensureButtons(); scan(); });
+        requestAnimationFrame(() => {
+            queued = false;
+            const addButtons = needsButtons;
+            const scanMessages = needsScan;
+            needsButtons = false;
+            needsScan = false;
+            if (addButtons) ensureButtons();
+            if (scanMessages) scan();
+        });
     };
     new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
     ensureButtons();
+    scan();
 
     reload(false);
 }

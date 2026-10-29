@@ -123,6 +123,7 @@ export function openSettings() {
 
             <div class="t7-sec">
                 <h4>Пинги и фильтры</h4>
+                <label class="t7-chk"><input type="checkbox" class="t7-tab-completion"> Дополнять ник по Tab</label>
                 <label class="t7-fl">Ники и варианты для пинга<textarea class="t7-ping-aliases" rows="2" placeholder="ник, nick, @ник"></textarea></label>
                 <label class="t7-fl">Черный список ников<textarea class="t7-ping-blacklist" rows="2" placeholder="по одному нику на строку"></textarea></label>
                 <label class="t7-fl">Игнорировать сообщения со словами или фразами<textarea class="t7-ping-stopwords" rows="2" placeholder="по одному слову или фразе на строку"></textarea></label>
@@ -183,6 +184,9 @@ export function openSettings() {
         input.value = pingSystem.config[key].join('\n');
         input.addEventListener('change', () => pingSystem.setList(key, input.value));
     }
+    const tabCompletion = el.querySelector('.t7-tab-completion');
+    tabCompletion.checked = pingSystem.config.tabCompletion;
+    tabCompletion.addEventListener('change', () => pingSystem.setTabCompletion(tabCompletion.checked));
     const preset = el.querySelector('.t7-ping-preset');
     const customOption = preset.querySelector('option[value="custom"]');
     customOption.disabled = !pingSystem.config.customSound;

@@ -2,6 +2,55 @@ import { st } from './state.js';
 import { togglePop, closePop, recordRecentFromMessage } from './popup.js';
 import { pingSystem } from './pingSystem.js';
 
+function bindMessageHistory(form, input) {
+    const history = [];
+    let index = 0;
+    let draft = '';
+    let changingHistory = false;
+
+    const setValue = (value) => {
+        changingHistory = true;
+        input.value = value;
+        input.setSelectionRange(value.length, value.length);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        changingHistory = false;
+    };
+    const remember = (value) => {
+        const message = String(value || '').trim();
+        if (!message) return;
+        if (history[history.length - 1] !== message) {
+            history.push(message);
+            if (history.length > 50) history.shift();
+        }
+        index = history.length;
+        draft = '';
+    };
+
+    input.addEventListener('input', () => {
+        if (changingHistory) return;
+        index = history.length;
+        draft = input.value;
+    });
+    input.addEventListener('keydown', (e) => {
+        if (e.altKey || e.ctrlKey || e.metaKey || !history.length) return;
+        if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            e.stopPropagation();
+            if (index === history.length) draft = input.value;
+            index = Math.max(0, index - 1);
+            setValue(history[index]);
+        } else if (e.key === 'ArrowDown' && index < history.length) {
+            e.preventDefault();
+            e.stopPropagation();
+            index++;
+            setValue(index === history.length ? draft : history[index]);
+        }
+    }, true);
+
+    form.addEventListener('submit', () => remember(input.value), true);
+    return remember;
+}
+
 function bindPingAutocomplete(form, input) {
     const menu = document.createElement('div');
     menu.className = 't7-ping-menu';
@@ -42,6 +91,11 @@ function bindPingAutocomplete(form, input) {
     };
 
     const update = () => {
+        if (!pingSystem.config.tabCompletion) {
+            menu.replaceChildren();
+            menu.hidden = true;
+            return;
+        }
         const token = getToken();
         const matches = token && candidates(token.query);
         menu.replaceChildren();
@@ -63,6 +117,7 @@ function bindPingAutocomplete(form, input) {
     };
 
     input.addEventListener('input', update);
+    document.addEventListener('t7-tab-completion-change', update);
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && !menu.hidden) {
             menu.hidden = true;
@@ -84,8 +139,12 @@ export function ensureButtons() {
         const input = f.querySelector('input[type=text]');
         if (input && !f.dataset.t7RecentBound) {
             f.dataset.t7RecentBound = '1';
+            const remember = bindMessageHistory(f, input);
             bindPingAutocomplete(f, input);
-            const record = () => recordRecentFromMessage(input.value);
+            const record = () => {
+                remember(input.value);
+                recordRecentFromMessage(input.value);
+            };
             f.addEventListener('submit', record, true);
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !e.isComposing && e.keyCode !== 229)

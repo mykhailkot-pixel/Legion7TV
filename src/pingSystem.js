@@ -6,6 +6,7 @@ const DEFAULTS = {
     volume: 0.5,
     selectedPreset: 'bell',
     customSound: '',
+    tabCompletion: true,
     aliases: [],
     blacklist: [],
     stopWords: []
@@ -21,6 +22,7 @@ function readConfig() {
     config.volume = Number.isFinite(config.volume) ? Math.max(0, Math.min(1, config.volume)) : DEFAULTS.volume;
     config.selectedPreset = PRESETS.has(config.selectedPreset) ? config.selectedPreset : DEFAULTS.selectedPreset;
     config.customSound = typeof config.customSound === 'string' && config.customSound.startsWith('data:audio/') ? config.customSound : '';
+    config.tabCompletion = config.tabCompletion !== false;
     for (const key of ['aliases', 'blacklist', 'stopWords']) {
         config[key] = Array.isArray(config[key]) ? normalizeList(config[key].join('\n')) : [];
     }
@@ -48,6 +50,21 @@ class PingSystem {
         this.config[key] = normalizeList(value);
         this.save();
         if (this.onChange) this.onChange();
+    }
+
+    setTabCompletion(enabled) {
+        this.config.tabCompletion = !!enabled;
+        this.save();
+        document.dispatchEvent(new Event('t7-tab-completion-change'));
+    }
+
+    toggleBlacklist(login) {
+        const user = String(login || '').trim().toLowerCase();
+        if (!user) return false;
+        const blocked = this.config.blacklist.includes(user);
+        const next = blocked ? this.config.blacklist.filter((item) => item !== user) : [...this.config.blacklist, user];
+        this.setList('blacklist', next.join('\n'));
+        return !blocked;
     }
 
     setVolume(value) {
