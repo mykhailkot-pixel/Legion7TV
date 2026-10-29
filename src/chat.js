@@ -38,6 +38,51 @@ function makeImg(name, em, cls) {
 }
 
 const NONE = {};
+const URL_RE = /(?:https?:\/\/|www\.)[^\s<>"']+/giu;
+
+function linkifyText(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+
+    for (const node of nodes) {
+        if (node.parentElement && node.parentElement.closest('a')) continue;
+        const text = node.nodeValue;
+        const matches = [...text.matchAll(URL_RE)];
+        if (!matches.length) continue;
+        const fragment = document.createDocumentFragment();
+        let offset = 0;
+        for (const match of matches) {
+            let url = match[0];
+            while (/[.,!?;:]$/.test(url)) url = url.slice(0, -1);
+            while (url.endsWith(')') && (url.match(/\)/g) || []).length > (url.match(/\(/g) || []).length) url = url.slice(0, -1);
+            const start = match.index;
+            if (start < offset) continue;
+            fragment.appendChild(document.createTextNode(text.slice(offset, start)));
+            const href = url.startsWith('www.') ? 'https://' + url : url;
+            let valid = false;
+            try {
+                const parsed = new URL(href);
+                valid = (parsed.protocol === 'http:' || parsed.protocol === 'https:') && !!parsed.hostname;
+            } catch {}
+            if (valid) {
+                const anchor = document.createElement('a');
+                anchor.className = 't7-link';
+                anchor.href = href;
+                anchor.target = '_blank';
+                anchor.rel = 'noopener noreferrer';
+                anchor.textContent = url;
+                fragment.appendChild(anchor);
+                offset = start + url.length;
+            } else {
+                fragment.appendChild(document.createTextNode(match[0]));
+                offset = start + match[0].length;
+            }
+        }
+        fragment.appendChild(document.createTextNode(text.slice(offset)));
+        node.replaceWith(fragment);
+    }
+}
 
 function processSpan(sp) {
     const act = S.on ? EM : NONE;   // эмоуты выключены - возвращаем обычный текст
@@ -45,6 +90,7 @@ function processSpan(sp) {
     const parts = src.split(/(\s+)/);
     if (!parts.some((p) => has(act, p))) {
         if (sp.dataset.t7o != null) { sp.textContent = src; delete sp.dataset.t7o; }
+        linkifyText(sp);
         return;
     }
     sp.dataset.t7o = src;   // исходный текст, чтобы пересобрать при смене ника / размера
@@ -69,6 +115,7 @@ function processSpan(sp) {
         }
         if (p) frag.appendChild(document.createTextNode(p));
     }
+    linkifyText(frag);
     sp.textContent = '';
     sp.appendChild(frag);
 }
@@ -76,7 +123,11 @@ function processSpan(sp) {
 function processLi(li) {
     if (li.dataset.t7) return;
     li.dataset.t7 = '1';
-    if (li.classList.contains('cy-chat-sys') || li.classList.contains('cy-chat-ev') || li.classList.contains('cy-chat-0')) return;
+    if (li.classList.contains('cy-chat-0')) return;
+    if (li.classList.contains('cy-chat-sys') || li.classList.contains('cy-chat-ev')) {
+        linkifyText(li);
+        return;
+    }
     const spans = li.querySelectorAll(':scope > span:not([class])');
     const sp = spans[spans.length - 1];
     if (sp) processSpan(sp);
