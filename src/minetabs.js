@@ -28,7 +28,10 @@ function active(room) {
 }
 function forward(room, d) {
     if (!active(room)) return;
-    try { inst[room].raw.apply(d); } catch (e) { console.warn('[mine-tabs] forward', e); }
+    try {
+        inst[room].raw.apply(d);
+        countPings(room, d && d.chat);
+    } catch (e) { console.warn('[mine-tabs] forward', e); }
 }
 
 let mineHist = 0;   // история шахты за этот визит запрашивается один раз
@@ -186,13 +189,79 @@ function patchK(K, room) {
     };
 }
 
+/* ---------- пинги (@ник): жёлтые кружки ---------- */
+const pings = { city: {}, mine: {} };   // комната → { вкладка: сколько упоминаний }
+
+function chatOf(room) {
+    const i = inst[room];
+    const S = i && i.K.state();
+    return S && S.chat ? { S, C: S.chat } : null;
+}
+function tabOfMsg(C, m) {   // как tabOf в чате сайта
+    return m.tb || (m.ev ? (C.tr ? 'ev' : 'g') : m.k === 'tr' ? 'tr' : m.k === 'dm' ? 'dm' : 'g');
+}
+function countPings(room, msgs) {
+    const o = chatOf(room);
+    if (!o || !o.C.on) return;
+    const x = inst[room].K.X();
+    const me = String((x && x.login && x.login()) || '').toLowerCase();
+    if (!me) return;
+    const re = new RegExp('(^|\\s)@' + me + '(\\b|$)', 'i');
+    const pg = pings[room];
+    let hit = false;
+    for (const m of msgs || []) {
+        if (!m || m.l === me || m.ev || m.sys) continue;
+        if (o.C.ign && o.C.ign.has(m.l)) continue;
+        if (!re.test(String(m.t || ''))) continue;
+        const tb = tabOfMsg(o.C, m);
+        if (o.C.open && o.C.tab === tb) continue;   // эту вкладку сейчас читаем
+        pg[tb] = (pg[tb] || 0) + 1;
+        hit = true;
+    }
+    if (hit) paint(room);
+}
+const num = (n) => (n > 99 ? '99+' : String(n));
+function badge(parent, cls, n, title) {
+    let b = parent.querySelector(':scope > .' + cls);
+    if (!b) {
+        b = document.createElement('b');
+        b.className = cls;
+        parent.appendChild(b);
+    }
+    b.hidden = !n;
+    b.textContent = n ? num(n) : '';
+    b.title = n ? title + ': ' + n : '';
+}
+function paint(room) {
+    const o = chatOf(room);
+    const box = o && o.S.el && o.S.el.querySelector('.cy-chat');
+    if (!box) return;
+    const pg = pings[room];
+    if (o.C.open) pg[o.C.tab] = 0;   // открытая вкладка прочитана
+    let total = 0;
+    box.querySelectorAll('.cy-chat-tabs [data-tab]').forEach((b) => {
+        const n = pg[b.dataset.tab] || 0;
+        total += n;
+        badge(b, 'cy-chat-tp', n, 'Упоминаний');
+    });
+    const t = box.querySelector('.cy-chat-t');
+    if (t) badge(t, 'cy-chat-pn', o.C.open ? 0 : total, 'Упоминаний');
+}
+function pingBind(room) {
+    const o = chatOf(room);
+    const box = o && o.S.el && o.S.el.querySelector('.cy-chat');
+    if (!box || box.dataset.t7pg) return;
+    box.dataset.t7pg = '1';
+    box.addEventListener('click', () => paint(room));   // клик по вкладке / «Чат» / × → пересчитать
+}
+
 function wrapInst(raw, K, room) {
     const other = room === 'mine' ? 'city' : 'mine';
     const mine = room === 'mine';
     const byTime = (a, b) => (a.at || 0) - (b.at || 0);
     return {
         ...raw,
-        init() { raw.init(); setupTabs(K); },
+        init() { raw.init(); setupTabs(K); pingBind(room); },
         enter(r) {
             let rr = r;
             if (r && Array.isArray(r.chat)) {
@@ -203,7 +272,10 @@ function wrapInst(raw, K, room) {
             }
             raw.enter(rr);
             setupTabs(K);
-            if (lastRoom !== room) {     // зашли в другое место - выбрать «его» вкладку
+            pings[room] = {};
+            pingBind(room);
+            paint(room);
+            if (lastRoom !== room) {
                 lastRoom = room;
                 selectTab(K, mine ? 'mn' : 'g');
             }
@@ -219,6 +291,7 @@ function wrapInst(raw, K, room) {
                 dd = { ...d, chat: own };
             }
             raw.apply(dd);
+            if (dd && dd.chat) countPings(room, dd.chat);
         }
     };
 }

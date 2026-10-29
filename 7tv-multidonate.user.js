@@ -2,7 +2,7 @@
 // @author       ProCto_Fliy
 // @name         7TV в чате Multidonate Play
 // @namespace    https://play.multidonate.ru/
-// @version      4.0
+// @version      4.2
 // @description  Эмоуты 7TV в чате: кнопка 7TV, ник стримера, размер, список эмоутов, быстрый кеш
 // @match        https://play.multidonate.ru/*
 // @icon         https://cdn.7tv.app/emote/01F71VQYHR000D3ZZ6Q11NR7TV/2x.webp
@@ -23,7 +23,7 @@
 
 (() => {
   // src/styles.css
-  var styles_default = ".t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}\r\n.t7-e{height:var(--t7-h,1.9em);width:auto;min-width:var(--t7-h,1.9em);vertical-align:middle;display:inline-block}\r\n.t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}\r\n.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}\r\n\r\nform.cy-chat-f .t7-btn{\r\n    flex:none;align-self:stretch;margin:0 0 0 4px;padding:0 8px;min-height:28px;height:auto;width:auto;\r\n    box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f.t7-btn:hover{background:rgb(165,100,255)}\r\n\r\n.t7-pop{position:fixed;z-index:2147483000;display:flex;flex-direction:column;gap:8px;box-sizing:border-box;\r\n    padding:10px;background:#1b1b24;color:#eee;border:1px solid rgba(255,255,255,.18);border-radius:10px;\r\n    box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.3 system-ui,sans-serif}\r\n.t7-pop *{box-sizing:border-box}\r\n.t7-pop [hidden]{display:none!important}\r\n.t7-pop button{font:inherit;cursor:pointer}\r\n.t7-pop.t7-drag{will-change:transform;transition:none}\r\n.t7-pop.t7-drag .t7-gr{pointer-events:none}\r\n\r\n.t7-h{display:flex;justify-content:space-between;align-items:center;font-size:15px;cursor:grab;touch-action:none;user-select:none}\r\n.t7-h:active{cursor:grabbing}\r\n.t7-x{background:none;border:0;color:#ccc;font-size:20px;line-height:1;padding:0 4px}\r\n.t7-gr{flex:1;min-height:156px;overflow-y:auto;overscroll-behavior:contain}\r\n\r\n.t7-nf{display:flex;gap:6px;align-items:flex-end}\r\n.t7-nf label{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#aaa}\r\n.t7-pop input[type=text],.t7-pop input[type=search]{width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);\r\n    background:#0f0f15;color:#fff;font:13px system-ui,sans-serif}\r\n.t7-nf button{padding:6px 10px;border-radius:6px;border:0;background:#9146ff;color:#fff}\r\n.t7-st{font-size:11px;color:#aaa;min-height:1.3em}\r\n\r\n.t7-sz{display:flex;align-items:center;gap:8px;font-size:12px;color:#aaa}\r\n.t7-szb{display:flex;gap:4px}\r\n.t7-szb button{min-width:34px;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:#0f0f15;color:#ddd}\r\n.t7-szb button[aria-pressed=true]{background:#9146ff;border-color:#9146ff;color:#fff}\r\n\r\n.t7-gr{flex:1;min-height:140px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-sh{margin:6px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#aaa}\r\n.t7-gw{display:flex;flex-wrap:wrap;gap:2px}\r\n.t7-it{width:40px;height:40px;padding:3px;border:0;border-radius:6px;background:transparent;display:inline-flex;align-items:center;justify-content:center}\r\n.t7-it:hover,.t7-it:focus-visible{background:rgba(255,255,255,.14)}\r\n.t7-it img{max-width:100%;max-height:100%;object-fit:contain}\r\n.t7-emp{padding:16px 4px;color:#aaa;text-align:center}\r\n\r\n.t7-rs{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;\r\n    border-radius:0 0 10px 0;\r\n    background:linear-gradient(135deg,transparent 0 55%,#888 55% 62%,transparent 62% 72%,#888 72% 79%,transparent 79%)}\r\n\r\n.t7-hb{display:flex;align-items:center;gap:2px}\r\n.t7-g{background:none;border:0;color:#ccc;font-size:16px;line-height:1;padding:2px 5px;border-radius:6px}\r\n.t7-g:hover,.t7-x:hover{background:rgba(255,255,255,.14);color:#fff}\r\n\r\n.t7-set{position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;\r\n    padding:12px;background:rgba(0,0,0,.5);font:13px/1.3 system-ui,sans-serif}\r\n.t7-set *{box-sizing:border-box}\r\n.t7-sw{width:380px;max-width:100%;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:16px;\r\n    padding:14px;background:#1b1b24;color:#eee;border:1px solid rgba(255,255,255,.18);border-radius:12px;\r\n    box-shadow:0 12px 40px rgba(0,0,0,.6)}\r\n.t7-sw button{font:inherit;cursor:pointer}\r\n.t7-sth{display:flex;justify-content:space-between;align-items:center;font-size:15px}\r\n.t7-sec{display:flex;flex-direction:column;gap:6px}\r\n.t7-sec>h4{margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#aaa}\r\n.t7-row{display:flex;gap:6px;align-items:flex-end}\r\n.t7-wrap{flex-wrap:wrap}\r\n.t7-fl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#aaa}\r\n.t7-sw input[type=text]{width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);\r\n    background:#0f0f15;color:#fff;font:13px system-ui,sans-serif}\r\n.t7-chk{display:flex;gap:8px;align-items:center;cursor:pointer}\r\n.t7-b{padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:#0f0f15;color:#ddd}\r\n.t7-b:hover{background:#1d1d29}\r\n.t7-b.p{background:#9146ff;border-color:#9146ff;color:#fff}\r\n.t7-sst{font-size:11px;color:#aaa;min-height:1.3em}\r\n.t7-sth{cursor:grab;touch-action:none;user-select:none}\r\n.t7-sth:active{cursor:grabbing}\r\n.t7-sw.t7-drag{will-change:transform}\r\n.cy-chat-tabs:not([hidden]){display:flex;flex-wrap:nowrap;gap:2px;\r\n    width:100%;max-width:100%;min-width:0;box-sizing:border-box;\r\n    overflow-x:auto;overflow-y:hidden;scrollbar-width:none}\r\n.cy-chat-tabs::-webkit-scrollbar{display:none}\r\n.cy-chat-tabs>button[data-tab]{flex:0 0 auto;min-width:0;padding:5px 6px;font-size:11px;line-height:1.2;\r\n    white-space:nowrap;overflow:visible;\r\n    display:inline-flex;align-items:center;justify-content:center;gap:3px}\r\n.cy-chat-tabs>button .cy-chat-tn{flex:none;margin:0;min-width:1.5em;padding:1px 4px;\r\n    line-height:1.3;text-align:center;overflow:visible}\r\n.cy-chat-tabs>button .cy-chat-tn[hidden]{display:none}";
+  var styles_default = ".t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}\r\n.t7-e{height:var(--t7-h,1.9em);width:auto;min-width:var(--t7-h,1.9em);vertical-align:middle;display:inline-block}\r\n.t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}\r\n.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}\r\n\r\nform.cy-chat-f .t7-btn{\r\n    flex:none;align-self:stretch;margin:0 0 0 4px;padding:0 8px;min-height:28px;height:auto;width:auto;\r\n    box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f.t7-btn:hover{background:rgb(165,100,255)}\r\n\r\n.t7-pop{position:fixed;z-index:2147483000;display:flex;flex-direction:column;gap:8px;box-sizing:border-box;\r\n    padding:10px;background:#1b1b24;color:#eee;border:1px solid rgba(255,255,255,.18);border-radius:10px;\r\n    box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.3 system-ui,sans-serif}\r\n.t7-pop *{box-sizing:border-box}\r\n.t7-pop [hidden]{display:none!important}\r\n.t7-pop button{font:inherit;cursor:pointer}\r\n.t7-pop.t7-drag{will-change:transform;transition:none}\r\n.t7-pop.t7-drag .t7-gr{pointer-events:none}\r\n\r\n.t7-h{display:flex;justify-content:space-between;align-items:center;font-size:15px;cursor:grab;touch-action:none;user-select:none}\r\n.t7-h:active{cursor:grabbing}\r\n.t7-x{background:none;border:0;color:#ccc;font-size:20px;line-height:1;padding:0 4px}\r\n.t7-gr{flex:1;min-height:156px;overflow-y:auto;overscroll-behavior:contain}\r\n\r\n.t7-nf{display:flex;gap:6px;align-items:flex-end}\r\n.t7-nf label{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#aaa}\r\n.t7-pop input[type=text],.t7-pop input[type=search]{width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);\r\n    background:#0f0f15;color:#fff;font:13px system-ui,sans-serif}\r\n.t7-nf button{padding:6px 10px;border-radius:6px;border:0;background:#9146ff;color:#fff}\r\n.t7-st{font-size:11px;color:#aaa;min-height:1.3em}\r\n\r\n.t7-sz{display:flex;align-items:center;gap:8px;font-size:12px;color:#aaa}\r\n.t7-szb{display:flex;gap:4px}\r\n.t7-szb button{min-width:34px;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:#0f0f15;color:#ddd}\r\n.t7-szb button[aria-pressed=true]{background:#9146ff;border-color:#9146ff;color:#fff}\r\n\r\n.t7-gr{flex:1;min-height:140px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-sh{margin:6px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#aaa}\r\n.t7-gw{display:flex;flex-wrap:wrap;gap:2px}\r\n.t7-it{width:40px;height:40px;padding:3px;border:0;border-radius:6px;background:transparent;display:inline-flex;align-items:center;justify-content:center}\r\n.t7-it:hover,.t7-it:focus-visible{background:rgba(255,255,255,.14)}\r\n.t7-it img{max-width:100%;max-height:100%;object-fit:contain}\r\n.t7-emp{padding:16px 4px;color:#aaa;text-align:center}\r\n\r\n.t7-rs{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;\r\n    border-radius:0 0 10px 0;\r\n    background:linear-gradient(135deg,transparent 0 55%,#888 55% 62%,transparent 62% 72%,#888 72% 79%,transparent 79%)}\r\n\r\n.t7-hb{display:flex;align-items:center;gap:2px}\r\n.t7-g{background:none;border:0;color:#ccc;font-size:16px;line-height:1;padding:2px 5px;border-radius:6px}\r\n.t7-g:hover,.t7-x:hover{background:rgba(255,255,255,.14);color:#fff}\r\n\r\n.t7-set{position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;\r\n    padding:12px;background:rgba(0,0,0,.5);font:13px/1.3 system-ui,sans-serif}\r\n.t7-set *{box-sizing:border-box}\r\n.t7-sw{width:380px;max-width:100%;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:16px;\r\n    padding:14px;background:#1b1b24;color:#eee;border:1px solid rgba(255,255,255,.18);border-radius:12px;\r\n    box-shadow:0 12px 40px rgba(0,0,0,.6)}\r\n.t7-sw button{font:inherit;cursor:pointer}\r\n.t7-sth{display:flex;justify-content:space-between;align-items:center;font-size:15px}\r\n.t7-sec{display:flex;flex-direction:column;gap:6px}\r\n.t7-sec>h4{margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#aaa}\r\n.t7-row{display:flex;gap:6px;align-items:flex-end}\r\n.t7-wrap{flex-wrap:wrap}\r\n.t7-fl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#aaa}\r\n.t7-sw input[type=text]{width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);\r\n    background:#0f0f15;color:#fff;font:13px system-ui,sans-serif}\r\n.t7-chk{display:flex;gap:8px;align-items:center;cursor:pointer}\r\n.t7-b{padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:#0f0f15;color:#ddd}\r\n.t7-b:hover{background:#1d1d29}\r\n.t7-b.p{background:#9146ff;border-color:#9146ff;color:#fff}\r\n.t7-sst{font-size:11px;color:#aaa;min-height:1.3em}\r\n.t7-sth{cursor:grab;touch-action:none;user-select:none}\r\n.t7-sth:active{cursor:grabbing}\r\n.t7-sw.t7-drag{will-change:transform}\r\n.cy-chat-tabs:not([hidden]){display:flex;flex-wrap:nowrap;gap:2px;\r\n    width:100%;max-width:100%;min-width:0;box-sizing:border-box;\r\n    overflow-x:auto;overflow-y:hidden;scrollbar-width:none}\r\n.cy-chat-tabs::-webkit-scrollbar{display:none}\r\n.cy-chat-tabs>button[data-tab]{flex:0 0 auto;min-width:0;padding:5px 6px;font-size:11px;line-height:1.2;\r\n    white-space:nowrap;overflow:visible;\r\n    display:inline-flex;align-items:center;justify-content:center;gap:3px}\r\n.cy-chat-tabs>button .cy-chat-tn{flex:none;margin:0;min-width:1.5em;padding:1px 4px;\r\n    line-height:1.3;text-align:center;overflow:visible}\r\n.cy-chat-tabs>button .cy-chat-tn[hidden]{display:none}\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn,\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{\r\n    flex:none;display:inline-block;box-sizing:border-box;min-width:18px;height:18px;padding:0 5px;margin:0 0 0 4px;\r\n    border-radius:9px;font:700 11px/18px system-ui,sans-serif;text-align:center;text-indent:0;overflow:visible}\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn{background:#e53935;color:#fff}\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{background:#ffc94d;color:#1b1b24}\r\n.cy-chat .cy-chat-n[hidden],\r\n.cy-chat .cy-chat-tn[hidden],\r\n.cy-chat .cy-chat-tp[hidden],\r\n.cy-chat .cy-chat-pn[hidden]{display:none!important}";
 
   // src/config.js
   var CACHE_TTL = 60 * 60 * 1e3;
@@ -947,6 +947,7 @@
     if (!active(room)) return;
     try {
       inst[room].raw.apply(d);
+      countPings(room, d && d.chat);
     } catch (e) {
       console.warn("[mine-tabs] forward", e);
     }
@@ -1100,6 +1101,69 @@
       }
     };
   }
+  var pings = { city: {}, mine: {} };
+  function chatOf(room) {
+    const i = inst[room];
+    const S3 = i && i.K.state();
+    return S3 && S3.chat ? { S: S3, C: S3.chat } : null;
+  }
+  function tabOfMsg(C, m) {
+    return m.tb || (m.ev ? C.tr ? "ev" : "g" : m.k === "tr" ? "tr" : m.k === "dm" ? "dm" : "g");
+  }
+  function countPings(room, msgs) {
+    const o = chatOf(room);
+    if (!o || !o.C.on) return;
+    const x = inst[room].K.X();
+    const me = String(x && x.login && x.login() || "").toLowerCase();
+    if (!me) return;
+    const re = new RegExp("(^|\\s)@" + me + "(\\b|$)", "i");
+    const pg = pings[room];
+    let hit = false;
+    for (const m of msgs || []) {
+      if (!m || m.l === me || m.ev || m.sys) continue;
+      if (o.C.ign && o.C.ign.has(m.l)) continue;
+      if (!re.test(String(m.t || ""))) continue;
+      const tb = tabOfMsg(o.C, m);
+      if (o.C.open && o.C.tab === tb) continue;
+      pg[tb] = (pg[tb] || 0) + 1;
+      hit = true;
+    }
+    if (hit) paint(room);
+  }
+  var num = (n) => n > 99 ? "99+" : String(n);
+  function badge(parent, cls, n, title) {
+    let b = parent.querySelector(":scope > ." + cls);
+    if (!b) {
+      b = document.createElement("b");
+      b.className = cls;
+      parent.appendChild(b);
+    }
+    b.hidden = !n;
+    b.textContent = n ? num(n) : "";
+    b.title = n ? title + ": " + n : "";
+  }
+  function paint(room) {
+    const o = chatOf(room);
+    const box = o && o.S.el && o.S.el.querySelector(".cy-chat");
+    if (!box) return;
+    const pg = pings[room];
+    if (o.C.open) pg[o.C.tab] = 0;
+    let total = 0;
+    box.querySelectorAll(".cy-chat-tabs [data-tab]").forEach((b) => {
+      const n = pg[b.dataset.tab] || 0;
+      total += n;
+      badge(b, "cy-chat-tp", n, "\u0423\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u0439");
+    });
+    const t = box.querySelector(".cy-chat-t");
+    if (t) badge(t, "cy-chat-pn", o.C.open ? 0 : total, "\u0423\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u0439");
+  }
+  function pingBind(room) {
+    const o = chatOf(room);
+    const box = o && o.S.el && o.S.el.querySelector(".cy-chat");
+    if (!box || box.dataset.t7pg) return;
+    box.dataset.t7pg = "1";
+    box.addEventListener("click", () => paint(room));
+  }
   function wrapInst(raw, K, room) {
     const other = room === "mine" ? "city" : "mine";
     const mine = room === "mine";
@@ -1109,6 +1173,7 @@
       init() {
         raw.init();
         setupTabs(K);
+        pingBind(room);
       },
       enter(r) {
         let rr = r;
@@ -1120,6 +1185,9 @@
         }
         raw.enter(rr);
         setupTabs(K);
+        pings[room] = {};
+        pingBind(room);
+        paint(room);
         if (lastRoom !== room) {
           lastRoom = room;
           selectTab(K, mine ? "mn" : "g");
@@ -1140,6 +1208,7 @@
           dd = { ...d, chat: own };
         }
         raw.apply(dd);
+        if (dd && dd.chat) countPings(room, dd.chat);
       }
     };
   }
