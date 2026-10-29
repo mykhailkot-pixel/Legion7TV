@@ -928,10 +928,12 @@
   var lastRoom = "";
   var tagMn = (m) => m && m.tb !== "mn" ? { ...m, tb: "mn" } : m;
   var tagMsg = (r) => r && r.msg ? { ...r, msg: tagMn(r.msg) } : r;
+  var byTime = (a, b) => (a.at || 0) - (b.at || 0);
   function push(room, msgs) {
     const a = buf[room];
     for (const m of msgs || []) if (m && m.id && !a.some((x) => x.id === m.id)) a.push(m);
-    if (a.length > 150) a.splice(0, a.length - 150);
+    a.sort(byTime);
+    if (a.length > 300) a.splice(0, a.length - 300);
   }
   function drop(ids) {
     for (const k of Object.keys(buf)) buf[k] = buf[k].filter((m) => !ids.includes(m.id));
@@ -1101,6 +1103,7 @@
   function wrapInst(raw, K, room) {
     const other = room === "mine" ? "city" : "mine";
     const mine = room === "mine";
+    const byTime2 = (a, b) => (a.at || 0) - (b.at || 0);
     return {
       ...raw,
       init() {
@@ -1112,7 +1115,8 @@
         if (r && Array.isArray(r.chat)) {
           const own = mine ? r.chat.map(tagMn) : r.chat;
           push(room, own);
-          rr = { ...r, chat: own.concat(buf[other].filter((m) => !own.some((x) => x.id === m.id))) };
+          const extra = buf[other].filter((m) => !own.some((x) => x.id === m.id));
+          rr = { ...r, chat: own.concat(extra).sort(byTime2) };
         }
         raw.enter(rr);
         setupTabs(K);
@@ -1120,7 +1124,13 @@
           lastRoom = room;
           selectTab(K, mine ? "mn" : "g");
         }
-        if (!mine) loadMineHistory(K);
+        if (!mine && typeof loadMineHistory === "function") {
+          try {
+            loadMineHistory(K);
+          } catch (e) {
+            console.warn("[mine-tabs] \u0438\u0441\u0442\u043E\u0440\u0438\u044F", e);
+          }
+        }
       },
       apply(d) {
         let dd = d;
