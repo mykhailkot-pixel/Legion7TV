@@ -29,6 +29,36 @@ function forward(room, d) {
     try { inst[room].raw.apply(d); } catch (e) { console.warn('[mine-tabs] forward', e); }
 }
 
+let mineHist = 0;   // история шахты за этот визит запрашивается один раз
+
+async function loadMineHistory(K) {
+    if (mineHist) return;
+    mineHist = 1;
+    try {
+        const x = K.X();
+        if (!x) { mineHist = 0; return; }
+        const r = await x.api('/api/mine/state?c=' + MINE_ID + '&mc=0');
+        const src = r && r.mchat && Array.isArray(r.mchat.chat) ? r.mchat.chat : null;
+        if (!src) { console.log('[mine-tabs] история шахты: в ответе нет mchat', r); return; }
+
+        const msgs = src.map(tagMn).filter((m) => m && m.id);
+        push('mine', msgs);
+
+        const i = inst.city;
+        const c = i && i.K.state() && i.K.state().chat;
+        if (!c || !c.on) return;
+
+        // кладём прямо в список чата: apply() дал бы облачка над героями и счётчики «новых»
+        const have = new Set(c.list.map((m) => m.id));
+        for (const m of msgs.slice(-80)) if (!have.has(m.id)) c.list.push(m);
+        c.list.sort((a, b) => (a.at || 0) - (b.at || 0));
+        i.raw.render();
+    } catch (e) {
+        mineHist = 0;
+        console.warn('[mine-tabs] история шахты', e);
+    }
+}
+
 /* ---------- кнопка «Шахта», порядок и подписи ---------- */
 function setupTabs(K) {
     const S = K.state();
@@ -169,10 +199,11 @@ function wrapInst(raw, K, room) {
             }
             raw.enter(rr);
             setupTabs(K);
-            if (lastRoom !== room) {     // зашли в другое место - выбрать «его» вкладку
+            if (lastRoom !== room) {
                 lastRoom = room;
                 selectTab(K, mine ? 'mn' : 'g');
             }
+            if (!mine) loadMineHistory(K);   // ← новое: после входа в город подтягиваем чат шахты
         },
         apply(d) {
             let dd = d;
