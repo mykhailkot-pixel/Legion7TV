@@ -1,10 +1,13 @@
 // Единые вкладки в чате города и шахты: Город · Личные · Достижения · Торговля · Шахта
 import { pingSystem } from './pingSystem.js';
+import { store } from './store.js';
 
 const W = unsafeWindow;
 const CITY = '/api/city/chat', MINE = '/api/mine/chat';
 const ORDER = ['g', 'dm', 'ev', 'tr', 'mn'];
 const MINE_ID = 'home'; 
+const PING_ONLY_KEY = 't7PingOnly';
+let pingOnly = store.get(PING_ONLY_KEY) === true;
 
 const buf = { city: [], mine: [] };      // последние сообщения комнат (для истории при переходе)
 const inst = { city: null, mine: null }; // { raw, K }
@@ -274,6 +277,48 @@ function markFilteredMessages(room) {
         tag.title = label === 'В ЧС' ? 'Отправитель в вашем черном списке' : 'В сообщении найдено слово или фраза из фильтра';
     });
 }
+
+function applyPingOnly(room) {
+    const o = chatOf(room);
+    const list = o && o.S.el && o.S.el.querySelector('.cy-chat-l');
+    if (!list) return;
+    let hasPing = false;
+    list.querySelectorAll(':scope > li').forEach((row) => {
+        const keep = !pingOnly || row.classList.contains('ping');
+        row.classList.toggle('t7-ping-hidden', !keep);
+        if (pingOnly && keep && !row.classList.contains('cy-chat-0')) hasPing = true;
+    });
+    list.dataset.t7NoPings = String(pingOnly && !hasPing);
+}
+
+function syncPingOnlyControls() {
+    for (const room of ['city', 'mine']) {
+        const o = chatOf(room);
+        const input = o && o.S.el && o.S.el.querySelector('.t7-chat-filter input');
+        if (input) input.checked = pingOnly;
+        applyPingOnly(room);
+    }
+}
+
+function addPingOnlyControl(room, box) {
+    const header = box.querySelector('.cy-chat-h');
+    if (!header || header.querySelector('.t7-chat-filter')) return;
+    const label = document.createElement('label');
+    label.className = 't7-chat-filter';
+    label.title = 'Показывать только сообщения с упоминанием';
+    label.innerHTML = '<input type="checkbox"><span>Только пинги</span>';
+    label.querySelector('input').checked = pingOnly;
+    label.addEventListener('click', (e) => e.stopPropagation());
+    label.querySelector('input').addEventListener('change', (e) => {
+        pingOnly = e.currentTarget.checked;
+        store.set(PING_ONLY_KEY, pingOnly);
+        syncPingOnlyControls();
+    });
+    const close = header.querySelector('.cy-chat-x');
+    header.insertBefore(label, close || null);
+    applyPingOnly(room);
+}
+
 const num = (n) => (n > 99 ? '99+' : String(n));
 function badge(parent, cls, n, title) {
     let b = parent.querySelector(':scope > .' + cls);
@@ -306,13 +351,18 @@ function pingBind(room) {
     const box = o && o.S.el && o.S.el.querySelector('.cy-chat');
     if (!box || box.dataset.t7pg) return;
     box.dataset.t7pg = '1';
+    addPingOnlyControl(room, box);
     box.addEventListener('click', () => paint(room));   // клик по вкладке / «Чат» / × → пересчитать
     const list = box.querySelector('.cy-chat-l');
     if (list && !filterObservers[room]) {
-        filterObservers[room] = new MutationObserver(() => markFilteredMessages(room));
+        filterObservers[room] = new MutationObserver(() => {
+            markFilteredMessages(room);
+            applyPingOnly(room);
+        });
         filterObservers[room].observe(list, { childList: true });
     }
     markFilteredMessages(room);
+    applyPingOnly(room);
 }
 
 function wrapInst(raw, K, room) {
