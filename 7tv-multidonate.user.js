@@ -339,6 +339,40 @@
     imgCache.clear();
     await DB.clear();
   }
+  var SAY_RE = /^\/api\/(?:city\/say|mine\/chat\/say)(?:\?|$)/;
+  var HTTP_RE = /(?<![\p{L}\p{N}_])http:\/\/\S/iu;
+  var TLD = "[a-z]{2}|com|net|org|info|dev|app|xyz|online|site|tech|gov|edu|club|shop|store|blog|cloud|live|link";
+  var LINK_RE = new RegExp(
+    "(?<![\\p{L}\\p{N}_@/.:%-])(?:https:\\/\\/)?(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+(?:" + TLD + ")(?![\\p{L}\\p{N}-])(?::\\d{1,5})?(?:[/?#]\\S*)?",
+    "giu"
+  );
+  function encodeOne(raw) {
+    let url = raw, tail = "";
+    const m = /[.,!?;:)\]'"]+$/.exec(url);
+    if (m) {
+      tail = m[0];
+      url = url.slice(0, -tail.length);
+    }
+    url = url.replace(/^https:\/\//i, "");
+    const i = url.search(/[/?#]/);
+    const host = (i < 0 ? url : url.slice(0, i)).toLowerCase().replace(/\./g, "_");
+    const rest = i < 0 ? "" : url.slice(i).replace(/\./g, "%2E").replace(/\{/g, "%7B").replace(/\}/g, "%7D");
+    return "[ref]{" + host + rest + "}" + tail;
+  }
+  var encodeLinks = (text) => text.replace(LINK_RE, encodeOne);
+  function refToUrl(body) {
+    const i = body.search(/[/?#]/);
+    const host = (i < 0 ? body : body.slice(0, i)).replace(/_/g, ".");
+    const rest = i < 0 ? "" : body.slice(i).replace(/%2E/gi, ".");
+    return "https://" + host + rest;
+  }
+  async function sendWithLinks(call, path, body) {
+    const text = body && body.text;
+    if (typeof text !== "string") return call(path, body);
+    if (HTTP_RE.test(text)) return { ok: false, error: "\u0441\u0441\u044B\u043B\u043A\u0438 http:// \u043D\u0435 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u044E\u0442\u0441\u044F - \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439 https://" };
+    const encoded = encodeLinks(text);
+    return call(path, encoded === text ? body : { ...body, text: encoded });
+  }
   document.addEventListener("scroll", (e) => {
     const t = e.target;
     if (t && t.classList && t.classList.contains("cy-chat-l"))
@@ -370,8 +404,8 @@
     );
     return img;
   }
-  var NONE = {};
-  var URL_RE = /(?:https?:\/\/|www\.)[^\s<>"']+/giu;
+  var URL_RE = /\[ref\]\{[^{}\s]+\}|https:\/\/[^\s<>"']+|www\.[^\s<>"']+/giu;
+  var HOST_OK = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
   function linkifyText(root) {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const nodes = [];
@@ -384,28 +418,37 @@
       const fragment = document.createDocumentFragment();
       let offset = 0;
       for (const match of matches) {
-        let url = match[0];
-        while (/[.,!?;:]$/.test(url)) url = url.slice(0, -1);
-        while (url.endsWith(")") && (url.match(/\)/g) || []).length > (url.match(/\(/g) || []).length) url = url.slice(0, -1);
         const start = match.index;
         if (start < offset) continue;
+        let url = match[0], href, label, len;
+        if (/^\[ref\]/i.test(url)) {
+          href = refToUrl(url.slice(6, -1));
+          label = href.slice(8);
+          len = url.length;
+        } else {
+          while (/[.,!?;:]$/.test(url)) url = url.slice(0, -1);
+          while (url.endsWith(")") && (url.match(/\)/g) || []).length > (url.match(/\(/g) || []).length) url = url.slice(0, -1);
+          href = url.startsWith("www.") ? "https://" + url : url;
+          label = url;
+          len = url.length;
+        }
         fragment.appendChild(document.createTextNode(text.slice(offset, start)));
-        const href = url.startsWith("www.") ? "https://" + url : url;
         let valid = false;
         try {
-          const parsed = new URL(href);
-          valid = (parsed.protocol === "http:" || parsed.protocol === "https:") && !!parsed.hostname;
+          const p = new URL(href);
+          valid = p.protocol === "https:" && HOST_OK.test(p.hostname);
         } catch {
         }
         if (valid) {
-          const anchor = document.createElement("a");
-          anchor.className = "t7-link";
-          anchor.href = href;
-          anchor.target = "_blank";
-          anchor.rel = "noopener noreferrer";
-          anchor.textContent = url;
-          fragment.appendChild(anchor);
-          offset = start + url.length;
+          const a = document.createElement("a");
+          a.className = "t7-link";
+          a.href = href;
+          a.title = href;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          a.textContent = label;
+          fragment.appendChild(a);
+          offset = start + len;
         } else {
           fragment.appendChild(document.createTextNode(match[0]));
           offset = start + match[0].length;
@@ -1674,7 +1717,8 @@
         if (!x) return x;
         let m = cache.get(x);
         if (!m) {
-          const api = (...a) => x.api(...a);
+          const raw = (...a) => x.api(...a);
+          const api = (p, b) => SAY_RE.test(p) ? sendWithLinks(raw, p, b) : raw(p, b);
           m = new Proxy(x, {
             get(t, k) {
               if (k === "api") return (p, b) => route(api, p, b);

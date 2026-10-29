@@ -3,6 +3,7 @@ import { S, EM } from './state.js';
 import { has } from './util.js';
 import { fetchImg } from './imgcache.js';
 import { urlFor } from './emotes.js';
+import { refToUrl } from './links.js';
 
 /* ---------- не даём ленте «уползать» вверх, когда эмоуты увеличивают строки ---------- */
 // scroll не всплывает, поэтому ловим в capture-фазе; программный рост высоты событие scroll не вызывает,
@@ -37,14 +38,13 @@ function makeImg(name, em, cls) {
     return img;
 }
 
-const NONE = {};
-const URL_RE = /(?:https?:\/\/|www\.)[^\s<>"']+/giu;
+const URL_RE = /\[ref\]\{[^{}\s]+\}|https:\/\/[^\s<>"']+|www\.[^\s<>"']+/giu;
+const HOST_OK = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
 
 function linkifyText(root) {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
-
     for (const node of nodes) {
         if (node.parentElement && node.parentElement.closest('a')) continue;
         const text = node.nodeValue;
@@ -53,27 +53,36 @@ function linkifyText(root) {
         const fragment = document.createDocumentFragment();
         let offset = 0;
         for (const match of matches) {
-            let url = match[0];
-            while (/[.,!?;:]$/.test(url)) url = url.slice(0, -1);
-            while (url.endsWith(')') && (url.match(/\)/g) || []).length > (url.match(/\(/g) || []).length) url = url.slice(0, -1);
             const start = match.index;
             if (start < offset) continue;
+            let url = match[0], href, label, len;
+            if (/^\[ref\]/i.test(url)) {
+                href = refToUrl(url.slice(6, -1));
+                label = href.slice(8);
+                len = url.length;
+            } else {
+                while (/[.,!?;:]$/.test(url)) url = url.slice(0, -1);
+                while (url.endsWith(')') && (url.match(/\)/g) || []).length > (url.match(/\(/g) || []).length) url = url.slice(0, -1);
+                href = url.startsWith('www.') ? 'https://' + url : url;
+                label = url;
+                len = url.length;
+            }
             fragment.appendChild(document.createTextNode(text.slice(offset, start)));
-            const href = url.startsWith('www.') ? 'https://' + url : url;
             let valid = false;
             try {
-                const parsed = new URL(href);
-                valid = (parsed.protocol === 'http:' || parsed.protocol === 'https:') && !!parsed.hostname;
+                const p = new URL(href);
+                valid = p.protocol === 'https:' && HOST_OK.test(p.hostname);
             } catch {}
             if (valid) {
-                const anchor = document.createElement('a');
-                anchor.className = 't7-link';
-                anchor.href = href;
-                anchor.target = '_blank';
-                anchor.rel = 'noopener noreferrer';
-                anchor.textContent = url;
-                fragment.appendChild(anchor);
-                offset = start + url.length;
+                const a = document.createElement('a');
+                a.className = 't7-link';
+                a.href = href;
+                a.title = href;
+                a.target = '_blank';
+                a.rel = 'noopener noreferrer';
+                a.textContent = label;
+                fragment.appendChild(a);
+                offset = start + len;
             } else {
                 fragment.appendChild(document.createTextNode(match[0]));
                 offset = start + match[0].length;

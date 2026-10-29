@@ -1,6 +1,7 @@
 // Единые вкладки в чате города и шахты: Город · Личные · Достижения · Торговля · Шахта
 import { pingSystem } from './pingSystem.js';
 import { store } from './store.js';
+import { SAY_RE, sendWithLinks } from './links.js';
 
 const W = unsafeWindow;
 const CITY = '/api/city/chat', MINE = '/api/mine/chat';
@@ -221,7 +222,8 @@ function patchK(K, room) {
             if (!x) return x;
             let m = cache.get(x);
             if (!m) {
-                const api = (...a) => x.api(...a);
+                const raw = (...a) => x.api(...a);
+                const api = (p, b) => (SAY_RE.test(p) ? sendWithLinks(raw, p, b) : raw(p, b));
                 m = new Proxy(x, {
                     get(t, k) {
                         if (k === 'api') return (p, b) => route(api, p, b);
