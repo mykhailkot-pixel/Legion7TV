@@ -94,4 +94,7 @@ export function rescanAll() {
     scan();
 }
 
-export const applySize = () => document.documentElement.style.setProperty('--t7-h', SIZES[S.size].h);
+export const applySize = () => {
+    document.documentElement.style.setProperty('--t7-h', SIZES[S.size].h);
+    document.documentElement.style.setProperty('--t7-tile', SIZES[S.size].p + 'px');
+};

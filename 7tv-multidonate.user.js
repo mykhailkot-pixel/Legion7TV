@@ -2,7 +2,7 @@
 // @author       ProCto_Fliy
 // @name         Legion chat extentions (7TV, более удобный чат и тд)
 // @namespace    https://play.multidonate.ru/
-// @version      4.5.0
+// @version      4.6.0
 // @description  Эмоуты 7TV в чате: кнопка 7TV, ник стримера, размер, список эмоутов, быстрый кеш
 // @match        https://play.multidonate.ru/*
 // @icon         https://cdn.7tv.app/emote/01F71VQYHR000D3ZZ6Q11NR7TV/2x.webp
@@ -21,13 +21,13 @@
 // @license      MIT
 // ==/UserScript==
 (() => {
-  var styles_default = ".t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}\r\n.t7-e{display:inline-block;vertical-align:middle;height:var(--t7-h,1.9em);width:auto;min-width:var(--t7-h,1.9em)}\r\n.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}\r\n.t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}\r\n\r\n\r\nform.cy-chat-f .t7-btn{\r\n    flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;\r\n    box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f .t7-btn:hover{background:rgb(165,100,255)}\r\n\r\n\r\n.t7-pop,.t7-set{\r\n    --t7-bg:#1b1b24;--t7-bg-in:#0f0f15;--t7-fg:#eee;--t7-mute:#aaa;\r\n    --t7-line:rgba(255,255,255,.2);--t7-hover:rgba(255,255,255,.14);--t7-acc:#9146ff}\r\n.t7-pop *,.t7-set *{box-sizing:border-box}\r\n.t7-pop button,.t7-sw button{font:inherit;cursor:pointer}\r\n.t7-pop [hidden]{display:none!important}\r\n\r\n\r\n.t7-x,.t7-g{background:none;border:0;color:#ccc;line-height:1;border-radius:6px}\r\n.t7-x{font-size:20px;padding:0 4px}\r\n.t7-g{font-size:16px;padding:2px 5px}\r\n.t7-x:hover,.t7-g:hover{background:var(--t7-hover);color:#fff}\r\n\r\n\r\n.t7-pop{\r\n    position:fixed;z-index:2147483000;display:flex;flex-direction:column;gap:8px;\r\n    padding:10px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:10px;\r\n    box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.3 system-ui,sans-serif}\r\n.t7-pop.t7-drag{will-change:transform;transition:none}\r\n.t7-pop.t7-drag .t7-gr{pointer-events:none}\r\n\r\n.t7-h,.t7-sth{display:flex;justify-content:space-between;align-items:center;\r\n    font-size:15px;cursor:grab;touch-action:none;user-select:none}\r\n.t7-h:active,.t7-sth:active{cursor:grabbing}\r\n.t7-hb{display:flex;align-items:center;gap:2px}\r\n\r\n.t7-pop input[type=search]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n\r\n.t7-gr{flex:1;min-height:156px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-sh{margin:6px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--t7-mute)}\r\n.t7-gw{display:flex;flex-wrap:wrap;gap:2px}\r\n.t7-it{display:inline-flex;align-items:center;justify-content:center;\r\n    width:40px;height:40px;padding:3px;border:0;border-radius:6px;background:transparent}\r\n.t7-it:hover,.t7-it:focus-visible{background:var(--t7-hover)}\r\n.t7-it img{max-width:100%;max-height:100%;object-fit:contain}\r\n.t7-emp{padding:16px 4px;color:var(--t7-mute);text-align:center}\r\n\r\n.t7-rs{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;\r\n    border-radius:0 0 10px 0;\r\n    background:linear-gradient(135deg,transparent 0 55%,#888 55% 62%,transparent 62% 72%,#888 72% 79%,transparent 79%)}\r\n\r\n\r\n.t7-set{\r\n    position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;\r\n    padding:12px;background:rgba(0,0,0,.5);font:13px/1.3 system-ui,sans-serif}\r\n.t7-sw{\r\n    width:380px;max-width:100%;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:16px;\r\n    padding:14px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.6)}\r\n.t7-sw.t7-drag{will-change:transform}\r\n\r\n.t7-sec{display:flex;flex-direction:column;gap:6px}\r\n.t7-sec>h4{margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--t7-mute)}\r\n.t7-row{display:flex;gap:6px;align-items:flex-end}\r\n.t7-wrap{flex-wrap:wrap}\r\n.t7-fl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t7-mute)}\r\n.t7-chk{display:flex;gap:8px;align-items:center;cursor:pointer}\r\n.t7-sst{min-height:1.3em;font-size:11px;color:var(--t7-mute)}\r\n\r\n.t7-sw input[type=text]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-sw textarea,.t7-sw select{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-sw textarea{resize:vertical;min-height:44px}\r\n.t7-volume{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:8px}\r\n.t7-volume input{grid-column:1/-1;width:100%;margin:2px 0}\r\n.t7-volume output,.t7-ping-status{font-size:11px;color:var(--t7-mute)}\r\n.t7-ping-status{min-height:1.3em}\r\n\r\n.t7-b{padding:6px 10px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-b:hover{background:#1d1d29}\r\n.t7-b.p{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n\r\n.t7-szb{display:flex;gap:4px}\r\n.t7-szb button{min-width:34px;padding:4px 8px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-szb button[aria-pressed=true]{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n\r\n\r\n.cy-chat-tabs:not([hidden]){\r\n    display:flex;flex-wrap:nowrap;gap:2px;width:100%;max-width:100%;min-width:0;box-sizing:border-box;\r\n    overflow-x:auto;overflow-y:hidden;scrollbar-width:none}\r\n.cy-chat-tabs::-webkit-scrollbar{display:none}\r\n.cy-chat-tabs>button[data-tab]{\r\n    flex:0 0 auto;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:3px;\r\n    padding:5px 6px;font-size:11px;line-height:1.2;white-space:nowrap;overflow:visible}\r\n.cy-chat-tabs>button .cy-chat-tn{flex:none;margin:0;min-width:1.5em;padding:1px 4px;line-height:1.3;text-align:center;overflow:visible}\r\n\r\n\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn,\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{\r\n    flex:none;display:inline-block;box-sizing:border-box;min-width:18px;height:18px;margin:0 0 0 4px;padding:0 5px;\r\n    border-radius:9px;font:700 11px/18px system-ui,sans-serif;text-align:center;text-indent:0;overflow:visible}\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn{background:#e53935;color:#fff}\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{background:#ffc94d;color:#1b1b24}\r\n.cy-chat .cy-chat-n[hidden],\r\n.cy-chat .cy-chat-tn[hidden],\r\n.cy-chat .cy-chat-tp[hidden],\r\n.cy-chat .cy-chat-pn[hidden]{display:none!important}\r\n.cy-chat-l>li.t7-filtered{font-style:italic}\r\n.cy-chat-l>li>.t7-filter-label{display:inline-block;margin-right:5px;padding:2px 6px;border-radius:4px;background:rgba(255,201,77,.14);color:#ffca66;font-size:13px;font-weight:700;white-space:nowrap}\r\n.cy-chat-l>li.t7-filtered>:not(.t7-filter-label){display:none!important}";
+  var styles_default = ".t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}\r\n.t7-e{display:inline-block;vertical-align:middle;height:var(--t7-h,1.9em);width:auto;min-width:var(--t7-h,1.9em)}\r\n.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}\r\n.t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}\r\n\r\n\r\nform.cy-chat-f .t7-btn{\r\n    flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;\r\n    box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f .t7-btn:hover{background:rgb(165,100,255)}\r\n\r\n\r\n.t7-pop,.t7-set{\r\n    --t7-bg:#1b1b24;--t7-bg-in:#0f0f15;--t7-fg:#eee;--t7-mute:#aaa;\r\n    --t7-line:rgba(255,255,255,.2);--t7-hover:rgba(255,255,255,.14);--t7-acc:#9146ff}\r\n.t7-pop *,.t7-set *{box-sizing:border-box}\r\n.t7-pop button,.t7-sw button{font:inherit;cursor:pointer}\r\n.t7-pop [hidden]{display:none!important}\r\n\r\n\r\n.t7-x,.t7-g{background:none;border:0;color:#ccc;line-height:1;border-radius:6px}\r\n.t7-x{font-size:20px;padding:0 4px}\r\n.t7-g{font-size:16px;padding:2px 5px}\r\n.t7-x:hover,.t7-g:hover{background:var(--t7-hover);color:#fff}\r\n\r\n\r\n.t7-pop{\r\n    position:fixed;z-index:2147483000;display:flex;flex-direction:column;gap:8px;\r\n    padding:10px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:10px;\r\n    box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.3 system-ui,sans-serif}\r\n.t7-pop.t7-drag{will-change:transform;transition:none}\r\n.t7-pop.t7-drag .t7-gr{pointer-events:none}\r\n\r\n.t7-h,.t7-sth{display:flex;justify-content:space-between;align-items:center;\r\n    font-size:15px;cursor:grab;touch-action:none;user-select:none}\r\n.t7-h:active,.t7-sth:active{cursor:grabbing}\r\n.t7-hb{display:flex;align-items:center;gap:2px}\r\n\r\n.t7-pop input[type=search]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-views{display:flex;gap:3px;padding:2px;border:1px solid var(--t7-line);border-radius:6px;background:var(--t7-bg-in)}\r\n.t7-views button{flex:1;padding:5px 7px;border:0;border-radius:4px;background:transparent;color:var(--t7-mute);font-size:12px}\r\n.t7-views button[aria-selected=true]{background:var(--t7-hover);color:var(--t7-fg)}\r\n\r\n.t7-gr{flex:1;min-height:156px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-sh{margin:6px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--t7-mute)}\r\n.t7-gw{display:flex;flex-wrap:wrap;gap:2px}\r\n.t7-it{display:inline-flex;align-items:center;justify-content:center;\r\n    width:var(--t7-tile,40px);height:var(--t7-tile,40px);padding:3px;border:0;border-radius:6px;background:transparent}\r\n.t7-it:hover,.t7-it:focus-visible{background:var(--t7-hover)}\r\n.t7-it img{width:100%;height:100%;object-fit:contain}\r\n.t7-item{position:relative;flex:none;width:var(--t7-tile,40px);height:var(--t7-tile,40px)}\r\n.t7-item .t7-it{width:100%;height:100%}\r\n.t7-fav{position:absolute;top:0;right:0;z-index:1;display:grid;place-items:center;width:17px;height:17px;padding:0;border:0;border-radius:4px;background:rgba(15,15,21,.82);color:#e5c76b;font:14px/1 system-ui,sans-serif;opacity:.78}\r\n.t7-fav:hover,.t7-fav:focus-visible{opacity:1;background:var(--t7-hover)}\r\n.t7-emp{padding:16px 4px;color:var(--t7-mute);text-align:center}\r\n\r\n.t7-rs{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;\r\n    border-radius:0 0 10px 0;\r\n    background:linear-gradient(135deg,transparent 0 55%,#888 55% 62%,transparent 62% 72%,#888 72% 79%,transparent 79%)}\r\n\r\n\r\n.t7-set{\r\n    position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;\r\n    padding:12px;background:rgba(0,0,0,.5);font:13px/1.3 system-ui,sans-serif}\r\n.t7-sw{\r\n    width:380px;max-width:100%;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:16px;\r\n    padding:14px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.6)}\r\n.t7-sw.t7-drag{will-change:transform}\r\n\r\n.t7-sec{display:flex;flex-direction:column;gap:6px}\r\n.t7-sec>h4{margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--t7-mute)}\r\n.t7-row{display:flex;gap:6px;align-items:flex-end}\r\n.t7-wrap{flex-wrap:wrap}\r\n.t7-fl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t7-mute)}\r\n.t7-chk{display:flex;gap:8px;align-items:center;cursor:pointer}\r\n.t7-sst{min-height:1.3em;font-size:11px;color:var(--t7-mute)}\r\n\r\n.t7-sw input[type=text],.t7-sw input[type=number]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-sw textarea,.t7-sw select{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-sw textarea{resize:vertical;min-height:44px}\r\n.t7-volume{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:8px}\r\n.t7-volume input{grid-column:1/-1;width:100%;margin:2px 0}\r\n.t7-volume output,.t7-ping-status{font-size:11px;color:var(--t7-mute)}\r\n.t7-ping-status{min-height:1.3em}\r\n\r\n.t7-b{padding:6px 10px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-b:hover{background:#1d1d29}\r\n.t7-b.p{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n\r\n.t7-szb{display:flex;gap:4px}\r\n.t7-szb button{min-width:34px;padding:4px 8px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-szb button[aria-pressed=true]{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n\r\n\r\n.cy-chat-tabs:not([hidden]){\r\n    display:flex;flex-wrap:nowrap;gap:2px;width:100%;max-width:100%;min-width:0;box-sizing:border-box;\r\n    overflow-x:auto;overflow-y:hidden;scrollbar-width:none}\r\n.cy-chat-tabs::-webkit-scrollbar{display:none}\r\n.cy-chat-tabs>button[data-tab]{\r\n    flex:0 0 auto;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:3px;\r\n    padding:5px 6px;font-size:11px;line-height:1.2;white-space:nowrap;overflow:visible}\r\n.cy-chat-tabs>button .cy-chat-tn{flex:none;margin:0;min-width:1.5em;padding:1px 4px;line-height:1.3;text-align:center;overflow:visible}\r\n\r\n\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn,\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{\r\n    flex:none;display:inline-block;box-sizing:border-box;min-width:18px;height:18px;margin:0 0 0 4px;padding:0 5px;\r\n    border-radius:9px;font:700 11px/18px system-ui,sans-serif;text-align:center;text-indent:0;overflow:visible}\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn{background:#e53935;color:#fff}\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{background:#ffc94d;color:#1b1b24}\r\n.cy-chat .cy-chat-n[hidden],\r\n.cy-chat .cy-chat-tn[hidden],\r\n.cy-chat .cy-chat-tp[hidden],\r\n.cy-chat .cy-chat-pn[hidden]{display:none!important}\r\n.cy-chat-l>li.t7-filtered{font-style:italic}\r\n.cy-chat-l>li>.t7-filter-label{display:inline-block;margin-right:5px;padding:2px 6px;border-radius:4px;background:rgba(255,201,77,.14);color:#ffca66;font-size:13px;font-weight:700;white-space:nowrap}\r\n.cy-chat-l>li.t7-filtered>:not(.t7-filter-label){display:none!important}";
   var CACHE_TTL = 60 * 60 * 1e3;
   var SIZES = {
-    s: { h: "1.3em", n: 2, label: "S" },
-    m: { h: "1.9em", n: 2, label: "M" },
-    l: { h: "2.6em", n: 3, label: "L" },
-    x: { h: "3.4em", n: 3, label: "XL" }
+    s: { h: "1.3em", n: 2, p: 32, label: "S" },
+    m: { h: "1.9em", n: 2, p: 40, label: "M" },
+    l: { h: "2.6em", n: 3, p: 52, label: "L" },
+    x: { h: "3.4em", n: 3, p: 68, label: "XL" }
   };
   var pageChan = (() => {
     const m = /\/c\/([\w]+)/.exec(location.pathname);
@@ -38,7 +38,7 @@
   ];
   var EXTRA_SETS = [
   ];
-  var S2 = { nick: pageChan, size: "m", on: true };
+  var S = { nick: pageChan, size: "m", on: true };
   var EM = {};
   var st = {
     pos: null,
@@ -255,7 +255,7 @@
   async function reload(force) {
     const my = ++st.loadToken;
     if (force) setStatus("\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430\u2026");
-    const { map, msg, stale } = await loadEmotes(S2.nick, force);
+    const { map, msg, stale } = await loadEmotes(S.nick, force);
     if (my !== st.loadToken) return;
     for (const k of Object.keys(EM)) delete EM[k];
     Object.assign(EM, map);
@@ -359,7 +359,7 @@
     img.alt = name;
     img.title = name;
     img.addEventListener("load", () => stickFrom(img));
-    fetchImg(urlFor(em, SIZES[S2.size].n), true).then(
+    fetchImg(urlFor(em, SIZES[S.size].n), true).then(
       (d) => {
         img.src = d;
       },
@@ -372,7 +372,7 @@
   }
   var NONE = {};
   function processSpan(sp) {
-    const act = S2.on ? EM : NONE;
+    const act = S.on ? EM : NONE;
     const src = sp.dataset.t7o != null ? sp.dataset.t7o : sp.textContent;
     const parts = src.split(/(\s+)/);
     if (!parts.some((p) => has(act, p))) {
@@ -432,7 +432,10 @@
     });
     scan();
   }
-  var applySize = () => document.documentElement.style.setProperty("--t7-h", SIZES[S2.size].h);
+  var applySize = () => {
+    document.documentElement.style.setProperty("--t7-h", SIZES[S.size].h);
+    document.documentElement.style.setProperty("--t7-tile", SIZES[S.size].p + "px");
+  };
   var KEY = "t7ping";
   var PRESETS = /* @__PURE__ */ new Set(["bell", "chime", "pop", "custom"]);
   var DEFAULTS = {
@@ -597,6 +600,23 @@
     }
   };
   var pingSystem = new PingSystem();
+  var RECENT_KEY = "t7recent";
+  var LIMIT_KEY = "t7recentLimit";
+  var DEFAULT_LIMIT = 20;
+  var MAX_LIMIT = 100;
+  function getRecentLimit() {
+    const value = Number(store.get(LIMIT_KEY));
+    return Number.isInteger(value) ? Math.max(1, Math.min(MAX_LIMIT, value)) : DEFAULT_LIMIT;
+  }
+  function setRecentLimit(value) {
+    const parsed = Number(value);
+    const limit = Number.isFinite(parsed) ? Math.max(1, Math.min(MAX_LIMIT, Math.round(parsed))) : DEFAULT_LIMIT;
+    store.set(LIMIT_KEY, limit);
+    const recent = store.get(RECENT_KEY);
+    if (Array.isArray(recent)) store.set(RECENT_KEY, recent.slice(-limit));
+    document.dispatchEvent(new Event("t7-recent-limit-change"));
+    return limit;
+  }
   var SOFF = (() => {
     const p = store.get("t7spos");
     return p && Number.isFinite(p.x) && Number.isFinite(p.y) ? p : { x: 0, y: 0 };
@@ -705,6 +725,10 @@
                 <div class="t7-szb">${Object.keys(SIZES).map((k) => `<button type="button" data-sz="${k}" aria-pressed="false">${SIZES[k].label}</button>`).join("")}</div>
             </div>
             <div class="t7-sec">
+                <h4>\u041D\u0435\u0434\u0430\u0432\u043D\u043E \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u043D\u044B\u0435</h4>
+                <label class="t7-fl">\u041A\u043E\u043B\u0438\u0447\u0435\u0441\u0442\u0432\u043E \u044D\u043C\u043E\u0443\u0442\u043E\u0432 \u0432 \u0441\u043F\u0438\u0441\u043A\u0435 "\u041D\u0435\u0434\u0430\u0432\u043D\u0438\u0435"<input class="t7-recent-limit" type="number" min="1" max="100" step="1" inputmode="numeric"></label>
+            </div>
+            <div class="t7-sec">
                 <h4>\u041F\u0438\u043D\u0433\u0438 \u0438 \u0444\u0438\u043B\u044C\u0442\u0440\u044B</h4>
                 <label class="t7-fl">\u041D\u0438\u043A\u0438 \u0438 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u044B \u0434\u043B\u044F \u043F\u0438\u043D\u0433\u0430<textarea class="t7-ping-aliases" rows="2" placeholder="\u043D\u0438\u043A, nick, @\u043D\u0438\u043A"></textarea></label>
                 <label class="t7-fl">\u0427\u0435\u0440\u043D\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A \u043D\u0438\u043A\u043E\u0432<textarea class="t7-ping-blacklist" rows="2" placeholder="\u043F\u043E \u043E\u0434\u043D\u043E\u043C\u0443 \u043D\u0438\u043A\u0443 \u043D\u0430 \u0441\u0442\u0440\u043E\u043A\u0443"></textarea></label>
@@ -733,14 +757,14 @@
     });
     el.querySelector(".t7-x").onclick = closeSettings;
     const on = el.querySelector(".t7-on");
-    on.checked = S2.on;
+    on.checked = S.on;
     on.addEventListener("change", () => {
-      S2.on = on.checked;
-      store.set("t7on", S2.on);
+      S.on = on.checked;
+      store.set("t7on", S.on);
       rescanAll();
     });
     const nickInp = el.querySelector(".t7-nick");
-    nickInp.value = S2.nick;
+    nickInp.value = S.nick;
     nickInp.placeholder = pageChan || "\u043D\u0430\u043F\u0440\u0438\u043C\u0435\u0440, zakvielchannel";
     el.querySelector("form").addEventListener("submit", (e) => {
       e.preventDefault();
@@ -750,7 +774,7 @@
         setStatus("\u041D\u0435\u0432\u0435\u0440\u043D\u044B\u0439 \u043D\u0438\u043A: \u043D\u0443\u0436\u043D\u044B \u043B\u0430\u0442\u0438\u043D\u0441\u043A\u0438\u0435 \u0431\u0443\u043A\u0432\u044B, \u0446\u0438\u0444\u0440\u044B \u0438 _");
         return;
       }
-      S2.nick = n;
+      S.nick = n;
       nickInp.value = n;
       store.set("t7nick:" + pageChan, n);
       reload(true);
@@ -791,16 +815,21 @@
       }
       pingFile.value = "";
     });
-    const mark = () => el.querySelectorAll("[data-sz]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.sz === S2.size)));
+    const mark = () => el.querySelectorAll("[data-sz]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.sz === S.size)));
     mark();
     el.querySelector(".t7-szb").addEventListener("click", (e) => {
       const b = e.target.closest("[data-sz]");
-      if (!b || b.dataset.sz === S2.size) return;
-      S2.size = b.dataset.sz;
-      store.set("t7size", S2.size);
+      if (!b || b.dataset.sz === S.size) return;
+      S.size = b.dataset.sz;
+      store.set("t7size", S.size);
       applySize();
       mark();
       rescanAll();
+    });
+    const recentLimit = el.querySelector(".t7-recent-limit");
+    recentLimit.value = String(getRecentLimit());
+    recentLimit.addEventListener("change", () => {
+      recentLimit.value = String(setRecentLimit(recentLimit.value));
     });
     el.addEventListener("click", async (e) => {
       const b = e.target.closest("[data-act]");
@@ -832,6 +861,46 @@
     updateSetStatus(st.status);
     document.addEventListener("keydown", onKey, true);
   }
+  var FAVORITES_KEY = "t7favorites";
+  var RECENT_KEY2 = "t7recent";
+  var gridMode = "all";
+  var emoteData = /* @__PURE__ */ new Map();
+  document.addEventListener("t7-recent-limit-change", () => {
+    if (st.pop && gridMode === "recent") renderGrid();
+  });
+  function readEntries(key) {
+    const value = store.get(key);
+    if (!Array.isArray(value)) return [];
+    const entries = value.map((item) => typeof item === "string" ? { name: item, emote: null } : item).filter((item) => item && typeof item.name === "string" && item.name);
+    return [...new Map(entries.map((item) => [item.name, item])).values()];
+  }
+  function saveRecent(name) {
+    const recent = readEntries(RECENT_KEY2).filter((item) => item.name !== name);
+    recent.push({ name, emote: EM[name] || emoteData.get(name) || null });
+    store.set(RECENT_KEY2, recent.slice(-getRecentLimit()));
+  }
+  function recordRecentFromMessage(message) {
+    const names = String(message || "").split(/\s+/).filter((name) => Object.prototype.hasOwnProperty.call(EM, name));
+    for (const name of names) saveRecent(name);
+    if (names.length && gridMode === "recent") renderGrid();
+  }
+  function emoteFor(name) {
+    return EM[name] || emoteData.get(name) || null;
+  }
+  function updateViewButtons() {
+    if (!st.pop) return;
+    st.pop.querySelectorAll("[data-view]").forEach((button) => {
+      button.setAttribute("aria-selected", String(button.dataset.view === gridMode));
+    });
+  }
+  function toggleFavorite(name) {
+    const favorites = readEntries(FAVORITES_KEY);
+    const index = favorites.findIndex((item) => item.name === name);
+    if (index >= 0) favorites.splice(index, 1);
+    else favorites.push({ name, emote: EM[name] || emoteData.get(name) || null });
+    store.set(FAVORITES_KEY, favorites);
+    renderGrid();
+  }
   function chatInput() {
     const f = st.anchor && st.anchor.closest("form");
     return f && f.querySelector("input[type=text]");
@@ -845,7 +914,7 @@
     const pre = v.slice(0, a), post = v.slice(b);
     const add = (pre && !/\s$/.test(pre) ? " " : "") + name + (/^\s/.test(post) ? "" : " ");
     const nv = pre + add + post;
-    if (inp.maxLength > 0 && nv.length > inp.maxLength) return;
+    if (inp.maxLength > 0 && nv.length > inp.maxLength) return false;
     inp.value = nv;
     const pos = (pre + add).length;
     try {
@@ -854,16 +923,17 @@
     }
     inp.dispatchEvent(new Event("input", { bubbles: true }));
     if (!matchMedia("(pointer: coarse)").matches) inp.focus({ preventScroll: true });
+    return true;
   }
   function onVis(entries) {
     for (const en of entries) {
       if (!en.isIntersecting) continue;
       const el = en.target;
       if (st.io) st.io.unobserve(el);
-      const em = EM[el.dataset.name];
+      const em = emoteFor(el.dataset.name);
       if (!em || el.dataset.l) continue;
       el.dataset.l = "1";
-      fetchImg(urlFor(em, 1), false).then((d) => {
+      fetchImg(urlFor(em, SIZES[S.size].n), false).then((d) => {
         el.firstChild.src = d;
       }, () => {
       });
@@ -874,9 +944,9 @@
     const q = st.pop.querySelector(".t7-q").value.trim().toLowerCase();
     st.pop.querySelectorAll(".t7-gw").forEach((w) => {
       let vis = 0;
-      w.childNodes.forEach((b) => {
-        const show = !q || b.dataset.name.toLowerCase().includes(q);
-        b.hidden = !show;
+      w.querySelectorAll(".t7-item").forEach((item) => {
+        const show = !q || item.dataset.name.toLowerCase().includes(q);
+        item.hidden = !show;
         if (show) vis++;
       });
       w.hidden = !vis;
@@ -888,7 +958,15 @@
     const gr = st.pop.querySelector(".t7-gr");
     st.io.disconnect();
     gr.textContent = "";
-    const names = Object.keys(EM).sort((a, b) => a.localeCompare(b, void 0, { sensitivity: "base" }));
+    const allNames = Object.keys(EM).sort((a, b) => a.localeCompare(b, void 0, { sensitivity: "base" }));
+    const favoriteEntries = readEntries(FAVORITES_KEY);
+    const recentEntries = readEntries(RECENT_KEY2).reverse();
+    emoteData = new Map(Object.entries(EM));
+    for (const item of [...favoriteEntries, ...recentEntries]) {
+      if (!emoteData.has(item.name) && item.emote) emoteData.set(item.name, item.emote);
+    }
+    const favorites = favoriteEntries.map((item) => item.name);
+    const names = gridMode === "favorites" ? favoriteEntries.filter((item) => emoteFor(item.name)).map((item) => item.name) : gridMode === "recent" ? recentEntries.filter((item) => emoteFor(item.name)).map((item) => item.name) : allNames;
     const sec = (title, list) => {
       if (!list.length) return;
       const h = document.createElement("div");
@@ -897,6 +975,9 @@
       const w = document.createElement("div");
       w.className = "t7-gw";
       for (const n of list) {
+        const item = document.createElement("div");
+        item.className = "t7-item";
+        item.dataset.name = n;
         const b = document.createElement("button");
         b.type = "button";
         b.className = "t7-it";
@@ -907,18 +988,32 @@
         im.alt = "";
         im.decoding = "async";
         b.appendChild(im);
-        w.appendChild(b);
+        const favorite = document.createElement("button");
+        const isFavorite = favorites.includes(n);
+        favorite.type = "button";
+        favorite.className = "t7-fav";
+        favorite.dataset.name = n;
+        favorite.textContent = isFavorite ? "\u2605" : "\u2606";
+        favorite.title = isFavorite ? "\u0423\u0431\u0440\u0430\u0442\u044C \u0438\u0437 \u0438\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u0433\u043E" : "\u0414\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u0432 \u0438\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u0435";
+        favorite.setAttribute("aria-label", favorite.title + ": " + n);
+        favorite.setAttribute("aria-pressed", String(isFavorite));
+        item.append(b, favorite);
+        w.appendChild(item);
         st.io.observe(b);
       }
       gr.append(h, w);
     };
-    sec("\u041A\u0430\u043D\u0430\u043B", names.filter((n) => !EM[n].g));
-    sec("\u0421\u0432\u043E\u0438", names.filter((n) => EM[n].x));
-    sec("\u0413\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435", names.filter((n) => EM[n].g && !EM[n].x));
+    if (gridMode === "all") {
+      sec("\u041A\u0430\u043D\u0430\u043B", names.filter((n) => !EM[n].g));
+      sec("\u0421\u0432\u043E\u0438", names.filter((n) => EM[n].x));
+      sec("\u0413\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435", names.filter((n) => EM[n].g && !EM[n].x));
+    } else {
+      sec(gridMode === "favorites" ? "\u0418\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u0435" : "\u041D\u0435\u0434\u0430\u0432\u043D\u0438\u0435", names);
+    }
     if (!names.length) {
       const d = document.createElement("div");
       d.className = "t7-emp";
-      d.textContent = "\u042D\u043C\u043E\u0443\u0442\u043E\u0432 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442";
+      d.textContent = gridMode === "favorites" ? "\u0418\u0437\u0431\u0440\u0430\u043D\u043D\u044B\u0445 \u044D\u043C\u043E\u0443\u0442\u043E\u0432 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442 \u0432 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043D\u043D\u044B\u0445 \u043D\u0430\u0431\u043E\u0440\u0430\u0445" : gridMode === "recent" ? "\u041D\u0435\u0434\u0430\u0432\u043D\u043E \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u043D\u043D\u044B\u0445 \u044D\u043C\u043E\u0443\u0442\u043E\u0432 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442 \u0432 \u0437\u0430\u0433\u0440\u0443\u0436\u0435\u043D\u043D\u044B\u0445 \u043D\u0430\u0431\u043E\u0440\u0430\u0445" : "\u042D\u043C\u043E\u0443\u0442\u043E\u0432 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442";
       gr.appendChild(d);
     }
     filterGrid();
@@ -1103,6 +1198,7 @@
     pop.innerHTML = `
         <div class="t7-h"><b>7TV</b><span class="t7-hb"><button type="button" class="t7-g" aria-label="\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438" title="\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438">\u2699</button><button type="button" class="t7-x" aria-label="\u0417\u0430\u043A\u0440\u044B\u0442\u044C">\xD7</button></span></div>
         <input type="search" class="t7-q" placeholder="\u041F\u043E\u0438\u0441\u043A \u044D\u043C\u043E\u0443\u0442\u043E\u0432" autocomplete="off" aria-label="\u041F\u043E\u0438\u0441\u043A \u044D\u043C\u043E\u0443\u0442\u043E\u0432">
+        <div class="t7-views" role="tablist" aria-label="\u0421\u043F\u0438\u0441\u043A\u0438 \u044D\u043C\u043E\u0443\u0442\u043E\u0432"><button type="button" role="tab" data-view="all" aria-selected="true">\u0412\u0441\u0435</button><button type="button" role="tab" data-view="favorites" aria-selected="false">\u0418\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u0435</button><button type="button" role="tab" data-view="recent" aria-selected="false">\u041D\u0435\u0434\u0430\u0432\u043D\u0438\u0435</button></div>
         <div class="t7-gr"></div>
         <div class="t7-rs" title="\u041F\u043E\u0442\u044F\u043D\u0438, \u0447\u0442\u043E\u0431\u044B \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0440\u0430\u0437\u043C\u0435\u0440"></div>`;
     ["keydown", "keyup", "keypress"].forEach((t) => pop.addEventListener(t, (e) => e.stopPropagation()));
@@ -1115,10 +1211,27 @@
     };
     pop.querySelector(".t7-g").onclick = openSettings;
     pop.querySelector(".t7-q").addEventListener("input", filterGrid);
+    gridMode = "all";
+    pop.querySelector(".t7-views").addEventListener("click", (e) => {
+      const button = e.target.closest("[data-view]");
+      if (!button || button.dataset.view === gridMode) return;
+      gridMode = button.dataset.view;
+      updateViewButtons();
+      renderGrid();
+    });
     const gr = pop.querySelector(".t7-gr");
     gr.addEventListener("click", (e) => {
+      const favorite = e.target.closest(".t7-fav");
+      if (favorite) {
+        toggleFavorite(favorite.dataset.name);
+        return;
+      }
       const b = e.target.closest(".t7-it");
-      if (b) insertEmote(b.dataset.name);
+      if (b) {
+        saveRecent(b.dataset.name);
+        insertEmote(b.dataset.name);
+        if (gridMode === "recent") renderGrid();
+      }
     });
     st.io = new IntersectionObserver(onVis, { root: gr, rootMargin: "120px" });
     document.body.appendChild(pop);
@@ -1137,6 +1250,16 @@
   }
   function ensureButtons() {
     document.querySelectorAll("form.cy-chat-f").forEach((f) => {
+      const input = f.querySelector("input[type=text]");
+      if (input && !f.dataset.t7RecentBound) {
+        f.dataset.t7RecentBound = "1";
+        const record = () => recordRecentFromMessage(input.value);
+        f.addEventListener("submit", record, true);
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !e.isComposing && e.keyCode !== 229)
+            record();
+        }, true);
+      }
       if (f.querySelector(".t7-btn")) return;
       const b = document.createElement("button");
       b.type = "button";
@@ -1182,8 +1305,8 @@
   }
   function active(room) {
     const i = inst[room];
-    const S3 = i && i.K.state();
-    return !!(S3 && S3.chat && S3.chat.on);
+    const S2 = i && i.K.state();
+    return !!(S2 && S2.chat && S2.chat.on);
   }
   function forward(room, d) {
     if (!active(room)) return;
@@ -1225,13 +1348,13 @@
     }
   }
   function setupTabs(K) {
-    const S3 = K.state();
-    if (!S3 || !S3.chat || !S3.el) return;
-    const C = S3.chat;
+    const S2 = K.state();
+    if (!S2 || !S2.chat || !S2.el) return;
+    const C = S2.chat;
     C.mn = true;
     C.un = C.un || {};
     if (C.un.mn == null) C.un.mn = 0;
-    const tabs = S3.el.querySelector(".cy-chat-tabs");
+    const tabs = S2.el.querySelector(".cy-chat-tabs");
     if (!tabs) return;
     if (!tabs.querySelector('[data-tab="mn"]')) {
       const b = document.createElement("button");
@@ -1259,8 +1382,8 @@
     if (!C.panel) tabs.hidden = false;
   }
   function selectTab(K, t) {
-    const S3 = K.state();
-    const b = S3 && S3.el && S3.el.querySelector(`.cy-chat-tabs [data-tab="${t}"]`);
+    const S2 = K.state();
+    const b = S2 && S2.el && S2.el.querySelector(`.cy-chat-tabs [data-tab="${t}"]`);
     if (b) b.click();
   }
   var cityIn = false;
@@ -1346,8 +1469,8 @@
   var pings = { city: {}, mine: {} };
   function chatOf(room) {
     const i = inst[room];
-    const S3 = i && i.K.state();
-    return S3 && S3.chat ? { S: S3, C: S3.chat } : null;
+    const S2 = i && i.K.state();
+    return S2 && S2.chat ? { S: S2, C: S2.chat } : null;
   }
   function tabOfMsg(C, m) {
     return m.tb || (m.ev ? C.tr ? "ev" : "g" : m.k === "tr" ? "tr" : m.k === "dm" ? "dm" : "g");
@@ -1582,14 +1705,14 @@
     style.textContent = styles_default;
     document.head.appendChild(style);
     const sz = store.get("t7size");
-    if (SIZES[sz]) S2.size = sz;
-    S2.nick = store.get("t7nick:" + pageChan) || pageChan;
+    if (SIZES[sz]) S.size = sz;
+    S.nick = store.get("t7nick:" + pageChan) || pageChan;
     const p = store.get("t7pos");
     if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) st.pos = p;
     const w = store.get("t7win");
     if (w && Number.isFinite(w.w) && Number.isFinite(w.h)) st.win = w;
     applySize();
-    if (store.get("t7on") === false) S2.on = false;
+    if (store.get("t7on") === false) S.on = false;
     st.hooks.status = updateSetStatus;
     st.hooks.place = place;
     st.hooks.emotes = () => {

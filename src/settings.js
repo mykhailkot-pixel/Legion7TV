@@ -7,6 +7,7 @@ import { rescanAll, applySize } from './chat.js';
 import { clearImgs } from './imgcache.js';
 import { clamp } from './util.js';
 import { pingSystem } from './pingSystem.js';
+import { getRecentLimit, setRecentLimit } from './recentEmotes.js';
 
 // смещение окна настроек от центра экрана
 let SOFF = (() => {
@@ -116,6 +117,11 @@ export function openSettings() {
             </div>
 
             <div class="t7-sec">
+                <h4>Недавно использованные</h4>
+                <label class="t7-fl">Количество эмоутов в списке "Недавние"<input class="t7-recent-limit" type="number" min="1" max="100" step="1" inputmode="numeric"></label>
+            </div>
+
+            <div class="t7-sec">
                 <h4>Пинги и фильтры</h4>
                 <label class="t7-fl">Ники и варианты для пинга<textarea class="t7-ping-aliases" rows="2" placeholder="ник, nick, @ник"></textarea></label>
                 <label class="t7-fl">Черный список ников<textarea class="t7-ping-blacklist" rows="2" placeholder="по одному нику на строку"></textarea></label>
@@ -214,6 +220,12 @@ export function openSettings() {
         applySize();
         mark();
         rescanAll();
+    });
+
+    const recentLimit = el.querySelector('.t7-recent-limit');
+    recentLimit.value = String(getRecentLimit());
+    recentLimit.addEventListener('change', () => {
+        recentLimit.value = String(setRecentLimit(recentLimit.value));
     });
 
     el.addEventListener('click', async (e) => {

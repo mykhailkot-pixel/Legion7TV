@@ -33,12 +33,21 @@ function active(room) {
     const S = i && i.K.state();
     return !!(S && S.chat && S.chat.on);
 }
-function forward(room, d) {
+function forward(room, d, sourceRoom) {
     if (!active(room)) return;
+    const chat = chatOf(room);
+    const forceUnread = !!(chat && sourceRoom && sourceRoom !== lastRoom);
+    const wasOpen = forceUnread && chat.C.open;
+    if (forceUnread) chat.C.open = false;
+    let applied = false;
     try {
         inst[room].raw.apply(d);
-        countPings(room, d && d.chat);
+        applied = true;
     } catch (e) { console.warn('[mine-tabs] forward', e); }
+    finally {
+        if (forceUnread) chat.C.open = wasOpen;
+    }
+    if (applied) countPings(room, d && d.chat);
 }
 
 let mineHist = 0;   // история шахты за этот визит запрашивается один раз
@@ -374,7 +383,7 @@ function wrapCity(v) {
             if (d) {
                 if (Array.isArray(d.chat) && d.chat.length) push('city', d.chat);
                 if (Array.isArray(d.chatDel) && d.chatDel.length) drop(d.chatDel);
-                if (d.chat || d.chatDel) forward('mine', { chat: d.chat, chatDel: d.chatDel });  // без d.c: счётчик у комнат свой
+                if (d.chat || d.chatDel) forward('mine', { chat: d.chat, chatDel: d.chatDel }, 'city');
             }
         } catch (e) { console.warn('[mine-tabs] city', e); }
         return o.apply(this, arguments);
@@ -388,10 +397,10 @@ function wrapMine(v) {
     const o = v.onEvent;
     v.onEvent = function (d) {
         try {
-            if (d && d.chatRoom === 'mine' && Array.isArray(d.chat) && !v.on) {   // шахта закрыта, мы в городе
+            if (d && d.chatRoom === 'mine' && Array.isArray(d.chat) && !v.on) {
                 const t = d.chat.map(tagMn);
                 push('mine', t);
-                forward('city', { chat: t });
+                forward('city', { chat: t }, 'mine');
             }
         } catch (e) { console.warn('[mine-tabs] mine', e); }
         return o.apply(this, arguments);

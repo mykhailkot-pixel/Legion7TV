@@ -1,9 +1,60 @@
-import { EM, st } from './state.js';
+import { EM, S, st } from './state.js';
+import { SIZES } from './config.js';
 import { store } from './store.js';
 import { clamp } from './util.js';
 import { fetchImg } from './imgcache.js';
 import { urlFor } from './emotes.js';
 import { openSettings } from './settings.js';
+import { getRecentLimit } from './recentEmotes.js';
+
+const FAVORITES_KEY = 't7favorites';
+const RECENT_KEY = 't7recent';
+let gridMode = 'all';
+let emoteData = new Map();
+
+document.addEventListener('t7-recent-limit-change', () => {
+    if (st.pop && gridMode === 'recent') renderGrid();
+});
+
+function readEntries(key) {
+    const value = store.get(key);
+    if (!Array.isArray(value)) return [];
+    const entries = value.map((item) => typeof item === 'string' ? { name: item, emote: null } : item)
+        .filter((item) => item && typeof item.name === 'string' && item.name);
+    return [...new Map(entries.map((item) => [item.name, item])).values()];
+}
+
+function saveRecent(name) {
+    const recent = readEntries(RECENT_KEY).filter((item) => item.name !== name);
+    recent.push({ name, emote: EM[name] || emoteData.get(name) || null });
+    store.set(RECENT_KEY, recent.slice(-getRecentLimit()));
+}
+
+export function recordRecentFromMessage(message) {
+    const names = String(message || '').split(/\s+/).filter((name) => Object.prototype.hasOwnProperty.call(EM, name));
+    for (const name of names) saveRecent(name);
+    if (names.length && gridMode === 'recent') renderGrid();
+}
+
+function emoteFor(name) {
+    return EM[name] || emoteData.get(name) || null;
+}
+
+function updateViewButtons() {
+    if (!st.pop) return;
+    st.pop.querySelectorAll('[data-view]').forEach((button) => {
+        button.setAttribute('aria-selected', String(button.dataset.view === gridMode));
+    });
+}
+
+function toggleFavorite(name) {
+    const favorites = readEntries(FAVORITES_KEY);
+    const index = favorites.findIndex((item) => item.name === name);
+    if (index >= 0) favorites.splice(index, 1);
+    else favorites.push({ name, emote: EM[name] || emoteData.get(name) || null });
+    store.set(FAVORITES_KEY, favorites);
+    renderGrid();
+}
 
 export function updateStatus(t) {
     const e = st.pop && st.pop.querySelector('.t7-st');
@@ -25,12 +76,13 @@ function insertEmote(name) {
     const pre = v.slice(0, a), post = v.slice(b);
     const add = (pre && !/\s$/.test(pre) ? ' ' : '') + name + (/^\s/.test(post) ? '' : ' ');
     const nv = pre + add + post;
-    if (inp.maxLength > 0 && nv.length > inp.maxLength) return;
+    if (inp.maxLength > 0 && nv.length > inp.maxLength) return false;
     inp.value = nv;
     const pos = (pre + add).length;
     try { inp.setSelectionRange(pos, pos); } catch {}
     inp.dispatchEvent(new Event('input', { bubbles: true }));
     if (!matchMedia('(pointer: coarse)').matches) inp.focus({ preventScroll: true });
+    return true;
 }
 
 /* ---------- список эмоутов ---------- */
@@ -39,10 +91,10 @@ function onVis(entries) {
         if (!en.isIntersecting) continue;
         const el = en.target;
         if (st.io) st.io.unobserve(el);
-        const em = EM[el.dataset.name];
+        const em = emoteFor(el.dataset.name);
         if (!em || el.dataset.l) continue;
         el.dataset.l = '1';
-        fetchImg(urlFor(em, 1), false).then((d) => { el.firstChild.src = d; }, () => {});
+        fetchImg(urlFor(em, SIZES[S.size].n), false).then((d) => { el.firstChild.src = d; }, () => {});
     }
 }
 
@@ -51,9 +103,9 @@ function filterGrid() {
     const q = st.pop.querySelector('.t7-q').value.trim().toLowerCase();
     st.pop.querySelectorAll('.t7-gw').forEach((w) => {
         let vis = 0;
-        w.childNodes.forEach((b) => {
-            const show = !q || b.dataset.name.toLowerCase().includes(q);
-            b.hidden = !show;
+        w.querySelectorAll('.t7-item').forEach((item) => {
+            const show = !q || item.dataset.name.toLowerCase().includes(q);
+            item.hidden = !show;
             if (show) vis++;
         });
         w.hidden = !vis;
@@ -66,7 +118,16 @@ export function renderGrid() {
     const gr = st.pop.querySelector('.t7-gr');
     st.io.disconnect();
     gr.textContent = '';
-    const names = Object.keys(EM).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    const allNames = Object.keys(EM).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    const favoriteEntries = readEntries(FAVORITES_KEY);
+    const recentEntries = readEntries(RECENT_KEY).reverse();
+    emoteData = new Map(Object.entries(EM));
+    for (const item of [...favoriteEntries, ...recentEntries]) {
+        if (!emoteData.has(item.name) && item.emote) emoteData.set(item.name, item.emote);
+    }
+    const favorites = favoriteEntries.map((item) => item.name);
+    const names = gridMode === 'favorites' ? favoriteEntries.filter((item) => emoteFor(item.name)).map((item) => item.name)
+        : gridMode === 'recent' ? recentEntries.filter((item) => emoteFor(item.name)).map((item) => item.name) : allNames;
     const sec = (title, list) => {
         if (!list.length) return;
         const h = document.createElement('div');
@@ -75,6 +136,9 @@ export function renderGrid() {
         const w = document.createElement('div');
         w.className = 't7-gw';
         for (const n of list) {
+            const item = document.createElement('div');
+            item.className = 't7-item';
+            item.dataset.name = n;
             const b = document.createElement('button');
             b.type = 'button';
             b.className = 't7-it';
@@ -85,18 +149,34 @@ export function renderGrid() {
             im.alt = '';
             im.decoding = 'async';
             b.appendChild(im);
-            w.appendChild(b);
+            const favorite = document.createElement('button');
+            const isFavorite = favorites.includes(n);
+            favorite.type = 'button';
+            favorite.className = 't7-fav';
+            favorite.dataset.name = n;
+            favorite.textContent = isFavorite ? '★' : '☆';
+            favorite.title = isFavorite ? 'Убрать из избранного' : 'Добавить в избранное';
+            favorite.setAttribute('aria-label', favorite.title + ': ' + n);
+            favorite.setAttribute('aria-pressed', String(isFavorite));
+            item.append(b, favorite);
+            w.appendChild(item);
             st.io.observe(b);
         }
         gr.append(h, w);
     };
-    sec('Канал', names.filter((n) => !EM[n].g));
-    sec('Свои', names.filter((n) => EM[n].x));
-    sec('Глобальные', names.filter((n) => EM[n].g && !EM[n].x));
+    if (gridMode === 'all') {
+        sec('Канал', names.filter((n) => !EM[n].g));
+        sec('Свои', names.filter((n) => EM[n].x));
+        sec('Глобальные', names.filter((n) => EM[n].g && !EM[n].x));
+    } else {
+        sec(gridMode === 'favorites' ? 'Избранное' : 'Недавние', names);
+    }
     if (!names.length) {
         const d = document.createElement('div');
         d.className = 't7-emp';
-        d.textContent = 'Эмоутов пока нет';
+        d.textContent = gridMode === 'favorites' ? 'Избранных эмоутов пока нет в загруженных наборах'
+            : gridMode === 'recent' ? 'Недавно использованных эмоутов пока нет в загруженных наборах'
+                : 'Эмоутов пока нет';
         gr.appendChild(d);
     }
     filterGrid();
@@ -294,6 +374,7 @@ function openPop(btn) {
     pop.innerHTML = `
         <div class="t7-h"><b>7TV</b><span class="t7-hb"><button type="button" class="t7-g" aria-label="Настройки" title="Настройки">⚙</button><button type="button" class="t7-x" aria-label="Закрыть">×</button></span></div>
         <input type="search" class="t7-q" placeholder="Поиск эмоутов" autocomplete="off" aria-label="Поиск эмоутов">
+        <div class="t7-views" role="tablist" aria-label="Списки эмоутов"><button type="button" role="tab" data-view="all" aria-selected="true">Все</button><button type="button" role="tab" data-view="favorites" aria-selected="false">Избранное</button><button type="button" role="tab" data-view="recent" aria-selected="false">Недавние</button></div>
         <div class="t7-gr"></div>
         <div class="t7-rs" title="Потяни, чтобы изменить размер"></div>`;
     ['keydown', 'keyup', 'keypress'].forEach((t) => pop.addEventListener(t, (e) => e.stopPropagation()));
@@ -308,11 +389,28 @@ function openPop(btn) {
     };
     pop.querySelector('.t7-g').onclick = openSettings;
     pop.querySelector('.t7-q').addEventListener('input', filterGrid);
+    gridMode = 'all';
+    pop.querySelector('.t7-views').addEventListener('click', (e) => {
+        const button = e.target.closest('[data-view]');
+        if (!button || button.dataset.view === gridMode) return;
+        gridMode = button.dataset.view;
+        updateViewButtons();
+        renderGrid();
+    });
 
     const gr = pop.querySelector('.t7-gr');
     gr.addEventListener('click', (e) => {
+        const favorite = e.target.closest('.t7-fav');
+        if (favorite) {
+            toggleFavorite(favorite.dataset.name);
+            return;
+        }
         const b = e.target.closest('.t7-it');
-        if (b) insertEmote(b.dataset.name);
+        if (b) {
+            saveRecent(b.dataset.name);
+            insertEmote(b.dataset.name);
+            if (gridMode === 'recent') renderGrid();
+        }
     });
     st.io = new IntersectionObserver(onVis, { root: gr, rootMargin: '120px' });
 
