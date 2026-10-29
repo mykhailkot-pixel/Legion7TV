@@ -2,7 +2,7 @@
 // @author       ProCto_Fliy
 // @name         7TV в чате Multidonate Play
 // @namespace    https://play.multidonate.ru/
-// @version      3.5
+// @version      4.0
 // @description  Эмоуты 7TV в чате: кнопка 7TV, ник стримера, размер, список эмоутов, быстрый кеш
 // @match        https://play.multidonate.ru/*
 // @icon         https://cdn.7tv.app/emote/01F71VQYHR000D3ZZ6Q11NR7TV/2x.webp
