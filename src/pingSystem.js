@@ -35,6 +35,8 @@ class PingSystem {
     constructor() {
         this.config = readConfig();
         this.audioContext = null;
+        this.customBuffer = null;
+        this.customBufferPromise = null;
     }
 
     save() {
@@ -67,6 +69,8 @@ class PingSystem {
             reader.onload = () => {
                 this.config.customSound = String(reader.result || '');
                 this.config.selectedPreset = 'custom';
+                this.customBuffer = null;
+                this.customBufferPromise = null;
                 this.save();
                 resolve();
             };
@@ -97,21 +101,61 @@ class PingSystem {
         return !!this.filterLabel(sender, messageText);
     }
 
-    play() {
+    getAudioContext() {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return null;
+        this.audioContext ||= new AudioContext();
+        return this.audioContext;
+    }
+
+    unlockAudio() {
+        try {
+            const context = this.getAudioContext();
+            if (context && context.state === 'suspended') context.resume();
+        } catch (error) {
+            console.warn('[7TV] не удалось включить аудио', error);
+        }
+    }
+
+    async loadCustomBuffer(context) {
+        if (this.customBuffer) return this.customBuffer;
+        if (!this.customBufferPromise) {
+            this.customBufferPromise = (async () => {
+                const encoded = this.config.customSound.split(',')[1];
+                if (!encoded) throw new Error('Некорректный аудиофайл');
+                const binary = atob(encoded);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                return context.decodeAudioData(bytes.buffer);
+            })();
+        }
+        this.customBuffer = await this.customBufferPromise;
+        return this.customBuffer;
+    }
+
+    async play() {
         if (this.config.volume <= 0) return;
+        const context = this.getAudioContext();
+        if (!context) return;
+        if (context.state === 'suspended') await context.resume();
+
         if (this.config.selectedPreset === 'custom' && this.config.customSound) {
-            const audio = new Audio(this.config.customSound);
-            audio.volume = this.config.volume;
-            audio.play().catch((error) => console.warn('[7TV] звук пинга заблокирован браузером', error));
+            try {
+                const source = context.createBufferSource();
+                const gain = context.createGain();
+                source.buffer = await this.loadCustomBuffer(context);
+                gain.gain.value = this.config.volume;
+                source.connect(gain);
+                gain.connect(context.destination);
+                source.start();
+            } catch (error) {
+                this.customBufferPromise = null;
+                console.warn('[7TV] не удалось декодировать пользовательский звук', error);
+            }
             return;
         }
 
         try {
-            const AudioContext = window.AudioContext || window.webkitAudioContext;
-            if (!AudioContext) return;
-            this.audioContext ||= new AudioContext();
-            const context = this.audioContext;
-            if (context.state === 'suspended') context.resume();
             const now = context.currentTime;
             const tones = {
                 bell: [[740, 0, 0.24, 'sine'], [988, 0.08, 0.3, 'sine']],

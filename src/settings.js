@@ -45,8 +45,6 @@ function setupDrag(el) {
             if (!raf) raf = requestAnimationFrame(apply);
         };
         const up = () => {
-        const customOption = preset.querySelector('option[value="custom"]');
-        customOption.disabled = !pingSystem.config.customSound;
             hd.removeEventListener('pointermove', move);
             hd.removeEventListener('pointerup', up);
             hd.removeEventListener('pointercancel', up);
@@ -180,6 +178,8 @@ export function openSettings() {
         input.addEventListener('change', () => pingSystem.setList(key, input.value));
     }
     const preset = el.querySelector('.t7-ping-preset');
+    const customOption = preset.querySelector('option[value="custom"]');
+    customOption.disabled = !pingSystem.config.customSound;
     preset.value = pingSystem.config.selectedPreset;
     preset.addEventListener('change', () => pingSystem.setPreset(preset.value));
     const volume = el.querySelector('.t7-ping-volume');
@@ -219,7 +219,10 @@ export function openSettings() {
     el.addEventListener('click', async (e) => {
         const b = e.target.closest('[data-act]');
         if (!b) return;
-        if (b.dataset.act === 'custom-sound') pingFile.click();
+        if (b.dataset.act === 'custom-sound') {
+            pingSystem.unlockAudio();
+            pingFile.click();
+        }
         else if (b.dataset.act === 'test-ping') pingSystem.play();
         else if (b.dataset.act === 'refresh') reload(true);
         else if (b.dataset.act === 'cache') {

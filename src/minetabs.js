@@ -242,11 +242,15 @@ function markFilteredMessages(room) {
     if (!list || !o.C) return;
     const visible = o.C.list.filter((m) => tabOfMsg(o.C, m) === o.C.tab && !(o.C.ign && o.C.ign.has(m.l)) && (o.C.tab !== 'dm' || !o.C.peer || m.sys || m.l === o.C.peer || m.to === o.C.peer));
     const rows = list.querySelectorAll(':scope > li:not(.cy-chat-0)');
+    const x = inst[room].K.X();
+    const me = String((x && x.login && x.login()) || '').toLowerCase();
     visible.forEach((m, index) => {
         const row = rows[index];
         if (!row) return;
         const label = pingSystem.filterLabel(m.l, m.t);
         row.classList.toggle('t7-filtered', !!label);
+        row.classList.toggle('t7-filtered-blacklist', label === 'В ЧС');
+        row.classList.toggle('ping', !label && pingSystem.isPinged(m.t, me ? [me] : []));
         let tag = row.querySelector(':scope > .t7-filter-label');
         if (!label) {
             if (tag) tag.remove();
@@ -257,7 +261,7 @@ function markFilteredMessages(room) {
             tag.className = 't7-filter-label';
             row.prepend(tag);
         }
-        tag.textContent = label;
+        tag.textContent = label === 'В ЧС' ? `Пользователь ${m.n || m.l} в чёрном списке` : 'Сообщение скрыто фильтром';
         tag.title = label === 'В ЧС' ? 'Отправитель в вашем черном списке' : 'В сообщении найдено слово или фраза из фильтра';
     });
 }
