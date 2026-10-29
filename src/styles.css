@@ -120,6 +120,10 @@ form.cy-chat-f>.t7-ping-menu>.t7-ping-option:hover,form.cy-chat-f>.t7-ping-menu>
 .cy-chat-h .t7-chat-filter{display:inline-flex;align-items:center;gap:4px;margin-left:auto;padding:3px 5px;border-radius:4px;font:11px/1.2 system-ui,sans-serif;white-space:nowrap;cursor:pointer;user-select:none}
 .cy-chat-h .t7-chat-filter input{width:13px;height:13px;margin:0;accent-color:#ffc94d;flex:none}
 .cy-chat-h .t7-chat-filter span{white-space:nowrap}
+.cy-chat-h .t7-ping-nav{display:inline-flex;align-items:center;gap:2px;margin-left:4px}
+.cy-chat-h .t7-ping-nav[hidden]{display:none!important}
+.cy-chat-h .t7-ping-nav button{display:grid;place-items:center;width:22px;height:22px;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:3px;background:transparent;color:inherit;font:16px/1 system-ui,sans-serif;cursor:pointer}
+.cy-chat-h .t7-ping-nav button:disabled{opacity:.35;cursor:default}
 
 /* ========== Кружки: новые сообщения (красные) и пинги (жёлтые) ========== */
 .cy-chat .cy-chat-n,

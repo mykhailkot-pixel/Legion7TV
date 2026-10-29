@@ -21,7 +21,7 @@
 // @license      MIT
 // ==/UserScript==
 (() => {
-  var styles_default = '.t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}\r\n.t7-e{display:inline-block;vertical-align:middle;height:var(--t7-h,1.9em);width:auto;min-width:var(--t7-h,1.9em)}\r\n.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}\r\n.t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}\r\n\r\n\r\nform.cy-chat-f .t7-btn{\r\n    flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;\r\n    box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f .t7-btn:hover{background:rgb(165,100,255)}\r\nform.cy-chat-f{position:relative}\r\nform.cy-chat-f>.t7-ping-menu{position:absolute;left:auto;right:0;bottom:calc(100% + 5px);z-index:20;display:flex;flex-direction:column;width:min(210px,calc(100vw - 24px));max-height:132px;overflow-y:auto;padding:3px;border:1px solid rgba(255,255,255,.16);border-radius:6px;background:rgba(24,24,32,.88);box-shadow:0 5px 14px rgba(0,0,0,.28);backdrop-filter:blur(5px)}\r\nform.cy-chat-f>.t7-ping-menu[hidden]{display:none}\r\nform.cy-chat-f>.t7-ping-menu>.t7-ping-option{display:block;flex:none;width:100%;min-width:0;min-height:0;height:auto;margin:0;padding:4px 8px;border:0;border-radius:4px;background:transparent;color:#eee;text-align:left;text-transform:none;font:12px/1.25 system-ui,sans-serif;box-shadow:none}\r\nform.cy-chat-f>.t7-ping-menu>.t7-ping-option:hover,form.cy-chat-f>.t7-ping-menu>.t7-ping-option:focus-visible{background:rgba(255,255,255,.12);color:#fff;outline:none}\r\n\r\n\r\n.t7-pop,.t7-set{\r\n    --t7-bg:#1b1b24;--t7-bg-in:#0f0f15;--t7-fg:#eee;--t7-mute:#aaa;\r\n    --t7-line:rgba(255,255,255,.2);--t7-hover:rgba(255,255,255,.14);--t7-acc:#9146ff}\r\n.t7-pop *,.t7-set *{box-sizing:border-box}\r\n.t7-pop button,.t7-sw button{font:inherit;cursor:pointer}\r\n.t7-pop [hidden]{display:none!important}\r\n\r\n\r\n.t7-x,.t7-g{background:none;border:0;color:#ccc;line-height:1;border-radius:6px}\r\n.t7-x{font-size:20px;padding:0 4px}\r\n.t7-g{font-size:16px;padding:2px 5px}\r\n.t7-x:hover,.t7-g:hover{background:var(--t7-hover);color:#fff}\r\n\r\n\r\n.t7-pop{\r\n    position:fixed;z-index:2147483000;display:flex;flex-direction:column;gap:8px;\r\n    padding:10px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:10px;\r\n    box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.3 system-ui,sans-serif}\r\n.t7-pop.t7-drag{will-change:transform;transition:none}\r\n.t7-pop.t7-drag .t7-gr{pointer-events:none}\r\n\r\n.t7-h,.t7-sth{display:flex;justify-content:space-between;align-items:center;\r\n    font-size:15px;cursor:grab;touch-action:none;user-select:none}\r\n.t7-h:active,.t7-sth:active{cursor:grabbing}\r\n.t7-hb{display:flex;align-items:center;gap:2px}\r\n\r\n.t7-pop input[type=search]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-views{display:flex;gap:3px;padding:2px;border:1px solid var(--t7-line);border-radius:6px;background:var(--t7-bg-in)}\r\n.t7-views button{flex:1;padding:5px 7px;border:0;border-radius:4px;background:transparent;color:var(--t7-mute);font-size:12px}\r\n.t7-views button[aria-selected=true]{background:var(--t7-hover);color:var(--t7-fg)}\r\n\r\n.t7-gr{flex:1;min-height:156px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-sh{margin:6px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--t7-mute)}\r\n.t7-gw{display:flex;flex-wrap:wrap;gap:2px}\r\n.t7-it{display:inline-flex;align-items:center;justify-content:center;\r\n    width:var(--t7-tile,40px);height:var(--t7-tile,40px);padding:3px;border:0;border-radius:6px;background:transparent}\r\n.t7-it:hover,.t7-it:focus-visible{background:var(--t7-hover)}\r\n.t7-it img{width:100%;height:100%;object-fit:contain}\r\n.t7-item{position:relative;flex:none;width:var(--t7-tile,40px);height:var(--t7-tile,40px)}\r\n.t7-item .t7-it{width:100%;height:100%}\r\n.t7-fav{position:absolute;top:0;right:0;z-index:1;display:grid;place-items:center;width:17px;height:17px;padding:0;border:0;border-radius:4px;background:rgba(15,15,21,.82);color:#e5c76b;font:14px/1 system-ui,sans-serif;opacity:.78}\r\n.t7-fav:hover,.t7-fav:focus-visible{opacity:1;background:var(--t7-hover)}\r\n.t7-emp{padding:16px 4px;color:var(--t7-mute);text-align:center}\r\n\r\n.t7-rs{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;\r\n    border-radius:0 0 10px 0;\r\n    background:linear-gradient(135deg,transparent 0 55%,#888 55% 62%,transparent 62% 72%,#888 72% 79%,transparent 79%)}\r\n\r\n\r\n.t7-set{\r\n    position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;\r\n    padding:12px;background:rgba(0,0,0,.5);font:13px/1.3 system-ui,sans-serif}\r\n.t7-sw{\r\n    width:380px;max-width:100%;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:16px;\r\n    padding:14px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.6)}\r\n.t7-sw.t7-drag{will-change:transform}\r\n\r\n.t7-sec{display:flex;flex-direction:column;gap:6px}\r\n.t7-sec>h4{margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--t7-mute)}\r\n.t7-row{display:flex;gap:6px;align-items:flex-end}\r\n.t7-wrap{flex-wrap:wrap}\r\n.t7-fl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t7-mute)}\r\n.t7-chk{display:flex;gap:8px;align-items:center;cursor:pointer}\r\n.t7-sst{min-height:1.3em;font-size:11px;color:var(--t7-mute)}\r\n\r\n.t7-sw input[type=text],.t7-sw input[type=number]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-sw textarea,.t7-sw select{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-sw textarea{resize:vertical;min-height:44px}\r\n.t7-volume{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:8px}\r\n.t7-volume input{grid-column:1/-1;width:100%;margin:2px 0}\r\n.t7-volume output,.t7-ping-status{font-size:11px;color:var(--t7-mute)}\r\n.t7-ping-status{min-height:1.3em}\r\n\r\n.t7-b{padding:6px 10px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-b:hover{background:#1d1d29}\r\n.t7-b.p{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n\r\n.t7-szb{display:flex;gap:4px}\r\n.t7-szb button{min-width:34px;padding:4px 8px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-szb button[aria-pressed=true]{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n\r\n\r\n.cy-chat-tabs:not([hidden]){\r\n    display:flex;flex-wrap:nowrap;gap:2px;width:100%;max-width:100%;min-width:0;box-sizing:border-box;\r\n    overflow-x:auto;overflow-y:hidden;scrollbar-width:none}\r\n.cy-chat-tabs::-webkit-scrollbar{display:none}\r\n.cy-chat-tabs>button[data-tab]{\r\n    flex:0 0 auto;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:3px;\r\n    padding:5px 6px;font-size:11px;line-height:1.2;white-space:nowrap;overflow:visible}\r\n.cy-chat-tabs>button .cy-chat-tn{flex:none;margin:0;min-width:1.5em;padding:1px 4px;line-height:1.3;text-align:center;overflow:visible}\r\n.cy-chat-h .t7-chat-filter{display:inline-flex;align-items:center;gap:4px;margin-left:auto;padding:3px 5px;border-radius:4px;font:11px/1.2 system-ui,sans-serif;white-space:nowrap;cursor:pointer;user-select:none}\r\n.cy-chat-h .t7-chat-filter input{width:13px;height:13px;margin:0;accent-color:#ffc94d;flex:none}\r\n.cy-chat-h .t7-chat-filter span{white-space:nowrap}\r\n\r\n\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn,\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{\r\n    flex:none;display:inline-block;box-sizing:border-box;min-width:18px;height:18px;margin:0 0 0 4px;padding:0 5px;\r\n    border-radius:9px;font:700 11px/18px system-ui,sans-serif;text-align:center;text-indent:0;overflow:visible}\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn{background:#e53935;color:#fff}\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{background:#ffc94d;color:#1b1b24}\r\n.cy-chat .cy-chat-n[hidden],\r\n.cy-chat .cy-chat-tn[hidden],\r\n.cy-chat .cy-chat-tp[hidden],\r\n.cy-chat .cy-chat-pn[hidden]{display:none!important}\r\n.cy-chat-l>li.t7-ping-hidden{display:none!important}\r\n.cy-chat-l[data-t7-no-pings="true"]:after{display:block;padding:12px 6px;color:#aaa;font:12px/1.4 system-ui,sans-serif;text-align:center;content:"\u041F\u0438\u043D\u0433\u043E\u0432 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442"}\r\n.cy-chat-l>li.t7-filtered{font-style:italic}\r\n.cy-chat-l>li>.t7-filter-label{display:inline-block;margin-right:5px;padding:2px 6px;border-radius:4px;background:rgba(255,201,77,.14);color:#ffca66;font-size:13px;font-weight:700;white-space:nowrap}\r\n.cy-chat-l>li.t7-filtered>:not(.t7-filter-label){display:none!important}\r\n.cy-chat-l,.cy-chat-l li,.cy-chat-l li span,.cy-chat-l li a{-webkit-user-select:text!important;user-select:text!important}\r\n.cy-chat-l a.t7-link{color:#8edbff;text-decoration:underline;text-underline-offset:2px;cursor:pointer}';
+  var styles_default = '.t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}\r\n.t7-e{display:inline-block;vertical-align:middle;height:var(--t7-h,1.9em);width:auto;min-width:var(--t7-h,1.9em)}\r\n.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}\r\n.t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}\r\n\r\n\r\nform.cy-chat-f .t7-btn{\r\n    flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;\r\n    box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f .t7-btn:hover{background:rgb(165,100,255)}\r\nform.cy-chat-f{position:relative}\r\nform.cy-chat-f>.t7-ping-menu{position:absolute;left:auto;right:0;bottom:calc(100% + 5px);z-index:20;display:flex;flex-direction:column;width:min(210px,calc(100vw - 24px));max-height:132px;overflow-y:auto;padding:3px;border:1px solid rgba(255,255,255,.16);border-radius:6px;background:rgba(24,24,32,.88);box-shadow:0 5px 14px rgba(0,0,0,.28);backdrop-filter:blur(5px)}\r\nform.cy-chat-f>.t7-ping-menu[hidden]{display:none}\r\nform.cy-chat-f>.t7-ping-menu>.t7-ping-option{display:block;flex:none;width:100%;min-width:0;min-height:0;height:auto;margin:0;padding:4px 8px;border:0;border-radius:4px;background:transparent;color:#eee;text-align:left;text-transform:none;font:12px/1.25 system-ui,sans-serif;box-shadow:none}\r\nform.cy-chat-f>.t7-ping-menu>.t7-ping-option:hover,form.cy-chat-f>.t7-ping-menu>.t7-ping-option:focus-visible{background:rgba(255,255,255,.12);color:#fff;outline:none}\r\n\r\n\r\n.t7-pop,.t7-set{\r\n    --t7-bg:#1b1b24;--t7-bg-in:#0f0f15;--t7-fg:#eee;--t7-mute:#aaa;\r\n    --t7-line:rgba(255,255,255,.2);--t7-hover:rgba(255,255,255,.14);--t7-acc:#9146ff}\r\n.t7-pop *,.t7-set *{box-sizing:border-box}\r\n.t7-pop button,.t7-sw button{font:inherit;cursor:pointer}\r\n.t7-pop [hidden]{display:none!important}\r\n\r\n\r\n.t7-x,.t7-g{background:none;border:0;color:#ccc;line-height:1;border-radius:6px}\r\n.t7-x{font-size:20px;padding:0 4px}\r\n.t7-g{font-size:16px;padding:2px 5px}\r\n.t7-x:hover,.t7-g:hover{background:var(--t7-hover);color:#fff}\r\n\r\n\r\n.t7-pop{\r\n    position:fixed;z-index:2147483000;display:flex;flex-direction:column;gap:8px;\r\n    padding:10px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:10px;\r\n    box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.3 system-ui,sans-serif}\r\n.t7-pop.t7-drag{will-change:transform;transition:none}\r\n.t7-pop.t7-drag .t7-gr{pointer-events:none}\r\n\r\n.t7-h,.t7-sth{display:flex;justify-content:space-between;align-items:center;\r\n    font-size:15px;cursor:grab;touch-action:none;user-select:none}\r\n.t7-h:active,.t7-sth:active{cursor:grabbing}\r\n.t7-hb{display:flex;align-items:center;gap:2px}\r\n\r\n.t7-pop input[type=search]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-views{display:flex;gap:3px;padding:2px;border:1px solid var(--t7-line);border-radius:6px;background:var(--t7-bg-in)}\r\n.t7-views button{flex:1;padding:5px 7px;border:0;border-radius:4px;background:transparent;color:var(--t7-mute);font-size:12px}\r\n.t7-views button[aria-selected=true]{background:var(--t7-hover);color:var(--t7-fg)}\r\n\r\n.t7-gr{flex:1;min-height:156px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-sh{margin:6px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--t7-mute)}\r\n.t7-gw{display:flex;flex-wrap:wrap;gap:2px}\r\n.t7-it{display:inline-flex;align-items:center;justify-content:center;\r\n    width:var(--t7-tile,40px);height:var(--t7-tile,40px);padding:3px;border:0;border-radius:6px;background:transparent}\r\n.t7-it:hover,.t7-it:focus-visible{background:var(--t7-hover)}\r\n.t7-it img{width:100%;height:100%;object-fit:contain}\r\n.t7-item{position:relative;flex:none;width:var(--t7-tile,40px);height:var(--t7-tile,40px)}\r\n.t7-item .t7-it{width:100%;height:100%}\r\n.t7-fav{position:absolute;top:0;right:0;z-index:1;display:grid;place-items:center;width:17px;height:17px;padding:0;border:0;border-radius:4px;background:rgba(15,15,21,.82);color:#e5c76b;font:14px/1 system-ui,sans-serif;opacity:.78}\r\n.t7-fav:hover,.t7-fav:focus-visible{opacity:1;background:var(--t7-hover)}\r\n.t7-emp{padding:16px 4px;color:var(--t7-mute);text-align:center}\r\n\r\n.t7-rs{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;\r\n    border-radius:0 0 10px 0;\r\n    background:linear-gradient(135deg,transparent 0 55%,#888 55% 62%,transparent 62% 72%,#888 72% 79%,transparent 79%)}\r\n\r\n\r\n.t7-set{\r\n    position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;\r\n    padding:12px;background:rgba(0,0,0,.5);font:13px/1.3 system-ui,sans-serif}\r\n.t7-sw{\r\n    width:380px;max-width:100%;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:16px;\r\n    padding:14px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.6)}\r\n.t7-sw.t7-drag{will-change:transform}\r\n\r\n.t7-sec{display:flex;flex-direction:column;gap:6px}\r\n.t7-sec>h4{margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--t7-mute)}\r\n.t7-row{display:flex;gap:6px;align-items:flex-end}\r\n.t7-wrap{flex-wrap:wrap}\r\n.t7-fl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t7-mute)}\r\n.t7-chk{display:flex;gap:8px;align-items:center;cursor:pointer}\r\n.t7-sst{min-height:1.3em;font-size:11px;color:var(--t7-mute)}\r\n\r\n.t7-sw input[type=text],.t7-sw input[type=number]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-sw textarea,.t7-sw select{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-sw textarea{resize:vertical;min-height:44px}\r\n.t7-volume{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:8px}\r\n.t7-volume input{grid-column:1/-1;width:100%;margin:2px 0}\r\n.t7-volume output,.t7-ping-status{font-size:11px;color:var(--t7-mute)}\r\n.t7-ping-status{min-height:1.3em}\r\n\r\n.t7-b{padding:6px 10px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-b:hover{background:#1d1d29}\r\n.t7-b.p{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n\r\n.t7-szb{display:flex;gap:4px}\r\n.t7-szb button{min-width:34px;padding:4px 8px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-szb button[aria-pressed=true]{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n\r\n\r\n.cy-chat-tabs:not([hidden]){\r\n    display:flex;flex-wrap:nowrap;gap:2px;width:100%;max-width:100%;min-width:0;box-sizing:border-box;\r\n    overflow-x:auto;overflow-y:hidden;scrollbar-width:none}\r\n.cy-chat-tabs::-webkit-scrollbar{display:none}\r\n.cy-chat-tabs>button[data-tab]{\r\n    flex:0 0 auto;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:3px;\r\n    padding:5px 6px;font-size:11px;line-height:1.2;white-space:nowrap;overflow:visible}\r\n.cy-chat-tabs>button .cy-chat-tn{flex:none;margin:0;min-width:1.5em;padding:1px 4px;line-height:1.3;text-align:center;overflow:visible}\r\n.cy-chat-h .t7-chat-filter{display:inline-flex;align-items:center;gap:4px;margin-left:auto;padding:3px 5px;border-radius:4px;font:11px/1.2 system-ui,sans-serif;white-space:nowrap;cursor:pointer;user-select:none}\r\n.cy-chat-h .t7-chat-filter input{width:13px;height:13px;margin:0;accent-color:#ffc94d;flex:none}\r\n.cy-chat-h .t7-chat-filter span{white-space:nowrap}\r\n.cy-chat-h .t7-ping-nav{display:inline-flex;align-items:center;gap:2px;margin-left:4px}\r\n.cy-chat-h .t7-ping-nav[hidden]{display:none!important}\r\n.cy-chat-h .t7-ping-nav button{display:grid;place-items:center;width:22px;height:22px;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:3px;background:transparent;color:inherit;font:16px/1 system-ui,sans-serif;cursor:pointer}\r\n.cy-chat-h .t7-ping-nav button:disabled{opacity:.35;cursor:default}\r\n\r\n\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn,\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{\r\n    flex:none;display:inline-block;box-sizing:border-box;min-width:18px;height:18px;margin:0 0 0 4px;padding:0 5px;\r\n    border-radius:9px;font:700 11px/18px system-ui,sans-serif;text-align:center;text-indent:0;overflow:visible}\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn{background:#e53935;color:#fff}\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{background:#ffc94d;color:#1b1b24}\r\n.cy-chat .cy-chat-n[hidden],\r\n.cy-chat .cy-chat-tn[hidden],\r\n.cy-chat .cy-chat-tp[hidden],\r\n.cy-chat .cy-chat-pn[hidden]{display:none!important}\r\n.cy-chat-l>li.t7-ping-hidden{display:none!important}\r\n.cy-chat-l[data-t7-no-pings="true"]:after{display:block;padding:12px 6px;color:#aaa;font:12px/1.4 system-ui,sans-serif;text-align:center;content:"\u041F\u0438\u043D\u0433\u043E\u0432 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442"}\r\n.cy-chat-l>li.t7-filtered{font-style:italic}\r\n.cy-chat-l>li>.t7-filter-label{display:inline-block;margin-right:5px;padding:2px 6px;border-radius:4px;background:rgba(255,201,77,.14);color:#ffca66;font-size:13px;font-weight:700;white-space:nowrap}\r\n.cy-chat-l>li.t7-filtered>:not(.t7-filter-label){display:none!important}\r\n.cy-chat-l,.cy-chat-l li,.cy-chat-l li span,.cy-chat-l li a{-webkit-user-select:text!important;user-select:text!important}\r\n.cy-chat-l a.t7-link{color:#8edbff;text-decoration:underline;text-underline-offset:2px;cursor:pointer}';
   var CACHE_TTL = 60 * 60 * 1e3;
   var SIZES = {
     s: { h: "1.3em", n: 2, p: 32, label: "S" },
@@ -1477,6 +1477,7 @@
   var PING_ONLY_KEY = "t7PingOnly";
   var PING_ARCHIVE_KEY = "t7PingArchive";
   var PING_ARCHIVE_LIMIT = 500;
+  var PING_PAGE_SIZE = 50;
   var pingOnly = store.get(PING_ONLY_KEY) === true;
   var storedPingArchive = store.get(PING_ARCHIVE_KEY) || {};
   var pingArchive = {
@@ -1488,6 +1489,8 @@
     mine: new Set(pingArchive.mine.map((m) => String(m.id)))
   };
   var injectedPingIds = { city: /* @__PURE__ */ new Set(), mine: /* @__PURE__ */ new Set() };
+  var pingArchivePage = { city: 0, mine: 0 };
+  var pingArchiveSaveTimer = 0;
   var buf = { city: [], mine: [] };
   var inst = { city: null, mine: null };
   var filterObservers = { city: null, mine: null };
@@ -1504,6 +1507,13 @@
     a.sort(byTime);
     if (a.length > 300) a.splice(0, a.length - 300);
   }
+  function schedulePingArchiveSave() {
+    clearTimeout(pingArchiveSaveTimer);
+    pingArchiveSaveTimer = setTimeout(() => {
+      pingArchiveSaveTimer = 0;
+      store.set(PING_ARCHIVE_KEY, pingArchive);
+    }, 500);
+  }
   function drop(ids) {
     for (const k of Object.keys(buf)) buf[k] = buf[k].filter((m) => !ids.includes(m.id));
   }
@@ -1518,7 +1528,6 @@
     const forceUnread = !!(chat && sourceRoom && sourceRoom !== lastRoom);
     const wasOpen = forceUnread && chat.C.open;
     if (forceUnread) chat.C.open = false;
-    if (pingOnly) stripArchivedPings(room);
     let applied = false;
     try {
       inst[room].raw.apply(d);
@@ -1719,7 +1728,7 @@
     if (!changed) return;
     items.sort((a, b) => (a.at || 0) - (b.at || 0));
     while (items.length > PING_ARCHIVE_LIMIT) ids.delete(String(items.shift().id));
-    store.set(PING_ARCHIVE_KEY, pingArchive);
+    schedulePingArchiveSave();
   }
   function stripArchivedPings(room) {
     const o = chatOf(room);
@@ -1730,27 +1739,48 @@
     }
     injected.clear();
   }
+  function archivePage(room, C) {
+    const messages = pingArchive[room].filter((m) => tabOfMsg(C, m) === C.tab);
+    const pageCount = Math.max(1, Math.ceil(messages.length / PING_PAGE_SIZE));
+    pingArchivePage[room] = Math.min(pingArchivePage[room], pageCount - 1);
+    const end = messages.length - pingArchivePage[room] * PING_PAGE_SIZE;
+    return messages.slice(Math.max(0, end - PING_PAGE_SIZE), end);
+  }
   function syncPingArchive(room) {
     const o = chatOf(room);
     if (!o || !o.C.list) return false;
-    const changed = injectedPingIds[room].size > 0;
-    stripArchivedPings(room);
-    if (!pingOnly) return changed;
-    const ids = new Set(o.C.list.map((m) => String(m.id)));
-    const extra = pingArchive[room].filter((m) => !ids.has(String(m.id)));
-    if (!extra.length) return changed;
-    extra.forEach((m) => injectedPingIds[room].add(String(m.id)));
-    o.C.list.push(...extra);
-    o.C.list.sort((a, b) => (a.at || 0) - (b.at || 0));
-    return true;
+    const injected = injectedPingIds[room];
+    const wanted = pingOnly ? archivePage(room, o.C) : [];
+    const wantedIds = new Set(wanted.map((m) => String(m.id)));
+    const presentIds = new Set(o.C.list.map((m) => String(m.id)));
+    let changed = false;
+    for (const id of injected) {
+      if (wantedIds.has(id) && presentIds.has(id)) continue;
+      const index = o.C.list.findIndex((m) => String(m.id) === id);
+      if (index >= 0) {
+        o.C.list.splice(index, 1);
+        changed = true;
+      }
+      injected.delete(id);
+    }
+    for (const message of wanted) {
+      const id = String(message.id);
+      if (presentIds.has(id)) continue;
+      o.C.list.push(message);
+      injected.add(id);
+      presentIds.add(id);
+      changed = true;
+    }
+    if (changed) o.C.list.sort((a, b) => (a.at || 0) - (b.at || 0));
+    return changed;
   }
   function refreshPingArchive(room) {
-    if (!syncPingArchive(room)) return;
     const i = inst[room];
     if (!i) return;
-    i.raw.render();
+    if (syncPingArchive(room)) i.raw.render();
     markFilteredMessages(room);
     applyPingOnly(room);
+    updatePingArchiveControl(room);
   }
   function countPings(room, msgs) {
     const o = chatOf(room);
@@ -1814,11 +1844,17 @@
     const o = chatOf(room);
     const list = o && o.S.el && o.S.el.querySelector(".cy-chat-l");
     if (!list) return;
+    const visible = o.C.list.filter((m) => tabOfMsg(o.C, m) === o.C.tab && !(o.C.ign && o.C.ign.has(m.l)) && (o.C.tab !== "dm" || !o.C.peer || m.sys || m.l === o.C.peer || m.to === o.C.peer));
+    const pageIds = new Set(archivePage(room, o.C).map((m) => String(m.id)));
+    let messageIndex = 0;
     let hasPing = false;
     list.querySelectorAll(":scope > li").forEach((row) => {
-      const keep = !pingOnly || row.classList.contains("ping");
+      if (row.classList.contains("cy-chat-0")) return;
+      const message = visible[messageIndex++];
+      const onPage = message && (message.id == null || pageIds.has(String(message.id)));
+      const keep = !pingOnly || row.classList.contains("ping") && onPage;
       row.classList.toggle("t7-ping-hidden", !keep);
-      if (pingOnly && keep && !row.classList.contains("cy-chat-0")) hasPing = true;
+      if (pingOnly && keep) hasPing = true;
     });
     list.dataset.t7NoPings = String(pingOnly && !hasPing);
   }
@@ -1829,25 +1865,59 @@
       if (input) input.checked = pingOnly;
       refreshPingArchive(room);
       applyPingOnly(room);
+      updatePingArchiveControl(room);
     }
   }
   function addPingOnlyControl(room, box) {
     const header = box.querySelector(".cy-chat-h");
-    if (!header || header.querySelector(".t7-chat-filter")) return;
-    const label = document.createElement("label");
-    label.className = "t7-chat-filter";
-    label.title = "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u0442\u043E\u043B\u044C\u043A\u043E \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0441 \u0443\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u0435\u043C";
-    label.innerHTML = '<input type="checkbox"><span>\u0422\u043E\u043B\u044C\u043A\u043E \u043F\u0438\u043D\u0433\u0438</span>';
+    if (!header) return;
+    let label = header.querySelector(".t7-chat-filter");
+    if (!label) {
+      label = document.createElement("label");
+      label.className = "t7-chat-filter";
+      label.title = "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u0442\u043E\u043B\u044C\u043A\u043E \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0441 \u0443\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u0435\u043C";
+      label.innerHTML = '<input type="checkbox"><span>\u0422\u043E\u043B\u044C\u043A\u043E \u043F\u0438\u043D\u0433\u0438</span>';
+      label.addEventListener("click", (e) => e.stopPropagation());
+      label.querySelector("input").addEventListener("change", (e) => {
+        pingOnly = e.currentTarget.checked;
+        store.set(PING_ONLY_KEY, pingOnly);
+        syncPingOnlyControls();
+      });
+    }
     label.querySelector("input").checked = pingOnly;
-    label.addEventListener("click", (e) => e.stopPropagation());
-    label.querySelector("input").addEventListener("change", (e) => {
-      pingOnly = e.currentTarget.checked;
-      store.set(PING_ONLY_KEY, pingOnly);
-      syncPingOnlyControls();
-    });
     const close = header.querySelector(".cy-chat-x");
-    header.insertBefore(label, close || null);
+    if (!label.isConnected) header.insertBefore(label, close || null);
+    let nav = header.querySelector(".t7-ping-nav");
+    if (!nav) {
+      nav = document.createElement("span");
+      nav.className = "t7-ping-nav";
+      nav.innerHTML = '<button type="button" data-direction="older" title="\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0431\u043E\u043B\u0435\u0435 \u0441\u0442\u0430\u0440\u044B\u0435 \u043F\u0438\u043D\u0433\u0438" aria-label="\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0431\u043E\u043B\u0435\u0435 \u0441\u0442\u0430\u0440\u044B\u0435 \u043F\u0438\u043D\u0433\u0438">\u2039</button><button type="button" data-direction="newer" title="\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0431\u043E\u043B\u0435\u0435 \u043D\u043E\u0432\u044B\u0435 \u043F\u0438\u043D\u0433\u0438" aria-label="\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0431\u043E\u043B\u0435\u0435 \u043D\u043E\u0432\u044B\u0435 \u043F\u0438\u043D\u0433\u0438">\u203A</button>';
+      nav.addEventListener("click", (e) => {
+        const button = e.target.closest("button[data-direction]");
+        if (!button) return;
+        e.stopPropagation();
+        pingArchivePage[room] = Math.max(0, pingArchivePage[room] + (button.dataset.direction === "older" ? 1 : -1));
+        refreshPingArchive(room);
+        updatePingArchiveControl(room);
+      });
+      header.insertBefore(nav, close || null);
+    }
+    updatePingArchiveControl(room);
     applyPingOnly(room);
+  }
+  function updatePingArchiveControl(room) {
+    const o = chatOf(room);
+    const header = o && o.S.el && o.S.el.querySelector(".cy-chat-h");
+    const nav = header && header.querySelector(".t7-ping-nav");
+    if (!nav || !o.C) return;
+    const count = pingArchive[room].filter((m) => tabOfMsg(o.C, m) === o.C.tab).length;
+    const pages = Math.ceil(count / PING_PAGE_SIZE);
+    pingArchivePage[room] = Math.min(pingArchivePage[room], Math.max(0, pages - 1));
+    nav.hidden = !pingOnly || pages < 2;
+    const older = nav.querySelector('[data-direction="older"]');
+    const newer = nav.querySelector('[data-direction="newer"]');
+    if (older) older.disabled = pingArchivePage[room] >= pages - 1;
+    if (newer) newer.disabled = pingArchivePage[room] === 0;
   }
   var num = (n) => n > 99 ? "99+" : String(n);
   function badge(parent, cls, n, title) {
@@ -1882,7 +1952,11 @@
     if (!box || box.dataset.t7pg) return;
     box.dataset.t7pg = "1";
     addPingOnlyControl(room, box);
-    box.addEventListener("click", () => paint(room));
+    box.addEventListener("click", () => {
+      refreshPingArchive(room);
+      updatePingArchiveControl(room);
+      paint(room);
+    });
     const list = box.querySelector(".cy-chat-l");
     if (list && !list.dataset.t7BlacklistMenu) {
       list.dataset.t7BlacklistMenu = "1";
@@ -1915,6 +1989,7 @@
     }
     markFilteredMessages(room);
     applyPingOnly(room);
+    updatePingArchiveControl(room);
   }
   function wrapInst(raw, K, room) {
     const other = room === "mine" ? "city" : "mine";
@@ -1957,7 +2032,6 @@
         if (pingOnly) refreshPingArchive(room);
       },
       apply(d) {
-        if (pingOnly) stripArchivedPings(room);
         let dd = d;
         if (d && Array.isArray(d.chat)) {
           const own = mine ? d.chat.map(tagMn) : d.chat;
@@ -2006,7 +2080,7 @@
                 changed = true;
               }
             }
-            if (changed) store.set(PING_ARCHIVE_KEY, pingArchive);
+            if (changed) schedulePingArchiveSave();
           }
           if (d.chat || d.chatDel) forward("mine", { chat: d.chat, chatDel: d.chatDel }, "city");
         }
