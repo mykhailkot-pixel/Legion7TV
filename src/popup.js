@@ -91,7 +91,8 @@ export function renderGrid() {
         gr.append(h, w);
     };
     sec('Канал', names.filter((n) => !EM[n].g));
-    sec('Глобальные', names.filter((n) => EM[n].g));
+    sec('Свои', names.filter((n) => EM[n].x));
+    sec('Глобальные', names.filter((n) => EM[n].g && !EM[n].x));
     if (!names.length) {
         const d = document.createElement('div');
         d.className = 't7-emp';

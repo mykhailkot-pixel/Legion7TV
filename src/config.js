@@ -12,3 +12,15 @@ export const pageChan = (() => {
     const m = /\/c\/([\w]+)/.exec(location.pathname);
     return m ? m[1].toLowerCase() : '';
 })();
+
+// Свои эмоуты 7TV: показываются всегда, на любом канале.
+// id берётся из ссылки: 7tv.app/emotes/<id>
+// name - своё имя (необязательно, без пробелов); нет - берётся имя с 7TV
+export const EXTRA_EMOTES = [
+    { id: '01KPTZTF2P1MP5RFNJ4Q1ZQZS6'},
+];
+
+// Целые наборы эмоутов: id из ссылки 7tv.app/emote-sets/<id>
+export const EXTRA_SETS = [
+    // '01...',
+];

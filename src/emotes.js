@@ -1,20 +1,66 @@
-import { CACHE_TTL } from './config.js';
+import { CACHE_TTL, EXTRA_EMOTES, EXTRA_SETS } from './config.js';
 import { S, EM, st } from './state.js';
 import { store } from './store.js';
 import { getJson } from './net.js';
 
-function addSet(map, set, isGlobal) {
+function mk(host, flags, isGlobal, isExtra) {
+    const files = (host.files || []).filter((f) => f.format === 'WEBP').map((f) => f.name);
+    return {
+        base: 'https:' + host.url,
+        f: files.length ? files : ['1x.webp', '2x.webp'],
+        zw: !!(flags & 256),   // zero-width эмоут
+        g: isGlobal,
+        ...(isExtra ? { x: true } : {})
+    };
+}
+
+function addSet(map, set, isGlobal, isExtra) {
     for (const e of (set && set.emotes) || []) {
         const host = e.data && e.data.host;
         if (!host || !host.url || e.name === '__proto__') continue;
-        const files = (host.files || []).filter((f) => f.format === 'WEBP').map((f) => f.name);
-        map[e.name] = {
-            base: 'https:' + host.url,
-            f: files.length ? files : ['1x.webp', '2x.webp'],
-            zw: !!(e.data.flags & 256),   // zero-width эмоут
-            g: isGlobal
-        };
+        map[e.name] = mk(host, e.data.flags, isGlobal, isExtra);
     }
+}
+
+// один эмоут по ID (ответ /v3/emotes/<id>)
+function addOne(map, em, alias) {
+    const host = em && em.host;
+    const name = String(alias || (em && em.name) || '');
+    if (!host || !host.url || !name || /\s/.test(name) || name === '__proto__') return false;
+    map[name] = mk(host, em.flags, true, true);
+    return true;
+}
+
+// подпись списка своих эмоутов: поменял список - кеш считается заново
+const xsig = () => {
+    const s = EXTRA_SETS.join(',') + '|' + EXTRA_EMOTES.map((e) => e.id + (e.name || '')).join(',');
+    let h = 0;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36);
+};
+
+async function loadExtras() {
+    const out = {};
+    let bad = 0;
+    const jobs = [
+        ...EXTRA_SETS.map(async (id) => {
+            const m = {};
+            addSet(m, await getJson('https://7tv.io/v3/emote-sets/' + encodeURIComponent(id)), true, true);
+            return m;
+        }),
+        ...EXTRA_EMOTES.map(async ({ id, name }) => {
+            const m = {};
+            if (!addOne(m, await getJson('https://7tv.io/v3/emotes/' + encodeURIComponent(id)), name))
+                throw new Error('нет данных: ' + id);
+            return m;
+        })
+    ];
+    const res = await Promise.allSettled(jobs);
+    for (const r of res) {
+        if (r.status === 'fulfilled') Object.assign(out, r.value);   // порядок как в списке
+        else { bad++; console.warn('[7TV] свои эмоуты', r.reason); }
+    }
+    return { map: out, bad };
 }
 
 // адрес файла нужного разрешения (n = 1..4)
@@ -28,14 +74,14 @@ export function urlFor(em, n) {
 }
 
 async function loadEmotes(nick, force) {
-    const key = 't7c2:' + nick;
+    const key = 't7c2:' + nick + ':' + xsig();
     if (!force) {
         const c = store.get(key);
         if (c) return { map: c.map, msg: c.msg, stale: Date.now() - c.at >= CACHE_TTL };
     }
     const map = {};
     let err = '';
-    try { addSet(map, await getJson('https://7tv.io/v3/emote-sets/global'), true); }
+    try { addSet(map, await getJson('https://7tv.io/v3/emote-sets/global'), true, false); }
     catch (e) { err = 'глобальные не загрузились'; console.warn('[7TV]', e); }
 
     let chanMsg = '';
@@ -49,7 +95,7 @@ async function loadEmotes(nick, force) {
             else {
                 const user = await getJson('https://7tv.io/v3/users/twitch/' + id);
                 const set = user && user.emote_set;
-                if (set && set.emotes && set.emotes.length) addSet(map, set, false);
+                if (set && set.emotes && set.emotes.length) addSet(map, set, false, false);
                 else chanMsg = 'у канала нет эмоутов 7TV';
             }
         } catch (e) {
@@ -58,12 +104,22 @@ async function loadEmotes(nick, force) {
         }
     }
 
+    // свои эмоуты - в конце: при совпадении имён побеждают они
+    let bad = 0;
+    if (EXTRA_EMOTES.length || EXTRA_SETS.length) {
+        const ex = await loadExtras();
+        Object.assign(map, ex.map);
+        bad = ex.bad;
+    }
+
     const names = Object.keys(map);
     const nc = names.filter((n) => !map[n].g).length;
-    let msg = `Канал: ${nc} · глобальные: ${names.length - nc}`;
+    const xc = names.filter((n) => map[n].x).length;
+    let msg = `Канал: ${nc} · глобальные: ${names.length - nc - xc}`;
+    if (xc || bad) msg += ` · свои: ${xc}${bad ? ' (не все загрузились: ' + bad + ')' : ''}`;
     if (chanMsg) msg += ' · ' + chanMsg;
     if (err) msg += ' · ' + err;
-    if (names.length && !chanMsg && !err) store.set(key, { at: Date.now(), map, msg });
+    if (names.length && !chanMsg && !err && !bad) store.set(key, { at: Date.now(), map, msg });
     return { map, msg, stale: false };
 }
 
