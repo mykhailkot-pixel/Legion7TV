@@ -1,6 +1,6 @@
 // ==UserScript==
 // @author       ProCto_Fliy
-// @name         7TV в чате Multidonate Play
+// @name         Legion chat extentions (7TV, более удобный чат и тд)
 // @namespace    https://play.multidonate.ru/
 // @version      {{version}}
 // @description  Эмоуты 7TV в чате: кнопка 7TV, ник стримера, размер, список эмоутов, быстрый кеш
