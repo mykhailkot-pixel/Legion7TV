@@ -6,6 +6,7 @@ import { reload, setStatus } from './emotes.js';
 import { rescanAll, applySize } from './chat.js';
 import { clearImgs } from './imgcache.js';
 import { clamp } from './util.js';
+import { pingSystem } from './pingSystem.js';
 
 // смещение окна настроек от центра экрана
 let SOFF = (() => {
@@ -44,6 +45,8 @@ function setupDrag(el) {
             if (!raf) raf = requestAnimationFrame(apply);
         };
         const up = () => {
+        const customOption = preset.querySelector('option[value="custom"]');
+        customOption.disabled = !pingSystem.config.customSound;
             hd.removeEventListener('pointermove', move);
             hd.removeEventListener('pointerup', up);
             hd.removeEventListener('pointercancel', up);
@@ -115,6 +118,21 @@ export function openSettings() {
             </div>
 
             <div class="t7-sec">
+                <h4>Пинги и фильтры</h4>
+                <label class="t7-fl">Ники и варианты для пинга<textarea class="t7-ping-aliases" rows="2" placeholder="ник, nick, @ник"></textarea></label>
+                <label class="t7-fl">Черный список ников<textarea class="t7-ping-blacklist" rows="2" placeholder="по одному нику на строку"></textarea></label>
+                <label class="t7-fl">Игнорировать сообщения со словами или фразами<textarea class="t7-ping-stopwords" rows="2" placeholder="по одному слову или фразе на строку"></textarea></label>
+                <label class="t7-fl">Звук пинга<select class="t7-ping-preset"><option value="bell">Колокольчик</option><option value="chime">Звон</option><option value="pop">Короткий сигнал</option><option value="custom">Свой звук</option></select></label>
+                <label class="t7-fl t7-volume">Громкость<input class="t7-ping-volume" type="range" min="0" max="1" step="0.05"><output class="t7-volume-value"></output></label>
+                <div class="t7-row t7-wrap">
+                    <button type="button" class="t7-b" data-act="custom-sound">Загрузить свой звук</button>
+                    <button type="button" class="t7-b" data-act="test-ping">Проверить звук</button>
+                    <input type="file" class="t7-ping-file" accept="audio/*" hidden>
+                </div>
+                <div class="t7-ping-status" role="status"></div>
+            </div>
+
+            <div class="t7-sec">
                 <h4>Данные</h4>
                 <div class="t7-row t7-wrap">
                     <button type="button" class="t7-b" data-act="refresh">Обновить список</button>
@@ -151,6 +169,41 @@ export function openSettings() {
         reload(true);
     });
 
+    const pingFields = [
+        ['.t7-ping-aliases', 'aliases'],
+        ['.t7-ping-blacklist', 'blacklist'],
+        ['.t7-ping-stopwords', 'stopWords']
+    ];
+    for (const [selector, key] of pingFields) {
+        const input = el.querySelector(selector);
+        input.value = pingSystem.config[key].join('\n');
+        input.addEventListener('change', () => pingSystem.setList(key, input.value));
+    }
+    const preset = el.querySelector('.t7-ping-preset');
+    preset.value = pingSystem.config.selectedPreset;
+    preset.addEventListener('change', () => pingSystem.setPreset(preset.value));
+    const volume = el.querySelector('.t7-ping-volume');
+    const volumeValue = el.querySelector('.t7-volume-value');
+    volume.value = String(pingSystem.config.volume);
+    volumeValue.value = Math.round(pingSystem.config.volume * 100) + '%';
+    volume.addEventListener('input', () => {
+        pingSystem.setVolume(volume.value);
+        volumeValue.value = Math.round(pingSystem.config.volume * 100) + '%';
+    });
+    const pingStatus = el.querySelector('.t7-ping-status');
+    const pingFile = el.querySelector('.t7-ping-file');
+    pingFile.addEventListener('change', async () => {
+        try {
+            await pingSystem.saveCustomSound(pingFile.files[0]);
+            customOption.disabled = false;
+            preset.value = pingSystem.config.selectedPreset;
+            pingStatus.textContent = 'Свой звук сохранен';
+        } catch (error) {
+            pingStatus.textContent = error.message;
+        }
+        pingFile.value = '';
+    });
+
     const mark = () => el.querySelectorAll('[data-sz]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sz === S.size)));
     mark();
     el.querySelector('.t7-szb').addEventListener('click', (e) => {
@@ -166,7 +219,9 @@ export function openSettings() {
     el.addEventListener('click', async (e) => {
         const b = e.target.closest('[data-act]');
         if (!b) return;
-        if (b.dataset.act === 'refresh') reload(true);
+        if (b.dataset.act === 'custom-sound') pingFile.click();
+        else if (b.dataset.act === 'test-ping') pingSystem.play();
+        else if (b.dataset.act === 'refresh') reload(true);
         else if (b.dataset.act === 'cache') {
             await clearImgs();
             setStatus('Кеш картинок очищен');

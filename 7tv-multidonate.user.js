@@ -1,6 +1,6 @@
 // ==UserScript==
 // @author       ProCto_Fliy
-// @name         7TV в чате Multidonate Play
+// @name         Legion chat extentions (7TV, более удобный чат и тд)
 // @namespace    https://play.multidonate.ru/
 // @version      4.4.0
 // @description  Эмоуты 7TV в чате: кнопка 7TV, ник стримера, размер, список эмоутов, быстрый кеш
@@ -21,7 +21,7 @@
 // @license      MIT
 // ==/UserScript==
 (() => {
-  var styles_default = ".t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}\r\n.t7-e{display:inline-block;vertical-align:middle;height:var(--t7-h,1.9em);width:auto;min-width:var(--t7-h,1.9em)}\r\n.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}\r\n.t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}\r\n\r\n\r\nform.cy-chat-f .t7-btn{\r\n    flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;\r\n    box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f .t7-btn:hover{background:rgb(165,100,255)}\r\n\r\n\r\n.t7-pop,.t7-set{\r\n    --t7-bg:#1b1b24;--t7-bg-in:#0f0f15;--t7-fg:#eee;--t7-mute:#aaa;\r\n    --t7-line:rgba(255,255,255,.2);--t7-hover:rgba(255,255,255,.14);--t7-acc:#9146ff}\r\n.t7-pop *,.t7-set *{box-sizing:border-box}\r\n.t7-pop button,.t7-sw button{font:inherit;cursor:pointer}\r\n.t7-pop [hidden]{display:none!important}\r\n\r\n\r\n.t7-x,.t7-g{background:none;border:0;color:#ccc;line-height:1;border-radius:6px}\r\n.t7-x{font-size:20px;padding:0 4px}\r\n.t7-g{font-size:16px;padding:2px 5px}\r\n.t7-x:hover,.t7-g:hover{background:var(--t7-hover);color:#fff}\r\n\r\n\r\n.t7-pop{\r\n    position:fixed;z-index:2147483000;display:flex;flex-direction:column;gap:8px;\r\n    padding:10px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:10px;\r\n    box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.3 system-ui,sans-serif}\r\n.t7-pop.t7-drag{will-change:transform;transition:none}\r\n.t7-pop.t7-drag .t7-gr{pointer-events:none}\r\n\r\n.t7-h,.t7-sth{display:flex;justify-content:space-between;align-items:center;\r\n    font-size:15px;cursor:grab;touch-action:none;user-select:none}\r\n.t7-h:active,.t7-sth:active{cursor:grabbing}\r\n.t7-hb{display:flex;align-items:center;gap:2px}\r\n\r\n.t7-pop input[type=search]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n\r\n.t7-gr{flex:1;min-height:156px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-sh{margin:6px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--t7-mute)}\r\n.t7-gw{display:flex;flex-wrap:wrap;gap:2px}\r\n.t7-it{display:inline-flex;align-items:center;justify-content:center;\r\n    width:40px;height:40px;padding:3px;border:0;border-radius:6px;background:transparent}\r\n.t7-it:hover,.t7-it:focus-visible{background:var(--t7-hover)}\r\n.t7-it img{max-width:100%;max-height:100%;object-fit:contain}\r\n.t7-emp{padding:16px 4px;color:var(--t7-mute);text-align:center}\r\n\r\n.t7-rs{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;\r\n    border-radius:0 0 10px 0;\r\n    background:linear-gradient(135deg,transparent 0 55%,#888 55% 62%,transparent 62% 72%,#888 72% 79%,transparent 79%)}\r\n\r\n\r\n.t7-set{\r\n    position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;\r\n    padding:12px;background:rgba(0,0,0,.5);font:13px/1.3 system-ui,sans-serif}\r\n.t7-sw{\r\n    width:380px;max-width:100%;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:16px;\r\n    padding:14px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.6)}\r\n.t7-sw.t7-drag{will-change:transform}\r\n\r\n.t7-sec{display:flex;flex-direction:column;gap:6px}\r\n.t7-sec>h4{margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--t7-mute)}\r\n.t7-row{display:flex;gap:6px;align-items:flex-end}\r\n.t7-wrap{flex-wrap:wrap}\r\n.t7-fl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t7-mute)}\r\n.t7-chk{display:flex;gap:8px;align-items:center;cursor:pointer}\r\n.t7-sst{min-height:1.3em;font-size:11px;color:var(--t7-mute)}\r\n\r\n.t7-sw input[type=text]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n\r\n.t7-b{padding:6px 10px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-b:hover{background:#1d1d29}\r\n.t7-b.p{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n\r\n.t7-szb{display:flex;gap:4px}\r\n.t7-szb button{min-width:34px;padding:4px 8px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-szb button[aria-pressed=true]{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n\r\n\r\n.cy-chat-tabs:not([hidden]){\r\n    display:flex;flex-wrap:nowrap;gap:2px;width:100%;max-width:100%;min-width:0;box-sizing:border-box;\r\n    overflow-x:auto;overflow-y:hidden;scrollbar-width:none}\r\n.cy-chat-tabs::-webkit-scrollbar{display:none}\r\n.cy-chat-tabs>button[data-tab]{\r\n    flex:0 0 auto;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:3px;\r\n    padding:5px 6px;font-size:11px;line-height:1.2;white-space:nowrap;overflow:visible}\r\n.cy-chat-tabs>button .cy-chat-tn{flex:none;margin:0;min-width:1.5em;padding:1px 4px;line-height:1.3;text-align:center;overflow:visible}\r\n\r\n\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn,\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{\r\n    flex:none;display:inline-block;box-sizing:border-box;min-width:18px;height:18px;margin:0 0 0 4px;padding:0 5px;\r\n    border-radius:9px;font:700 11px/18px system-ui,sans-serif;text-align:center;text-indent:0;overflow:visible}\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn{background:#e53935;color:#fff}\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{background:#ffc94d;color:#1b1b24}\r\n.cy-chat .cy-chat-n[hidden],\r\n.cy-chat .cy-chat-tn[hidden],\r\n.cy-chat .cy-chat-tp[hidden],\r\n.cy-chat .cy-chat-pn[hidden]{display:none!important}";
+  var styles_default = ".t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}\r\n.t7-e{display:inline-block;vertical-align:middle;height:var(--t7-h,1.9em);width:auto;min-width:var(--t7-h,1.9em)}\r\n.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}\r\n.t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}\r\n\r\n\r\nform.cy-chat-f .t7-btn{\r\n    flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;\r\n    box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f .t7-btn:hover{background:rgb(165,100,255)}\r\n\r\n\r\n.t7-pop,.t7-set{\r\n    --t7-bg:#1b1b24;--t7-bg-in:#0f0f15;--t7-fg:#eee;--t7-mute:#aaa;\r\n    --t7-line:rgba(255,255,255,.2);--t7-hover:rgba(255,255,255,.14);--t7-acc:#9146ff}\r\n.t7-pop *,.t7-set *{box-sizing:border-box}\r\n.t7-pop button,.t7-sw button{font:inherit;cursor:pointer}\r\n.t7-pop [hidden]{display:none!important}\r\n\r\n\r\n.t7-x,.t7-g{background:none;border:0;color:#ccc;line-height:1;border-radius:6px}\r\n.t7-x{font-size:20px;padding:0 4px}\r\n.t7-g{font-size:16px;padding:2px 5px}\r\n.t7-x:hover,.t7-g:hover{background:var(--t7-hover);color:#fff}\r\n\r\n\r\n.t7-pop{\r\n    position:fixed;z-index:2147483000;display:flex;flex-direction:column;gap:8px;\r\n    padding:10px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:10px;\r\n    box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.3 system-ui,sans-serif}\r\n.t7-pop.t7-drag{will-change:transform;transition:none}\r\n.t7-pop.t7-drag .t7-gr{pointer-events:none}\r\n\r\n.t7-h,.t7-sth{display:flex;justify-content:space-between;align-items:center;\r\n    font-size:15px;cursor:grab;touch-action:none;user-select:none}\r\n.t7-h:active,.t7-sth:active{cursor:grabbing}\r\n.t7-hb{display:flex;align-items:center;gap:2px}\r\n\r\n.t7-pop input[type=search]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n\r\n.t7-gr{flex:1;min-height:156px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-sh{margin:6px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--t7-mute)}\r\n.t7-gw{display:flex;flex-wrap:wrap;gap:2px}\r\n.t7-it{display:inline-flex;align-items:center;justify-content:center;\r\n    width:40px;height:40px;padding:3px;border:0;border-radius:6px;background:transparent}\r\n.t7-it:hover,.t7-it:focus-visible{background:var(--t7-hover)}\r\n.t7-it img{max-width:100%;max-height:100%;object-fit:contain}\r\n.t7-emp{padding:16px 4px;color:var(--t7-mute);text-align:center}\r\n\r\n.t7-rs{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;\r\n    border-radius:0 0 10px 0;\r\n    background:linear-gradient(135deg,transparent 0 55%,#888 55% 62%,transparent 62% 72%,#888 72% 79%,transparent 79%)}\r\n\r\n\r\n.t7-set{\r\n    position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;\r\n    padding:12px;background:rgba(0,0,0,.5);font:13px/1.3 system-ui,sans-serif}\r\n.t7-sw{\r\n    width:380px;max-width:100%;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:16px;\r\n    padding:14px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,.6)}\r\n.t7-sw.t7-drag{will-change:transform}\r\n\r\n.t7-sec{display:flex;flex-direction:column;gap:6px}\r\n.t7-sec>h4{margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:var(--t7-mute)}\r\n.t7-row{display:flex;gap:6px;align-items:flex-end}\r\n.t7-wrap{flex-wrap:wrap}\r\n.t7-fl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t7-mute)}\r\n.t7-chk{display:flex;gap:8px;align-items:center;cursor:pointer}\r\n.t7-sst{min-height:1.3em;font-size:11px;color:var(--t7-mute)}\r\n\r\n.t7-sw input[type=text]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-sw textarea,.t7-sw select{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-sw textarea{resize:vertical;min-height:44px}\r\n.t7-volume{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:8px}\r\n.t7-volume input{grid-column:1/-1;width:100%;margin:2px 0}\r\n.t7-volume output,.t7-ping-status{font-size:11px;color:var(--t7-mute)}\r\n.t7-ping-status{min-height:1.3em}\r\n\r\n.t7-b{padding:6px 10px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-b:hover{background:#1d1d29}\r\n.t7-b.p{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n\r\n.t7-szb{display:flex;gap:4px}\r\n.t7-szb button{min-width:34px;padding:4px 8px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-szb button[aria-pressed=true]{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n\r\n\r\n.cy-chat-tabs:not([hidden]){\r\n    display:flex;flex-wrap:nowrap;gap:2px;width:100%;max-width:100%;min-width:0;box-sizing:border-box;\r\n    overflow-x:auto;overflow-y:hidden;scrollbar-width:none}\r\n.cy-chat-tabs::-webkit-scrollbar{display:none}\r\n.cy-chat-tabs>button[data-tab]{\r\n    flex:0 0 auto;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:3px;\r\n    padding:5px 6px;font-size:11px;line-height:1.2;white-space:nowrap;overflow:visible}\r\n.cy-chat-tabs>button .cy-chat-tn{flex:none;margin:0;min-width:1.5em;padding:1px 4px;line-height:1.3;text-align:center;overflow:visible}\r\n\r\n\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn,\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{\r\n    flex:none;display:inline-block;box-sizing:border-box;min-width:18px;height:18px;margin:0 0 0 4px;padding:0 5px;\r\n    border-radius:9px;font:700 11px/18px system-ui,sans-serif;text-align:center;text-indent:0;overflow:visible}\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn{background:#e53935;color:#fff}\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{background:#ffc94d;color:#1b1b24}\r\n.cy-chat .cy-chat-n[hidden],\r\n.cy-chat .cy-chat-tn[hidden],\r\n.cy-chat .cy-chat-tp[hidden],\r\n.cy-chat .cy-chat-pn[hidden]{display:none!important}";
   var CACHE_TTL = 60 * 60 * 1e3;
   var SIZES = {
     s: { h: "1.3em", n: 2, label: "S" },
@@ -433,6 +433,124 @@
     scan();
   }
   var applySize = () => document.documentElement.style.setProperty("--t7-h", SIZES[S2.size].h);
+  var KEY = "t7ping";
+  var PRESETS = /* @__PURE__ */ new Set(["bell", "chime", "pop", "custom"]);
+  var DEFAULTS = {
+    volume: 0.5,
+    selectedPreset: "bell",
+    customSound: "",
+    aliases: [],
+    blacklist: [],
+    stopWords: []
+  };
+  function readConfig() {
+    const saved = store.get(KEY);
+    const config = { ...DEFAULTS, ...saved && typeof saved === "object" ? saved : {} };
+    config.volume = Number.isFinite(config.volume) ? Math.max(0, Math.min(1, config.volume)) : DEFAULTS.volume;
+    config.selectedPreset = PRESETS.has(config.selectedPreset) ? config.selectedPreset : DEFAULTS.selectedPreset;
+    config.customSound = typeof config.customSound === "string" && config.customSound.startsWith("data:audio/") ? config.customSound : "";
+    for (const key of ["aliases", "blacklist", "stopWords"]) {
+      config[key] = Array.isArray(config[key]) ? normalizeList(config[key].join("\n")) : [];
+    }
+    return config;
+  }
+  function normalizeList(value) {
+    return String(value || "").split(/[\n,;]+/).map((item) => item.trim().toLowerCase()).filter(Boolean);
+  }
+  function escapeRegex(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+  var PingSystem = class {
+    constructor() {
+      this.config = readConfig();
+      this.audioContext = null;
+    }
+    save() {
+      store.set(KEY, this.config);
+    }
+    setList(key, value) {
+      if (!["aliases", "blacklist", "stopWords"].includes(key)) return;
+      this.config[key] = normalizeList(value);
+      this.save();
+    }
+    setVolume(value) {
+      this.config.volume = Math.max(0, Math.min(1, Number(value) || 0));
+      this.save();
+    }
+    setPreset(value) {
+      if (!PRESETS.has(value) || value === "custom" && !this.config.customSound) return;
+      this.config.selectedPreset = value;
+      this.save();
+    }
+    saveCustomSound(file) {
+      return new Promise((resolve, reject) => {
+        if (!file || !file.type.startsWith("audio/")) return reject(new Error("\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0430\u0443\u0434\u0438\u043E\u0444\u0430\u0439\u043B"));
+        if (file.size > 2 * 1024 * 1024) return reject(new Error("\u0420\u0430\u0437\u043C\u0435\u0440 \u0444\u0430\u0439\u043B\u0430 \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u043D\u0435 \u0431\u043E\u043B\u044C\u0448\u0435 2 \u041C\u0411"));
+        const reader = new FileReader();
+        reader.onload = () => {
+          this.config.customSound = String(reader.result || "");
+          this.config.selectedPreset = "custom";
+          this.save();
+          resolve();
+        };
+        reader.onerror = () => reject(new Error("\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u0442\u044C \u0444\u0430\u0439\u043B"));
+        reader.readAsDataURL(file);
+      });
+    }
+    isPinged(messageText, extraAliases = []) {
+      const text = String(messageText || "");
+      return [...this.config.aliases, ...extraAliases].some((raw) => {
+        const alias = String(raw || "").trim().toLowerCase();
+        if (!alias) return false;
+        const pattern = new RegExp("(^|[^\\p{L}\\p{N}_])" + escapeRegex(alias) + "(?=$|[^\\p{L}\\p{N}_])", "iu");
+        return pattern.test(text);
+      });
+    }
+    shouldIgnore(sender, messageText) {
+      const user = String(sender || "").toLowerCase();
+      const text = String(messageText || "").toLowerCase();
+      return this.config.blacklist.includes(user) || this.config.stopWords.some((word) => text.includes(word));
+    }
+    play() {
+      if (this.config.volume <= 0) return;
+      if (this.config.selectedPreset === "custom" && this.config.customSound) {
+        const audio = new Audio(this.config.customSound);
+        audio.volume = this.config.volume;
+        audio.play().catch((error) => console.warn("[7TV] \u0437\u0432\u0443\u043A \u043F\u0438\u043D\u0433\u0430 \u0437\u0430\u0431\u043B\u043E\u043A\u0438\u0440\u043E\u0432\u0430\u043D \u0431\u0440\u0430\u0443\u0437\u0435\u0440\u043E\u043C", error));
+        return;
+      }
+      try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        this.audioContext ||= new AudioContext();
+        const context = this.audioContext;
+        if (context.state === "suspended") context.resume();
+        const now = context.currentTime;
+        const tones = {
+          bell: [[740, 0, 0.24, "sine"], [988, 0.08, 0.3, "sine"]],
+          chime: [[660, 0, 0.32, "sine"], [880, 0.12, 0.4, "sine"]],
+          pop: [[360, 0, 0.12, "triangle"], [220, 0.04, 0.16, "sine"]]
+        }[this.config.selectedPreset] || [];
+        for (const [frequency, offset, duration, type] of tones) {
+          const oscillator = context.createOscillator();
+          const gain = context.createGain();
+          const start = now + offset;
+          oscillator.type = type;
+          oscillator.frequency.setValueAtTime(frequency, start);
+          gain.gain.setValueAtTime(1e-4, start);
+          gain.gain.exponentialRampToValueAtTime(Math.max(1e-3, this.config.volume * 0.35), start + 0.015);
+          gain.gain.exponentialRampToValueAtTime(1e-4, start + duration);
+          oscillator.connect(gain);
+          gain.connect(context.destination);
+          oscillator.start(start);
+          oscillator.stop(start + duration);
+        }
+      } catch (error) {
+        console.warn("[7TV] \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0437\u0432\u0443\u043A \u043F\u0438\u043D\u0433\u0430", error);
+      }
+    }
+  };
+  var pingSystem = new PingSystem();
   var SOFF = (() => {
     const p = store.get("t7spos");
     return p && Number.isFinite(p.x) && Number.isFinite(p.y) ? p : { x: 0, y: 0 };
@@ -479,6 +597,8 @@
         if (!raf) raf = requestAnimationFrame(apply);
       };
       const up = () => {
+        const customOption2 = preset.querySelector('option[value="custom"]');
+        customOption2.disabled = !pingSystem.config.customSound;
         hd.removeEventListener("pointermove", move);
         hd.removeEventListener("pointerup", up);
         hd.removeEventListener("pointercancel", up);
@@ -541,6 +661,20 @@
                 <div class="t7-szb">${Object.keys(SIZES).map((k) => `<button type="button" data-sz="${k}" aria-pressed="false">${SIZES[k].label}</button>`).join("")}</div>
             </div>
             <div class="t7-sec">
+                <h4>\u041F\u0438\u043D\u0433\u0438 \u0438 \u0444\u0438\u043B\u044C\u0442\u0440\u044B</h4>
+                <label class="t7-fl">\u041D\u0438\u043A\u0438 \u0438 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u044B \u0434\u043B\u044F \u043F\u0438\u043D\u0433\u0430<textarea class="t7-ping-aliases" rows="2" placeholder="\u043D\u0438\u043A, nick, @\u043D\u0438\u043A"></textarea></label>
+                <label class="t7-fl">\u0427\u0435\u0440\u043D\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A \u043D\u0438\u043A\u043E\u0432<textarea class="t7-ping-blacklist" rows="2" placeholder="\u043F\u043E \u043E\u0434\u043D\u043E\u043C\u0443 \u043D\u0438\u043A\u0443 \u043D\u0430 \u0441\u0442\u0440\u043E\u043A\u0443"></textarea></label>
+                <label class="t7-fl">\u0418\u0433\u043D\u043E\u0440\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0441\u043E \u0441\u043B\u043E\u0432\u0430\u043C\u0438 \u0438\u043B\u0438 \u0444\u0440\u0430\u0437\u0430\u043C\u0438<textarea class="t7-ping-stopwords" rows="2" placeholder="\u043F\u043E \u043E\u0434\u043D\u043E\u043C\u0443 \u0441\u043B\u043E\u0432\u0443 \u0438\u043B\u0438 \u0444\u0440\u0430\u0437\u0435 \u043D\u0430 \u0441\u0442\u0440\u043E\u043A\u0443"></textarea></label>
+                <label class="t7-fl">\u0417\u0432\u0443\u043A \u043F\u0438\u043D\u0433\u0430<select class="t7-ping-preset"><option value="bell">\u041A\u043E\u043B\u043E\u043A\u043E\u043B\u044C\u0447\u0438\u043A</option><option value="chime">\u0417\u0432\u043E\u043D</option><option value="pop">\u041A\u043E\u0440\u043E\u0442\u043A\u0438\u0439 \u0441\u0438\u0433\u043D\u0430\u043B</option><option value="custom">\u0421\u0432\u043E\u0439 \u0437\u0432\u0443\u043A</option></select></label>
+                <label class="t7-fl t7-volume">\u0413\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u044C<input class="t7-ping-volume" type="range" min="0" max="1" step="0.05"><output class="t7-volume-value"></output></label>
+                <div class="t7-row t7-wrap">
+                    <button type="button" class="t7-b" data-act="custom-sound">\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0441\u0432\u043E\u0439 \u0437\u0432\u0443\u043A</button>
+                    <button type="button" class="t7-b" data-act="test-ping">\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0437\u0432\u0443\u043A</button>
+                    <input type="file" class="t7-ping-file" accept="audio/*" hidden>
+                </div>
+                <div class="t7-ping-status" role="status"></div>
+            </div>
+            <div class="t7-sec">
                 <h4>\u0414\u0430\u043D\u043D\u044B\u0435</h4>
                 <div class="t7-row t7-wrap">
                     <button type="button" class="t7-b" data-act="refresh">\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C \u0441\u043F\u0438\u0441\u043E\u043A</button>
@@ -577,6 +711,40 @@
       store.set("t7nick:" + pageChan, n);
       reload(true);
     });
+    const pingFields = [
+      [".t7-ping-aliases", "aliases"],
+      [".t7-ping-blacklist", "blacklist"],
+      [".t7-ping-stopwords", "stopWords"]
+    ];
+    for (const [selector, key] of pingFields) {
+      const input = el.querySelector(selector);
+      input.value = pingSystem.config[key].join("\n");
+      input.addEventListener("change", () => pingSystem.setList(key, input.value));
+    }
+    const preset2 = el.querySelector(".t7-ping-preset");
+    preset2.value = pingSystem.config.selectedPreset;
+    preset2.addEventListener("change", () => pingSystem.setPreset(preset2.value));
+    const volume = el.querySelector(".t7-ping-volume");
+    const volumeValue = el.querySelector(".t7-volume-value");
+    volume.value = String(pingSystem.config.volume);
+    volumeValue.value = Math.round(pingSystem.config.volume * 100) + "%";
+    volume.addEventListener("input", () => {
+      pingSystem.setVolume(volume.value);
+      volumeValue.value = Math.round(pingSystem.config.volume * 100) + "%";
+    });
+    const pingStatus = el.querySelector(".t7-ping-status");
+    const pingFile = el.querySelector(".t7-ping-file");
+    pingFile.addEventListener("change", async () => {
+      try {
+        await pingSystem.saveCustomSound(pingFile.files[0]);
+        customOption.disabled = false;
+        preset2.value = pingSystem.config.selectedPreset;
+        pingStatus.textContent = "\u0421\u0432\u043E\u0439 \u0437\u0432\u0443\u043A \u0441\u043E\u0445\u0440\u0430\u043D\u0435\u043D";
+      } catch (error) {
+        pingStatus.textContent = error.message;
+      }
+      pingFile.value = "";
+    });
     const mark = () => el.querySelectorAll("[data-sz]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.sz === S2.size)));
     mark();
     el.querySelector(".t7-szb").addEventListener("click", (e) => {
@@ -591,7 +759,9 @@
     el.addEventListener("click", async (e) => {
       const b = e.target.closest("[data-act]");
       if (!b) return;
-      if (b.dataset.act === "refresh") reload(true);
+      if (b.dataset.act === "custom-sound") pingFile.click();
+      else if (b.dataset.act === "test-ping") pingSystem.play();
+      else if (b.dataset.act === "refresh") reload(true);
       else if (b.dataset.act === "cache") {
         await clearImgs();
         setStatus("\u041A\u0435\u0448 \u043A\u0430\u0440\u0442\u0438\u043D\u043E\u043A \u043E\u0447\u0438\u0449\u0435\u043D");
@@ -966,8 +1136,9 @@
   function forward(room, d) {
     if (!active(room)) return;
     try {
-      inst[room].raw.apply(d);
-      countPings(room, d && d.chat);
+      const dd = d && Array.isArray(d.chat) ? { ...d, chat: filterMessages(d.chat) } : d;
+      inst[room].raw.apply(dd);
+      countPings(room, dd && dd.chat);
     } catch (e) {
       console.warn("[mine-tabs] forward", e);
     }
@@ -1132,23 +1303,33 @@
   }
   function countPings(room, msgs) {
     const o = chatOf(room);
-    if (!o || !o.C.on) return;
+    if (!o) return;
     const x = inst[room].K.X();
     const me = String(x && x.login && x.login() || "").toLowerCase();
-    if (!me) return;
-    const re = new RegExp("(^|\\s)@" + me + "(\\b|$)", "i");
     const pg = pings[room];
     let hit = false;
     for (const m of msgs || []) {
-      if (!m || m.l === me || m.ev || m.sys) continue;
+      if (!m || String(m.l || "").toLowerCase() === me || m.ev || m.sys) continue;
       if (o.C.ign && o.C.ign.has(m.l)) continue;
-      if (!re.test(String(m.t || ""))) continue;
+      if (!pingSystem.isPinged(m.t, me ? [me] : [])) continue;
+      const id = m.id == null ? "" : room + ":" + String(m.id);
+      if (!id || !seenPings.has(id)) {
+        pingSystem.play();
+        if (id) {
+          seenPings.add(id);
+          if (seenPings.size > 500) seenPings.delete(seenPings.values().next().value);
+        }
+      }
       const tb = tabOfMsg(o.C, m);
-      if (o.C.open && o.C.tab === tb) continue;
+      if (!o.C.on || o.C.open && o.C.tab === tb) continue;
       pg[tb] = (pg[tb] || 0) + 1;
       hit = true;
     }
-    if (hit) paint(room);
+    if (hit && o.C.on) paint(room);
+  }
+  var seenPings = /* @__PURE__ */ new Set();
+  function filterMessages(msgs) {
+    return msgs.filter((m) => !m || !pingSystem.shouldIgnore(m.l, m.t));
   }
   var num = (n) => n > 99 ? "99+" : String(n);
   function badge(parent, cls, n, title) {
@@ -1201,7 +1382,7 @@
           const own = mine ? r.chat.map(tagMn) : r.chat;
           push(room, own);
           const extra = buf[other].filter((m) => !own.some((x) => x.id === m.id));
-          rr = { ...r, chat: own.concat(extra).sort(byTime2) };
+          rr = { ...r, chat: filterMessages(own.concat(extra).sort(byTime2)) };
         }
         raw.enter(rr);
         setupTabs(K);
@@ -1225,7 +1406,7 @@
         if (d && Array.isArray(d.chat)) {
           const own = mine ? d.chat.map(tagMn) : d.chat;
           push(room, own);
-          dd = { ...d, chat: own };
+          dd = { ...d, chat: filterMessages(own) };
         }
         raw.apply(dd);
         if (dd && dd.chat) countPings(room, dd.chat);

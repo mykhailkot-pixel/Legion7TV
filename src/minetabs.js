@@ -1,4 +1,6 @@
 // Единые вкладки в чате города и шахты: Город · Личные · Достижения · Торговля · Шахта
+import { pingSystem } from './pingSystem.js';
+
 const W = unsafeWindow;
 const CITY = '/api/city/chat', MINE = '/api/mine/chat';
 const ORDER = ['g', 'dm', 'ev', 'tr', 'mn'];
@@ -29,8 +31,9 @@ function active(room) {
 function forward(room, d) {
     if (!active(room)) return;
     try {
-        inst[room].raw.apply(d);
-        countPings(room, d && d.chat);
+        const dd = d && Array.isArray(d.chat) ? { ...d, chat: filterMessages(d.chat) } : d;
+        inst[room].raw.apply(dd);
+        countPings(room, dd && dd.chat);
     } catch (e) { console.warn('[mine-tabs] forward', e); }
 }
 
@@ -202,23 +205,34 @@ function tabOfMsg(C, m) {   // как tabOf в чате сайта
 }
 function countPings(room, msgs) {
     const o = chatOf(room);
-    if (!o || !o.C.on) return;
+    if (!o) return;
     const x = inst[room].K.X();
     const me = String((x && x.login && x.login()) || '').toLowerCase();
-    if (!me) return;
-    const re = new RegExp('(^|\\s)@' + me + '(\\b|$)', 'i');
     const pg = pings[room];
     let hit = false;
     for (const m of msgs || []) {
-        if (!m || m.l === me || m.ev || m.sys) continue;
+        if (!m || String(m.l || '').toLowerCase() === me || m.ev || m.sys) continue;
         if (o.C.ign && o.C.ign.has(m.l)) continue;
-        if (!re.test(String(m.t || ''))) continue;
+        if (!pingSystem.isPinged(m.t, me ? [me] : [])) continue;
+        const id = m.id == null ? '' : room + ':' + String(m.id);
+        if (!id || !seenPings.has(id)) {
+            pingSystem.play();
+            if (id) {
+                seenPings.add(id);
+                if (seenPings.size > 500) seenPings.delete(seenPings.values().next().value);
+            }
+        }
         const tb = tabOfMsg(o.C, m);
-        if (o.C.open && o.C.tab === tb) continue;   // эту вкладку сейчас читаем
+        if (!o.C.on || (o.C.open && o.C.tab === tb)) continue;
         pg[tb] = (pg[tb] || 0) + 1;
         hit = true;
     }
-    if (hit) paint(room);
+    if (hit && o.C.on) paint(room);
+}
+
+const seenPings = new Set();
+function filterMessages(msgs) {
+    return msgs.filter((m) => !m || !pingSystem.shouldIgnore(m.l, m.t));
 }
 const num = (n) => (n > 99 ? '99+' : String(n));
 function badge(parent, cls, n, title) {
@@ -268,7 +282,7 @@ function wrapInst(raw, K, room) {
                 const own = mine ? r.chat.map(tagMn) : r.chat;
                 push(room, own);
                 const extra = buf[other].filter((m) => !own.some((x) => x.id === m.id));
-                rr = { ...r, chat: own.concat(extra).sort(byTime) };
+                rr = { ...r, chat: filterMessages(own.concat(extra).sort(byTime)) };
             }
             raw.enter(rr);
             setupTabs(K);
@@ -288,7 +302,7 @@ function wrapInst(raw, K, room) {
             if (d && Array.isArray(d.chat)) {
                 const own = mine ? d.chat.map(tagMn) : d.chat;
                 push(room, own);
-                dd = { ...d, chat: own };
+                dd = { ...d, chat: filterMessages(own) };
             }
             raw.apply(dd);
             if (dd && dd.chat) countPings(room, dd.chat);

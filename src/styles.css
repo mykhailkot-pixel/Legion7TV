@@ -79,6 +79,14 @@ form.cy-chat-f .t7-btn:hover{background:rgb(165,100,255)}
 .t7-sw input[type=text]{
     width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);
     background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}
+.t7-sw textarea,.t7-sw select{
+    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);
+    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}
+.t7-sw textarea{resize:vertical;min-height:44px}
+.t7-volume{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:8px}
+.t7-volume input{grid-column:1/-1;width:100%;margin:2px 0}
+.t7-volume output,.t7-ping-status{font-size:11px;color:var(--t7-mute)}
+.t7-ping-status{min-height:1.3em}
 
 .t7-b{padding:6px 10px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}
 .t7-b:hover{background:#1d1d29}
