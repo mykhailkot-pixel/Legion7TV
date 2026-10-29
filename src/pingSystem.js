@@ -45,6 +45,7 @@ class PingSystem {
         if (!['aliases', 'blacklist', 'stopWords'].includes(key)) return;
         this.config[key] = normalizeList(value);
         this.save();
+        if (this.onChange) this.onChange();
     }
 
     setVolume(value) {
@@ -84,10 +85,16 @@ class PingSystem {
         });
     }
 
-    shouldIgnore(sender, messageText) {
+    filterLabel(sender, messageText) {
         const user = String(sender || '').toLowerCase();
         const text = String(messageText || '').toLowerCase();
-        return this.config.blacklist.includes(user) || this.config.stopWords.some((word) => text.includes(word));
+        if (this.config.blacklist.includes(user)) return 'В ЧС';
+        if (this.config.stopWords.some((word) => text.includes(word))) return 'Фильтр';
+        return '';
+    }
+
+    shouldIgnore(sender, messageText) {
+        return !!this.filterLabel(sender, messageText);
     }
 
     play() {

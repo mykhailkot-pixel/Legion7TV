@@ -8,7 +8,12 @@ const MINE_ID = 'home';
 
 const buf = { city: [], mine: [] };      // последние сообщения комнат (для истории при переходе)
 const inst = { city: null, mine: null }; // { raw, K }
+const filterObservers = { city: null, mine: null };
 let lastRoom = '';
+
+pingSystem.onChange = () => {
+    for (const i of Object.values(inst)) if (i) i.raw.render();
+};
 
 const tagMn = (m) => (m && m.tb !== 'mn' ? { ...m, tb: 'mn' } : m);
 const tagMsg = (r) => (r && r.msg ? { ...r, msg: tagMn(r.msg) } : r);
@@ -31,9 +36,8 @@ function active(room) {
 function forward(room, d) {
     if (!active(room)) return;
     try {
-        const dd = d && Array.isArray(d.chat) ? { ...d, chat: filterMessages(d.chat) } : d;
-        inst[room].raw.apply(dd);
-        countPings(room, dd && dd.chat);
+        inst[room].raw.apply(d);
+        countPings(room, d && d.chat);
     } catch (e) { console.warn('[mine-tabs] forward', e); }
 }
 
@@ -213,6 +217,7 @@ function countPings(room, msgs) {
     for (const m of msgs || []) {
         if (!m || String(m.l || '').toLowerCase() === me || m.ev || m.sys) continue;
         if (o.C.ign && o.C.ign.has(m.l)) continue;
+        if (pingSystem.shouldIgnore(m.l, m.t)) continue;
         if (!pingSystem.isPinged(m.t, me ? [me] : [])) continue;
         const id = m.id == null ? '' : room + ':' + String(m.id);
         if (!id || !seenPings.has(id)) {
@@ -231,8 +236,30 @@ function countPings(room, msgs) {
 }
 
 const seenPings = new Set();
-function filterMessages(msgs) {
-    return msgs.filter((m) => !m || !pingSystem.shouldIgnore(m.l, m.t));
+function markFilteredMessages(room) {
+    const o = chatOf(room);
+    const list = o && o.S.el && o.S.el.querySelector('.cy-chat-l');
+    if (!list || !o.C) return;
+    const visible = o.C.list.filter((m) => tabOfMsg(o.C, m) === o.C.tab && !(o.C.ign && o.C.ign.has(m.l)) && (o.C.tab !== 'dm' || !o.C.peer || m.sys || m.l === o.C.peer || m.to === o.C.peer));
+    const rows = list.querySelectorAll(':scope > li:not(.cy-chat-0)');
+    visible.forEach((m, index) => {
+        const row = rows[index];
+        if (!row) return;
+        const label = pingSystem.filterLabel(m.l, m.t);
+        row.classList.toggle('t7-filtered', !!label);
+        let tag = row.querySelector(':scope > .t7-filter-label');
+        if (!label) {
+            if (tag) tag.remove();
+            return;
+        }
+        if (!tag) {
+            tag = document.createElement('i');
+            tag.className = 't7-filter-label';
+            row.prepend(tag);
+        }
+        tag.textContent = label;
+        tag.title = label === 'В ЧС' ? 'Отправитель в вашем черном списке' : 'В сообщении найдено слово или фраза из фильтра';
+    });
 }
 const num = (n) => (n > 99 ? '99+' : String(n));
 function badge(parent, cls, n, title) {
@@ -267,6 +294,12 @@ function pingBind(room) {
     if (!box || box.dataset.t7pg) return;
     box.dataset.t7pg = '1';
     box.addEventListener('click', () => paint(room));   // клик по вкладке / «Чат» / × → пересчитать
+    const list = box.querySelector('.cy-chat-l');
+    if (list && !filterObservers[room]) {
+        filterObservers[room] = new MutationObserver(() => markFilteredMessages(room));
+        filterObservers[room].observe(list, { childList: true });
+    }
+    markFilteredMessages(room);
 }
 
 function wrapInst(raw, K, room) {
@@ -282,7 +315,7 @@ function wrapInst(raw, K, room) {
                 const own = mine ? r.chat.map(tagMn) : r.chat;
                 push(room, own);
                 const extra = buf[other].filter((m) => !own.some((x) => x.id === m.id));
-                rr = { ...r, chat: filterMessages(own.concat(extra).sort(byTime)) };
+                rr = { ...r, chat: own.concat(extra).sort(byTime) };
             }
             raw.enter(rr);
             setupTabs(K);
@@ -302,7 +335,7 @@ function wrapInst(raw, K, room) {
             if (d && Array.isArray(d.chat)) {
                 const own = mine ? d.chat.map(tagMn) : d.chat;
                 push(room, own);
-                dd = { ...d, chat: filterMessages(own) };
+                dd = { ...d, chat: own };
             }
             raw.apply(dd);
             if (dd && dd.chat) countPings(room, dd.chat);

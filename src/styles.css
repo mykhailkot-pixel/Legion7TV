@@ -121,3 +121,5 @@ form.cy-chat-f .t7-btn:hover{background:rgb(165,100,255)}
 .cy-chat .cy-chat-tn[hidden],
 .cy-chat .cy-chat-tp[hidden],
 .cy-chat .cy-chat-pn[hidden]{display:none!important}
+.cy-chat-l>li.t7-filtered{font-style:italic}
+.cy-chat-l>li>.t7-filter-label{margin-right:5px;color:#ffca66;font-size:10px;font-weight:700;white-space:nowrap}
