@@ -229,10 +229,6 @@ export function place() {
 }
 
 /* ---------- закрытие ---------- */
-function onOutside(e) {
-    if (e.target.closest && e.target.closest('.t7-set')) return;   // клики в настройках не закрывают окошко
-    if (st.pop && !st.pop.contains(e.target) && !(st.anchor && st.anchor.contains(e.target))) closePop();
-}
 function onKey(e) {
     if (st.set) return;   // Esc сначала закрывает настройки
     if (e.key === 'Escape' && st.pop) {
@@ -249,7 +245,6 @@ export function closePop() {
     st.pop = null;
     if (st.io) st.io.disconnect();
     st.io = null;
-    document.removeEventListener('pointerdown', onOutside, true);
     document.removeEventListener('keydown', onKey, true);
     removeEventListener('resize', place);
 }
@@ -417,7 +412,6 @@ function openPop(btn) {
     document.body.appendChild(pop);
     renderGrid();
     place();
-    document.addEventListener('pointerdown', onOutside, true);
     document.addEventListener('keydown', onKey, true);
     addEventListener('resize', place);
 }

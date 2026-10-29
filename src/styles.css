@@ -27,9 +27,9 @@ form.cy-chat-f>.t7-ping-menu>.t7-ping-option:hover,form.cy-chat-f>.t7-ping-menu>
 .t7-pop [hidden]{display:none!important}
 
 /* кнопки-иконки в заголовках: × и ⚙ */
-.t7-x,.t7-g{background:none;border:0;color:#ccc;line-height:1;border-radius:6px}
-.t7-x{font-size:20px;padding:0 4px}
-.t7-g{font-size:16px;padding:2px 5px}
+.t7-x,.t7-g{display:grid;place-items:center;flex:none;width:40px;height:40px;padding:0;background:none;border:0;color:#ccc;line-height:1;border-radius:6px}
+.t7-x{font-size:36px}
+.t7-g{font-size:29px}
 .t7-x:hover,.t7-g:hover{background:var(--t7-hover);color:#fff}
 
 /* ========== Окошко с эмоутами ========== */
