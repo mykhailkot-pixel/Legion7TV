@@ -7,6 +7,7 @@ import { scan, rescanAll, applySize } from './chat.js';
 import { renderGrid, place } from './popup.js';
 import { updateSetStatus } from './settings.js';
 import { ensureButtons } from './buttons.js';
+import './minetabs.js';
 
 
 function init() {
@@ -44,4 +45,5 @@ function init() {
     reload(false);
 }
 
-init();
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
+else init();

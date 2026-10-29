@@ -1,28 +1,29 @@
 // ==UserScript==
+// @author       ProCto_Fliy
 // @name         7TV в чате Multidonate Play
 // @namespace    https://play.multidonate.ru/
 // @version      3.5
 // @description  Эмоуты 7TV в чате: кнопка 7TV, ник стримера, размер, список эмоутов, быстрый кеш
 // @match        https://play.multidonate.ru/*
-// @grant        GM_xmlhttpRequest
-// @grant        GM_getValue
-// @grant        GM_setValue
-// @connect      7tv.io
-// @connect      cdn.7tv.app
-// @connect      api.ivr.fi
-// @connect      workers.dev
-// @run-at       document-idle
-// @author       ProCto_Fliy
 // @icon         https://cdn.7tv.app/emote/01F71VQYHR000D3ZZ6Q11NR7TV/2x.webp
 // @homepageURL  https://github.com/mykhailkot-pixel/Legion7TV
 // @updateURL    https://github.com/mykhailkot-pixel/Legion7TV/raw/refs/heads/main/7tv-multidonate.user.js
 // @downloadURL  https://github.com/mykhailkot-pixel/Legion7TV/raw/refs/heads/main/7tv-multidonate.user.js
+// @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        unsafeWindow
+// @run-at       document-start
+// @connect      7tv.io
+// @connect      cdn.7tv.app
+// @connect      api.ivr.fi
+// @connect      workers.dev
 // @license      MIT
 // ==/UserScript==
 
 (() => {
   // src/styles.css
-  var styles_default = ".t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}\r\n.t7-e{height:var(--t7-h,1.9em);width:auto;min-width:var(--t7-h,1.9em);vertical-align:middle;display:inline-block}\r\n.t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}\r\n.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}\r\n\r\nform.cy-chat-f .t7-btn{\r\n    flex:none;align-self:stretch;margin:0 0 0 4px;padding:0 8px;min-height:28px;height:auto;width:auto;\r\n    box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f.t7-btn:hover{background:rgb(165,100,255)}\r\n\r\n.t7-pop{position:fixed;z-index:2147483000;display:flex;flex-direction:column;gap:8px;box-sizing:border-box;\r\n    padding:10px;background:#1b1b24;color:#eee;border:1px solid rgba(255,255,255,.18);border-radius:10px;\r\n    box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.3 system-ui,sans-serif}\r\n.t7-pop *{box-sizing:border-box}\r\n.t7-pop [hidden]{display:none!important}\r\n.t7-pop button{font:inherit;cursor:pointer}\r\n.t7-pop.t7-drag{will-change:transform;transition:none}\r\n.t7-pop.t7-drag .t7-gr{pointer-events:none}\r\n\r\n.t7-h{display:flex;justify-content:space-between;align-items:center;font-size:15px;cursor:grab;touch-action:none;user-select:none}\r\n.t7-h:active{cursor:grabbing}\r\n.t7-x{background:none;border:0;color:#ccc;font-size:20px;line-height:1;padding:0 4px}\r\n.t7-gr{flex:1;min-height:156px;overflow-y:auto;overscroll-behavior:contain}\r\n\r\n.t7-nf{display:flex;gap:6px;align-items:flex-end}\r\n.t7-nf label{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#aaa}\r\n.t7-pop input[type=text],.t7-pop input[type=search]{width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);\r\n    background:#0f0f15;color:#fff;font:13px system-ui,sans-serif}\r\n.t7-nf button{padding:6px 10px;border-radius:6px;border:0;background:#9146ff;color:#fff}\r\n.t7-st{font-size:11px;color:#aaa;min-height:1.3em}\r\n\r\n.t7-sz{display:flex;align-items:center;gap:8px;font-size:12px;color:#aaa}\r\n.t7-szb{display:flex;gap:4px}\r\n.t7-szb button{min-width:34px;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:#0f0f15;color:#ddd}\r\n.t7-szb button[aria-pressed=true]{background:#9146ff;border-color:#9146ff;color:#fff}\r\n\r\n.t7-gr{flex:1;min-height:140px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-sh{margin:6px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#aaa}\r\n.t7-gw{display:flex;flex-wrap:wrap;gap:2px}\r\n.t7-it{width:40px;height:40px;padding:3px;border:0;border-radius:6px;background:transparent;display:inline-flex;align-items:center;justify-content:center}\r\n.t7-it:hover,.t7-it:focus-visible{background:rgba(255,255,255,.14)}\r\n.t7-it img{max-width:100%;max-height:100%;object-fit:contain}\r\n.t7-emp{padding:16px 4px;color:#aaa;text-align:center}\r\n\r\n.t7-rs{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;\r\n    border-radius:0 0 10px 0;\r\n    background:linear-gradient(135deg,transparent 0 55%,#888 55% 62%,transparent 62% 72%,#888 72% 79%,transparent 79%)}\r\n\r\n.t7-hb{display:flex;align-items:center;gap:2px}\r\n.t7-g{background:none;border:0;color:#ccc;font-size:16px;line-height:1;padding:2px 5px;border-radius:6px}\r\n.t7-g:hover,.t7-x:hover{background:rgba(255,255,255,.14);color:#fff}\r\n\r\n.t7-set{position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;\r\n    padding:12px;background:rgba(0,0,0,.5);font:13px/1.3 system-ui,sans-serif}\r\n.t7-set *{box-sizing:border-box}\r\n.t7-sw{width:380px;max-width:100%;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:16px;\r\n    padding:14px;background:#1b1b24;color:#eee;border:1px solid rgba(255,255,255,.18);border-radius:12px;\r\n    box-shadow:0 12px 40px rgba(0,0,0,.6)}\r\n.t7-sw button{font:inherit;cursor:pointer}\r\n.t7-sth{display:flex;justify-content:space-between;align-items:center;font-size:15px}\r\n.t7-sec{display:flex;flex-direction:column;gap:6px}\r\n.t7-sec>h4{margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#aaa}\r\n.t7-row{display:flex;gap:6px;align-items:flex-end}\r\n.t7-wrap{flex-wrap:wrap}\r\n.t7-fl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#aaa}\r\n.t7-sw input[type=text]{width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);\r\n    background:#0f0f15;color:#fff;font:13px system-ui,sans-serif}\r\n.t7-chk{display:flex;gap:8px;align-items:center;cursor:pointer}\r\n.t7-b{padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:#0f0f15;color:#ddd}\r\n.t7-b:hover{background:#1d1d29}\r\n.t7-b.p{background:#9146ff;border-color:#9146ff;color:#fff}\r\n.t7-sst{font-size:11px;color:#aaa;min-height:1.3em}\r\n.t7-sth{cursor:grab;touch-action:none;user-select:none}\r\n.t7-sth:active{cursor:grabbing}\r\n.t7-sw.t7-drag{will-change:transform}";
+  var styles_default = ".t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}\r\n.t7-e{height:var(--t7-h,1.9em);width:auto;min-width:var(--t7-h,1.9em);vertical-align:middle;display:inline-block}\r\n.t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}\r\n.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}\r\n\r\nform.cy-chat-f .t7-btn{\r\n    flex:none;align-self:stretch;margin:0 0 0 4px;padding:0 8px;min-height:28px;height:auto;width:auto;\r\n    box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f.t7-btn:hover{background:rgb(165,100,255)}\r\n\r\n.t7-pop{position:fixed;z-index:2147483000;display:flex;flex-direction:column;gap:8px;box-sizing:border-box;\r\n    padding:10px;background:#1b1b24;color:#eee;border:1px solid rgba(255,255,255,.18);border-radius:10px;\r\n    box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.3 system-ui,sans-serif}\r\n.t7-pop *{box-sizing:border-box}\r\n.t7-pop [hidden]{display:none!important}\r\n.t7-pop button{font:inherit;cursor:pointer}\r\n.t7-pop.t7-drag{will-change:transform;transition:none}\r\n.t7-pop.t7-drag .t7-gr{pointer-events:none}\r\n\r\n.t7-h{display:flex;justify-content:space-between;align-items:center;font-size:15px;cursor:grab;touch-action:none;user-select:none}\r\n.t7-h:active{cursor:grabbing}\r\n.t7-x{background:none;border:0;color:#ccc;font-size:20px;line-height:1;padding:0 4px}\r\n.t7-gr{flex:1;min-height:156px;overflow-y:auto;overscroll-behavior:contain}\r\n\r\n.t7-nf{display:flex;gap:6px;align-items:flex-end}\r\n.t7-nf label{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#aaa}\r\n.t7-pop input[type=text],.t7-pop input[type=search]{width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);\r\n    background:#0f0f15;color:#fff;font:13px system-ui,sans-serif}\r\n.t7-nf button{padding:6px 10px;border-radius:6px;border:0;background:#9146ff;color:#fff}\r\n.t7-st{font-size:11px;color:#aaa;min-height:1.3em}\r\n\r\n.t7-sz{display:flex;align-items:center;gap:8px;font-size:12px;color:#aaa}\r\n.t7-szb{display:flex;gap:4px}\r\n.t7-szb button{min-width:34px;padding:4px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:#0f0f15;color:#ddd}\r\n.t7-szb button[aria-pressed=true]{background:#9146ff;border-color:#9146ff;color:#fff}\r\n\r\n.t7-gr{flex:1;min-height:140px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-sh{margin:6px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#aaa}\r\n.t7-gw{display:flex;flex-wrap:wrap;gap:2px}\r\n.t7-it{width:40px;height:40px;padding:3px;border:0;border-radius:6px;background:transparent;display:inline-flex;align-items:center;justify-content:center}\r\n.t7-it:hover,.t7-it:focus-visible{background:rgba(255,255,255,.14)}\r\n.t7-it img{max-width:100%;max-height:100%;object-fit:contain}\r\n.t7-emp{padding:16px 4px;color:#aaa;text-align:center}\r\n\r\n.t7-rs{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;\r\n    border-radius:0 0 10px 0;\r\n    background:linear-gradient(135deg,transparent 0 55%,#888 55% 62%,transparent 62% 72%,#888 72% 79%,transparent 79%)}\r\n\r\n.t7-hb{display:flex;align-items:center;gap:2px}\r\n.t7-g{background:none;border:0;color:#ccc;font-size:16px;line-height:1;padding:2px 5px;border-radius:6px}\r\n.t7-g:hover,.t7-x:hover{background:rgba(255,255,255,.14);color:#fff}\r\n\r\n.t7-set{position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;\r\n    padding:12px;background:rgba(0,0,0,.5);font:13px/1.3 system-ui,sans-serif}\r\n.t7-set *{box-sizing:border-box}\r\n.t7-sw{width:380px;max-width:100%;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:16px;\r\n    padding:14px;background:#1b1b24;color:#eee;border:1px solid rgba(255,255,255,.18);border-radius:12px;\r\n    box-shadow:0 12px 40px rgba(0,0,0,.6)}\r\n.t7-sw button{font:inherit;cursor:pointer}\r\n.t7-sth{display:flex;justify-content:space-between;align-items:center;font-size:15px}\r\n.t7-sec{display:flex;flex-direction:column;gap:6px}\r\n.t7-sec>h4{margin:0;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#aaa}\r\n.t7-row{display:flex;gap:6px;align-items:flex-end}\r\n.t7-wrap{flex-wrap:wrap}\r\n.t7-fl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:#aaa}\r\n.t7-sw input[type=text]{width:100%;padding:6px 8px;border-radius:6px;border:1px solid rgba(255,255,255,.2);\r\n    background:#0f0f15;color:#fff;font:13px system-ui,sans-serif}\r\n.t7-chk{display:flex;gap:8px;align-items:center;cursor:pointer}\r\n.t7-b{padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.2);background:#0f0f15;color:#ddd}\r\n.t7-b:hover{background:#1d1d29}\r\n.t7-b.p{background:#9146ff;border-color:#9146ff;color:#fff}\r\n.t7-sst{font-size:11px;color:#aaa;min-height:1.3em}\r\n.t7-sth{cursor:grab;touch-action:none;user-select:none}\r\n.t7-sth:active{cursor:grabbing}\r\n.t7-sw.t7-drag{will-change:transform}\r\n.cy-chat-tabs:not([hidden]){display:flex;flex-wrap:nowrap;gap:2px;\r\n    width:100%;max-width:100%;min-width:0;box-sizing:border-box;\r\n    overflow-x:auto;overflow-y:hidden;scrollbar-width:none}\r\n.cy-chat-tabs::-webkit-scrollbar{display:none}\r\n.cy-chat-tabs>button[data-tab]{flex:0 0 auto;min-width:0;padding:5px 6px;font-size:11px;line-height:1.2;\r\n    white-space:nowrap;overflow:visible;\r\n    display:inline-flex;align-items:center;justify-content:center;gap:3px}\r\n.cy-chat-tabs>button .cy-chat-tn{flex:none;margin:0;min-width:1.5em;padding:1px 4px;\r\n    line-height:1.3;text-align:center;overflow:visible}\r\n.cy-chat-tabs>button .cy-chat-tn[hidden]{display:none}";
 
   // src/config.js
   var CACHE_TTL = 60 * 60 * 1e3;
@@ -137,13 +138,13 @@
   var getBuf = async (url) => {
     const r = await gm(url, "blob");
     const type = r.response && r.response.type || "image/webp";
-    const buf = await new Promise((res, rej) => {
+    const buf2 = await new Promise((res, rej) => {
       const fr = new FileReader();
       fr.onload = () => res(fr.result);
       fr.onerror = rej;
       fr.readAsArrayBuffer(r.response);
     });
-    return new Blob([buf], { type });
+    return new Blob([buf2], { type });
   };
 
   // src/emotes.js
@@ -916,6 +917,303 @@
     if (st.pop && st.anchor && !st.anchor.isConnected) closePop();
   }
 
+  // src/minetabs.js
+  var W = unsafeWindow;
+  var CITY = "/api/city/chat";
+  var MINE = "/api/mine/chat";
+  var ORDER = ["g", "dm", "ev", "tr", "mn"];
+  var MINE_ID = "home";
+  var buf = { city: [], mine: [] };
+  var inst = { city: null, mine: null };
+  var lastRoom = "";
+  var tagMn = (m) => m && m.tb !== "mn" ? { ...m, tb: "mn" } : m;
+  var tagMsg = (r) => r && r.msg ? { ...r, msg: tagMn(r.msg) } : r;
+  function push(room, msgs) {
+    const a = buf[room];
+    for (const m of msgs || []) if (m && m.id && !a.some((x) => x.id === m.id)) a.push(m);
+    if (a.length > 150) a.splice(0, a.length - 150);
+  }
+  function drop(ids) {
+    for (const k of Object.keys(buf)) buf[k] = buf[k].filter((m) => !ids.includes(m.id));
+  }
+  function active(room) {
+    const i = inst[room];
+    const S3 = i && i.K.state();
+    return !!(S3 && S3.chat && S3.chat.on);
+  }
+  function forward(room, d) {
+    if (!active(room)) return;
+    try {
+      inst[room].raw.apply(d);
+    } catch (e) {
+      console.warn("[mine-tabs] forward", e);
+    }
+  }
+  var mineHist = 0;
+  async function loadMineHistory(K) {
+    if (mineHist) return;
+    mineHist = 1;
+    try {
+      const x = K.X();
+      if (!x) {
+        mineHist = 0;
+        return;
+      }
+      const r = await x.api("/api/mine/state?c=" + MINE_ID + "&mc=0");
+      const src = r && r.mchat && Array.isArray(r.mchat.chat) ? r.mchat.chat : null;
+      if (!src) {
+        console.log("[mine-tabs] \u0438\u0441\u0442\u043E\u0440\u0438\u044F \u0448\u0430\u0445\u0442\u044B: \u0432 \u043E\u0442\u0432\u0435\u0442\u0435 \u043D\u0435\u0442 mchat", r);
+        return;
+      }
+      const msgs = src.map(tagMn).filter((m) => m && m.id);
+      push("mine", msgs);
+      const i = inst.city;
+      const c = i && i.K.state() && i.K.state().chat;
+      if (!c || !c.on) return;
+      const have = new Set(c.list.map((m) => m.id));
+      for (const m of msgs.slice(-80)) if (!have.has(m.id)) c.list.push(m);
+      c.list.sort((a, b) => (a.at || 0) - (b.at || 0));
+      i.raw.render();
+    } catch (e) {
+      mineHist = 0;
+      console.warn("[mine-tabs] \u0438\u0441\u0442\u043E\u0440\u0438\u044F \u0448\u0430\u0445\u0442\u044B", e);
+    }
+  }
+  function setupTabs(K) {
+    const S3 = K.state();
+    if (!S3 || !S3.chat || !S3.el) return;
+    const C = S3.chat;
+    C.mn = true;
+    C.un = C.un || {};
+    if (C.un.mn == null) C.un.mn = 0;
+    const tabs = S3.el.querySelector(".cy-chat-tabs");
+    if (!tabs) return;
+    if (!tabs.querySelector('[data-tab="mn"]')) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.setAttribute("role", "tab");
+      b.setAttribute("aria-selected", "false");
+      b.dataset.tab = "mn";
+      b.title = "\u0421\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0438\u0437 \u0448\u0430\u0445\u0442\u044B";
+      b.innerHTML = '\u0428\u0430\u0445\u0442\u0430<b class="cy-chat-tn" hidden></b>';
+      tabs.appendChild(b);
+    }
+    const g = tabs.querySelector('[data-tab="g"]');
+    if (g && g.firstChild && g.firstChild.nodeType === 3) g.firstChild.nodeValue = "\u0413\u043E\u0440\u043E\u0434";
+    for (const k of ORDER) {
+      const e = tabs.querySelector(`[data-tab="${k}"]`);
+      if (e) tabs.appendChild(e);
+    }
+    if (!tabs._t7) {
+      tabs._t7 = 1;
+      new MutationObserver(() => {
+        const c = K.state() && K.state().chat;
+        if (tabs.hidden && c && !c.panel) tabs.hidden = false;
+      }).observe(tabs, { attributes: true, attributeFilter: ["hidden"] });
+    }
+    if (!C.panel) tabs.hidden = false;
+  }
+  function selectTab(K, t) {
+    const S3 = K.state();
+    const b = S3 && S3.el && S3.el.querySelector(`.cy-chat-tabs [data-tab="${t}"]`);
+    if (b) b.click();
+  }
+  var cityIn = false;
+  var cityOutT = 0;
+  async function cityPost(api, b) {
+    let r = await api("/api/city/say", b);
+    if (r && r.ok === false && /не в городе/.test(r.error || "")) {
+      const e = await api("/api/city/enter", { x: 1e3, y: 1010, town: "fair" });
+      if (e && e.ok) {
+        cityIn = true;
+        r = await api("/api/city/say", b);
+      }
+    }
+    if (cityIn) {
+      clearTimeout(cityOutT);
+      cityOutT = setTimeout(() => {
+        cityIn = false;
+        try {
+          api("/api/city/leave", {});
+        } catch (e) {
+        }
+      }, 2e4);
+    }
+    return r;
+  }
+  var CHAT_JS = "/lib/site-chat.js";
+  var chatLoad = null;
+  function loadChatLib() {
+    if (W.LGChat) return Promise.resolve();
+    if (!chatLoad) chatLoad = new Promise((ok) => {
+      const sc = document.createElement("script");
+      sc.src = CHAT_JS;
+      sc.onload = sc.onerror = () => ok();
+      document.head.appendChild(sc);
+    });
+    return chatLoad;
+  }
+  function patchK(K, room) {
+    const cache = /* @__PURE__ */ new WeakMap();
+    const route = (api, p, b) => {
+      const C = (K.state() || {}).chat;
+      const tab = C && C.tab;
+      if (p === K.say) {
+        if (room === "mine") {
+          if (tab === "mn") return Promise.resolve(api(p, b)).then(tagMsg);
+          return cityPost(api, b);
+        }
+        if (tab === "mn") {
+          return Promise.resolve(api("/api/mine/chat/say?c=" + MINE_ID, { text: b.text })).then((r) => {
+            if (r && r.msg) push("mine", [tagMn(r.msg)]);
+            return tagMsg(r);
+          });
+        }
+      }
+      return api(p, b);
+    };
+    return {
+      ...K,
+      flags: room === "mine" ? () => {
+        const x = K.X();
+        const h = x && x.hero && x.hero() || {};
+        return { on: K.flags(h).on, tr: !!h.ct, dm: !!h.cd };
+      } : K.flags,
+      X: () => {
+        const x = K.X();
+        if (!x) return x;
+        let m = cache.get(x);
+        if (!m) {
+          const api = (...a) => x.api(...a);
+          m = new Proxy(x, {
+            get(t, k) {
+              if (k === "api") return (p, b) => route(api, p, b);
+              const v = t[k];
+              return typeof v === "function" ? v.bind(t) : v;
+            }
+          });
+          cache.set(x, m);
+        }
+        return m;
+      }
+    };
+  }
+  function wrapInst(raw, K, room) {
+    const other = room === "mine" ? "city" : "mine";
+    const mine = room === "mine";
+    return {
+      ...raw,
+      init() {
+        raw.init();
+        setupTabs(K);
+      },
+      enter(r) {
+        let rr = r;
+        if (r && Array.isArray(r.chat)) {
+          const own = mine ? r.chat.map(tagMn) : r.chat;
+          push(room, own);
+          rr = { ...r, chat: own.concat(buf[other].filter((m) => !own.some((x) => x.id === m.id))) };
+        }
+        raw.enter(rr);
+        setupTabs(K);
+        if (lastRoom !== room) {
+          lastRoom = room;
+          selectTab(K, mine ? "mn" : "g");
+        }
+        if (!mine) loadMineHistory(K);
+      },
+      apply(d) {
+        let dd = d;
+        if (d && Array.isArray(d.chat)) {
+          const own = mine ? d.chat.map(tagMn) : d.chat;
+          push(room, own);
+          dd = { ...d, chat: own };
+        }
+        raw.apply(dd);
+      }
+    };
+  }
+  function wrapChat(v) {
+    if (!v || v.__t7 || typeof v.make !== "function") return v;
+    const make = v.make;
+    const w = {
+      ...v,
+      make(K) {
+        const room = K && K.base === MINE ? "mine" : K && K.base === CITY ? "city" : null;
+        if (!room) return make(K);
+        const KK = patchK(K, room);
+        const raw = make(KK);
+        inst[room] = { raw, K: KK };
+        return wrapInst(raw, KK, room);
+      }
+    };
+    w.__t7 = 1;
+    return w;
+  }
+  function wrapCity(v) {
+    if (!v || v.__t7 || typeof v.onEvent !== "function") return v;
+    const o = v.onEvent;
+    v.onEvent = function(d) {
+      try {
+        if (d) {
+          if (Array.isArray(d.chat) && d.chat.length) push("city", d.chat);
+          if (Array.isArray(d.chatDel) && d.chatDel.length) drop(d.chatDel);
+          if (d.chat || d.chatDel) forward("mine", { chat: d.chat, chatDel: d.chatDel });
+        }
+      } catch (e) {
+        console.warn("[mine-tabs] city", e);
+      }
+      return o.apply(this, arguments);
+    };
+    v.__t7 = 1;
+    return v;
+  }
+  function wrapMine(v) {
+    if (!v || v.__t7 || typeof v.onEvent !== "function") return v;
+    const o = v.onEvent;
+    v.onEvent = function(d) {
+      try {
+        if (d && d.chatRoom === "mine" && Array.isArray(d.chat) && !v.on) {
+          const t = d.chat.map(tagMn);
+          push("mine", t);
+          forward("city", { chat: t });
+        }
+      } catch (e) {
+        console.warn("[mine-tabs] mine", e);
+      }
+      return o.apply(this, arguments);
+    };
+    const op = v.open;
+    if (typeof op === "function") {
+      v.open = function() {
+        if (W.LGChat) return op.apply(this, arguments);
+        const args = arguments, self = this;
+        loadChatLib().then(() => op.apply(self, args));
+      };
+    }
+    v.__t7 = 1;
+    return v;
+  }
+  function hook(name, fn) {
+    let val = W[name];
+    if (val) val = fn(val);
+    try {
+      Object.defineProperty(W, name, {
+        configurable: true,
+        enumerable: true,
+        get: () => val,
+        set: (v) => {
+          val = fn(v);
+        }
+      });
+    } catch (e) {
+      console.warn("[mine-tabs] hook", name, e);
+    }
+  }
+  hook("LGChat", wrapChat);
+  hook("LGCity", wrapCity);
+  hook("LGMine", wrapMine);
+
   // src/main.js
   function init() {
     const style = document.createElement("style");
@@ -954,5 +1252,6 @@
     ensureButtons();
     reload(false);
   }
-  init();
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
+  else init();
 })();

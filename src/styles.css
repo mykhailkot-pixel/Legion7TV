@@ -76,3 +76,13 @@ form.cy-chat-f.t7-btn:hover{background:rgb(165,100,255)}
 .t7-sth{cursor:grab;touch-action:none;user-select:none}
 .t7-sth:active{cursor:grabbing}
 .t7-sw.t7-drag{will-change:transform}
+.cy-chat-tabs:not([hidden]){display:flex;flex-wrap:nowrap;gap:2px;
+    width:100%;max-width:100%;min-width:0;box-sizing:border-box;
+    overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
+.cy-chat-tabs::-webkit-scrollbar{display:none}
+.cy-chat-tabs>button[data-tab]{flex:0 0 auto;min-width:0;padding:5px 6px;font-size:11px;line-height:1.2;
+    white-space:nowrap;overflow:visible;
+    display:inline-flex;align-items:center;justify-content:center;gap:3px}
+.cy-chat-tabs>button .cy-chat-tn{flex:none;margin:0;min-width:1.5em;padding:1px 4px;
+    line-height:1.3;text-align:center;overflow:visible}
+.cy-chat-tabs>button .cy-chat-tn[hidden]{display:none}

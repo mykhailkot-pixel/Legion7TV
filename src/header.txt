@@ -1,21 +1,22 @@
 // ==UserScript==
+// @author       ProCto_Fliy
 // @name         7TV в чате Multidonate Play
 // @namespace    https://play.multidonate.ru/
 // @version      {{version}}
 // @description  Эмоуты 7TV в чате: кнопка 7TV, ник стримера, размер, список эмоутов, быстрый кеш
 // @match        https://play.multidonate.ru/*
-// @grant        GM_xmlhttpRequest
-// @grant        GM_getValue
-// @grant        GM_setValue
-// @connect      7tv.io
-// @connect      cdn.7tv.app
-// @connect      api.ivr.fi
-// @connect      workers.dev
-// @run-at       document-idle
-// @author       ProCto_Fliy
 // @icon         https://cdn.7tv.app/emote/01F71VQYHR000D3ZZ6Q11NR7TV/2x.webp
 // @homepageURL  https://github.com/mykhailkot-pixel/Legion7TV
 // @updateURL    https://github.com/mykhailkot-pixel/Legion7TV/raw/refs/heads/main/7tv-multidonate.user.js
 // @downloadURL  https://github.com/mykhailkot-pixel/Legion7TV/raw/refs/heads/main/7tv-multidonate.user.js
+// @grant        GM_xmlhttpRequest
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        unsafeWindow
+// @run-at       document-start
+// @connect      7tv.io
+// @connect      cdn.7tv.app
+// @connect      api.ivr.fi
+// @connect      workers.dev
 // @license      MIT
 // ==/UserScript==
