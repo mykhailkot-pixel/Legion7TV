@@ -2,10 +2,10 @@
 import { pingSystem } from './pingSystem.js';
 import { store } from './store.js';
 import { SAY_RE, sendWithLinks } from './links.js';
+import { getChatTabPrefs } from './chatTabPrefs.js';
 
 const W = unsafeWindow;
 const CITY = '/api/city/chat', MINE = '/api/mine/chat';
-const ORDER = ['g', 'dm', 'ev', 'tr', 'mn'];
 const MINE_ID = 'home'; 
 const PING_ONLY_KEY = 't7PingOnly';
 const PING_ARCHIVE_KEY = 't7PingArchive';
@@ -132,11 +132,18 @@ function setupTabs(K) {
         b.innerHTML = 'Шахта<b class="cy-chat-tn" hidden></b>';
         tabs.appendChild(b);
     }
-    const g = tabs.querySelector('[data-tab="g"]');
-    if (g && g.firstChild && g.firstChild.nodeType === 3) g.firstChild.nodeValue = 'Город';
-    for (const k of ORDER) {
+    const prefs = getChatTabPrefs();
+    for (const k of prefs.order) {
         const e = tabs.querySelector(`[data-tab="${k}"]`);
-        if (e) tabs.appendChild(e);
+        if (!e) continue;
+        e.hidden = prefs.hidden.has(k);
+        tabs.appendChild(e);
+    }
+    const cityTab = tabs.querySelector('[data-tab="g"]');
+    if (cityTab && cityTab.firstChild && cityTab.firstChild.nodeType === 3) cityTab.firstChild.nodeValue = 'Город';
+    if (prefs.hidden.has(C.tab)) {
+        const fallback = prefs.order.find((id) => !prefs.hidden.has(id) && tabs.querySelector(`[data-tab="${id}"]`));
+        if (fallback) selectTab(K, fallback);
     }
     if (!tabs._t7) {
         tabs._t7 = 1;
@@ -148,6 +155,11 @@ function setupTabs(K) {
     }
     if (!C.panel) tabs.hidden = false;
 }
+
+document.addEventListener('t7-chat-tabs-change', () => {
+    for (const i of Object.values(inst)) if (i) setupTabs(i.K);
+});
+
 function selectTab(K, t) {
     const S = K.state();
     const b = S && S.el && S.el.querySelector(`.cy-chat-tabs [data-tab="${t}"]`);

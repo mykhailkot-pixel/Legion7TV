@@ -9,6 +9,7 @@ import { clamp } from './util.js';
 import { pingSystem } from './pingSystem.js';
 import { getRecentLimit, setRecentLimit } from './recentEmotes.js';
 import { isLinkEncodingEnabled, setLinkEncodingEnabled } from './links.js';
+import { CHAT_TABS, getChatTabPrefs, setChatTabPrefs } from './chatTabPrefs.js';
 
 // смещение окна настроек от центра экрана
 let SOFF = (() => {
@@ -98,38 +99,43 @@ export function openSettings() {
         <div class="t7-sw" role="dialog" aria-modal="true" aria-label="Настройки 7TV">
             <div class="t7-sth"><b>Настройки 7TV</b><button type="button" class="t7-x" aria-label="Закрыть">×</button></div>
 
-            <div class="t7-sec">
-                <h4>Эмоуты</h4>
+            <details class="t7-sec">
+                <summary>Эмоуты</summary>
                 <label class="t7-chk"><input type="checkbox" class="t7-on"> Показывать эмоуты 7TV в чате</label>
-            </div>
+            </details>
 
-            <div class="t7-sec">
-                <h4>Канал</h4>
+            <details class="t7-sec">
+                <summary>Канал</summary>
                 <form class="t7-row">
                     <label class="t7-fl">Ник стримера на Twitch<input type="text" class="t7-nick" maxlength="80" autocomplete="off" spellcheck="false"></label>
                     <button type="submit" class="t7-b p">Загрузить</button>
                 </form>
                 <div class="t7-sst" role="status"></div>
-            </div>
+            </details>
 
-            <div class="t7-sec">
-                <h4>Размер эмоутов в чате</h4>
+            <details class="t7-sec">
+                <summary>Размер эмоутов в чате</summary>
                 <div class="t7-szb">${Object.keys(SIZES).map((k) => `<button type="button" data-sz="${k}" aria-pressed="false">${SIZES[k].label}</button>`).join('')}</div>
-            </div>
+            </details>
 
-            <div class="t7-sec">
-                <h4>Недавно использованные</h4>
+            <details class="t7-sec">
+                <summary>Вкладки чата</summary>
+                <div class="t7-chat-tab-list"></div>
+            </details>
+
+            <details class="t7-sec">
+                <summary>Недавно использованные</summary>
                 <label class="t7-fl">Количество эмоутов в списке "Недавние"<input class="t7-recent-limit" type="number" min="1" max="100" step="1" inputmode="numeric"></label>
-            </div>
+            </details>
 
-            <div class="t7-sec">
-                <h4>Ссылки в чате</h4>
+            <details class="t7-sec">
+                <summary>Ссылки в чате</summary>
                 <label class="t7-chk"><input type="checkbox" class="t7-link-encoding"> Преобразовывать HTTPS-ссылки при отправке</label>
                 <div class="t7-note" role="note"><span class="t7-note-icon" aria-hidden="true">!</span><span>Используйте на свой страх и риск.</span></div>
-            </div>
+            </details>
 
-            <div class="t7-sec">
-                <h4>Пинги и фильтры</h4>
+            <details class="t7-sec">
+                <summary>Пинги и фильтры</summary>
                 <label class="t7-chk"><input type="checkbox" class="t7-tab-completion"> Дополнять ник по Tab</label>
                 <label class="t7-fl">Ники и варианты для пинга<textarea class="t7-ping-aliases" rows="2" placeholder="ник, nick, @ник"></textarea></label>
                 <label class="t7-fl">Черный список ников<textarea class="t7-ping-blacklist" rows="2" placeholder="по одному нику на строку"></textarea></label>
@@ -142,16 +148,16 @@ export function openSettings() {
                     <input type="file" class="t7-ping-file" accept="audio/*" hidden>
                 </div>
                 <div class="t7-ping-status" role="status"></div>
-            </div>
+            </details>
 
-            <div class="t7-sec">
-                <h4>Данные</h4>
+            <details class="t7-sec">
+                <summary>Данные</summary>
                 <div class="t7-row t7-wrap">
                     <button type="button" class="t7-b" data-act="refresh">Обновить список</button>
                     <button type="button" class="t7-b" data-act="cache">Очистить кеш картинок</button>
                     <button type="button" class="t7-b" data-act="pos">Сбросить положение окошка</button>
                 </div>
-            </div>
+            </details>
         </div>`;
     // игра не должна ловить клавиши, пока печатаем в настройках
     ['keydown', 'keyup', 'keypress'].forEach((t) => el.addEventListener(t, (e) => e.stopPropagation()));
@@ -238,6 +244,40 @@ export function openSettings() {
     recentLimit.addEventListener('change', () => {
         recentLimit.value = String(setRecentLimit(recentLimit.value));
     });
+
+    const chatTabList = el.querySelector('.t7-chat-tab-list');
+    const renderChatTabPrefs = () => {
+        const prefs = getChatTabPrefs();
+        const visibleCount = prefs.order.filter((id) => !prefs.hidden.has(id)).length;
+        chatTabList.replaceChildren(...prefs.order.map((id, index) => {
+            const tab = CHAT_TABS.find((item) => item.id === id);
+            const row = document.createElement('div');
+            row.className = 't7-chat-tab-row';
+            row.innerHTML = `<span class="t7-chat-tab-name">${tab.label}</span><label class="t7-chat-tab-visible"><input type="checkbox" data-tab-visible="${id}" ${prefs.hidden.has(id) ? '' : 'checked'} ${!prefs.hidden.has(id) && visibleCount === 1 ? 'disabled' : ''}>Показать</label><span class="t7-chat-tab-move"><button type="button" data-tab-move="up" data-tab-id="${id}" aria-label="Переместить ${tab.label} выше" title="Переместить выше" ${index === 0 ? 'disabled' : ''}>↑</button><button type="button" data-tab-move="down" data-tab-id="${id}" aria-label="Переместить ${tab.label} ниже" title="Переместить ниже" ${index === prefs.order.length - 1 ? 'disabled' : ''}>↓</button></span>`;
+            return row;
+        }));
+    };
+    chatTabList.addEventListener('change', (e) => {
+        const checkbox = e.target.closest('input[data-tab-visible]');
+        if (!checkbox) return;
+        const prefs = getChatTabPrefs();
+        if (checkbox.checked) prefs.hidden.delete(checkbox.dataset.tabVisible);
+        else prefs.hidden.add(checkbox.dataset.tabVisible);
+        setChatTabPrefs(prefs);
+        renderChatTabPrefs();
+    });
+    chatTabList.addEventListener('click', (e) => {
+        const button = e.target.closest('button[data-tab-move]');
+        if (!button || button.disabled) return;
+        const prefs = getChatTabPrefs();
+        const index = prefs.order.indexOf(button.dataset.tabId);
+        const nextIndex = index + (button.dataset.tabMove === 'up' ? -1 : 1);
+        if (index < 0 || nextIndex < 0 || nextIndex >= prefs.order.length) return;
+        [prefs.order[index], prefs.order[nextIndex]] = [prefs.order[nextIndex], prefs.order[index]];
+        setChatTabPrefs(prefs);
+        renderChatTabPrefs();
+    });
+    renderChatTabPrefs();
 
     const linkEncoding = el.querySelector('.t7-link-encoding');
     linkEncoding.checked = isLinkEncodingEnabled();
