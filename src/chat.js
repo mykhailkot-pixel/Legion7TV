@@ -141,12 +141,34 @@ function processLi(li) {
     const sp = spans[spans.length - 1];
     if (sp) processSpan(sp);
 }
-
+ // Изменяем функцию scan, чтобы она искала необработанные элементы во ВСЁМ чате (включая ЛС)
 export function scan() {
-    const fresh = document.querySelectorAll('.cy-chat-l li:not([data-t7])');
-    if (!fresh.length) return;
-    fresh.forEach(processLi);
-    stickEnds();   // строки стали выше от эмоутов - возвращаем ленту вниз, если она была внизу
+  // 1. Сканируем основной чат (.cy-chat-l) с прижатием к низу
+  const chatFresh = document.querySelectorAll(".cy-chat-l li:not([data-t7])");
+  if (chatFresh.length) {
+    chatFresh.forEach(processLi);
+    stickEnds();
+  }
+
+  // 2. Тихая обработка для личных сообщений (.cy-chat-dmx) БЕЗ вызова stickEnds(),
+  // чтобы верстка в личке не дергалась и скролл не скакал.
+  const dmFresh = document.querySelectorAll(".cy-chat-dmx li:not([data-t7]), .cy-chat-dmx span:not([data-t7])");
+  if (dmFresh.length) {
+    dmFresh.forEach((node) => {
+      if (node.dataset.t7) return;
+      node.dataset.t7 = "1";
+      
+      // Если это элемент сообщения <li> в личке
+      if (node.tagName === 'LI') {
+        const span = node.querySelector('span');
+        if (span) processSpan(span);
+      } 
+      // Или если это просто текстовый спан/абзац внутри лички
+      else if (!node.children.length && node.textContent.trim()) {
+        processSpan(node);
+      }
+    });
+  }
 }
 
 export function rescanAll() {

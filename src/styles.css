@@ -1,6 +1,14 @@
 /* ========== Эмоуты в сообщениях ========== */
 .t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}
-.t7-e{display:inline-block;vertical-align:middle;height:var(--t7-h,1.9em);width:auto;min-width:var(--t7-h,1.9em)}
+.t7-e {
+    display: inline-block;
+    vertical-align: middle;
+    height: var(--t7-h, 1.9em);
+    width: auto;
+    min-width: var(--t7-h, 1.9em);
+    /* Добавьте это, чтобы браузер не менял высоту строки при загрузке картинки */
+    aspect-ratio: auto; 
+}
 .t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}
 .t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}
 
@@ -167,3 +175,23 @@ form.cy-chat-f>.t7-ping-menu>.t7-ping-option:hover,form.cy-chat-f>.t7-ping-menu>
 .cy-chat-l>li.t7-filtered>:not(.t7-filter-label){display:none!important}
 .cy-chat-l,.cy-chat-l li,.cy-chat-l li span,.cy-chat-l li a{-webkit-user-select:text!important;user-select:text!important}
 .cy-chat-l a.t7-link{color:#8edbff;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.cy-chat-tabs>button[data-tab][hidden]{display:none!important}
+/* Фиксация якоря прокрутки для контейнера личных сообщений и чата */
+.cy-chat-dmx, .cy-chat-l {
+  overflow-anchor: auto;
+}
+
+/* Запрещаем браузеру самовольно дергать размеры картинок при вставке */
+.cy-chat-dmx img.t7-e {
+  content-visibility: auto;
+}
+
+/* ========== Кнопка 7TV в форме чата и ЛС ========== */
+form.cy-chat-f .t7-btn, form.dm-f .t7-btn{
+    flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;
+    box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;
+    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;
+    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;
+    white-space:nowrap;vertical-align:middle;cursor:pointer}
+form.cy-chat-f .t7-btn:hover, form.dm-f .t7-btn:hover{background:rgb(165,100,255)}
+form.dm-f{position:relative}

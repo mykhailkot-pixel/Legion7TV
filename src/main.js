@@ -14,6 +14,29 @@ function init() {
     const style = document.createElement('style');
     style.textContent = css;
     document.head.appendChild(style);
+    // Защита скролла личных сообщений от скачков на 1 сообщение назад
+    document.addEventListener("DOMContentLoaded", () => {
+        const dmx = document.querySelector(".cy-chat-dmx");
+        if (!dmx) return;
+
+        let lastScrollTop = dmx.scrollTop;
+
+        dmx.addEventListener("scroll", () => {
+            lastScrollTop = dmx.scrollTop;
+        }, { passive: true });
+
+        // Перехватываем попытки LGDm сместить скролл вверх без воли пользователя
+        const observer = new MutationObserver(() => {
+            // Если пользователь находился не в самом низу и произошло изменение, 
+            // а скролл резко уменьшился (тот самый прыжок на 1 сообщение назад)
+            if (dmx.scrollTop < lastScrollTop - 2 && dmx.scrollTop > 10) {
+            // Возвращаем скролл на место, блокируя паразитный скачок
+            dmx.scrollTop = lastScrollTop;
+            }
+        });
+
+        observer.observe(dmx, { childList: true, subtree: true });
+    });
 
     // сохранённые настройки
     const sz = store.get('t7size');
@@ -39,16 +62,23 @@ function init() {
     const contains = (node, selector) => node.nodeType === 1 && (node.matches(selector) || node.querySelector(selector));
     const schedule = (records) => {
         for (const record of records) {
-            if (record.type !== 'childList') continue;
-            const target = record.target.nodeType === 1 ? record.target : record.target.parentElement;
-            const form = target && target.closest('form.cy-chat-f');
-            if (form && form.querySelector('input[type=text]') && !form.dataset.t7RecentBound) needsButtons = true;
+            if (record.type !== "childList") continue;
+                const target = record.target.nodeType === 1 ? record.target : record.target.parentElement;
+                const form = target && target.closest("form.cy-chat-f");
+            if (form && form.querySelector("input[type=text]") && !form.dataset.t7RecentBound) needsButtons = true;
+            
+            // Добавляем флаг необходимости сканирования при любых изменениях в .cy-chat (включая .cy-chat-dmx)
+            if (target && target.closest(".cy-chat")) {
+                needsScan = true;
+            }
+
             for (const node of record.addedNodes) {
-                if (contains(node, 'form.cy-chat-f')) needsButtons = true;
-                if (contains(node, '.cy-chat-l li')) needsScan = true;
+                if (contains(node, "form.cy-chat-f")) needsButtons = true;
+                if (contains(node, ".cy-chat-l li") || contains(node, ".cy-chat-dmx")) needsScan = true;
             }
         }
-        if ((!needsButtons && !needsScan) || queued) return;
+        
+        if (!needsButtons && !needsScan || queued) return;
         queued = true;
         requestAnimationFrame(() => {
             queued = false;
@@ -60,6 +90,8 @@ function init() {
             if (scanMessages) scan();
         });
     };
+
+    // Наблюдаем не только за body, но и за всем контейнером чата точечно или оставляем subtree на body
     new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
     ensureButtons();
     scan();

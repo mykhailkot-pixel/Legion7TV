@@ -136,9 +136,19 @@ function setupTabs(K) {
     for (const k of prefs.order) {
         const e = tabs.querySelector(`[data-tab="${k}"]`);
         if (!e) continue;
-        e.hidden = prefs.hidden.has(k);
+        // Принудительно скрываем, если вкладка вprefs.hidden ИЛИ заблокирована логикой чата
+        const shouldBeHidden = prefs.hidden.has(k) || (k !== "g" && k !== "mn" && !C[k]);
+        e.hidden = shouldBeHidden;
         tabs.appendChild(e);
     }
+    tabs.querySelectorAll('[data-tab]').forEach((b) => {
+    if (b._t7h) return;
+        b._t7h = 1;
+        // библиотека сбрасывает hidden на каждом рендере - возвращаем скрытие из настроек
+        new MutationObserver(() => {
+            if (!b.hidden && getChatTabPrefs().hidden.has(b.dataset.tab)) b.hidden = true;
+        }).observe(b, { attributes: true, attributeFilter: ['hidden'] });
+    });
     const cityTab = tabs.querySelector('[data-tab="g"]');
     if (cityTab && cityTab.firstChild && cityTab.firstChild.nodeType === 3) cityTab.firstChild.nodeValue = 'Город';
     if (prefs.hidden.has(C.tab)) {

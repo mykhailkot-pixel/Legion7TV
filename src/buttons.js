@@ -135,33 +135,49 @@ function bindPingAutocomplete(form, input) {
 
 // кнопка «7TV» справа от ➤ в форме чата
 export function ensureButtons() {
-    document.querySelectorAll('form.cy-chat-f').forEach((f) => {
-        const input = f.querySelector('input[type=text]');
+    // Ищем формы как в обычном чате, так и в личных сообщениях (.dm-f)
+    document.querySelectorAll("form.cy-chat-f, form.dm-f").forEach((f) => {
+        const input = f.querySelector("input[type=text]");
         if (input && !f.dataset.t7RecentBound) {
-            f.dataset.t7RecentBound = '1';
+        f.dataset.t7RecentBound = "1";
+        
+        // Если это форма обычного чата - биндимо историю и автодополнение пингов, 
+        // для ЛС (.dm-f) у сайта своя логика, поэтому им нужна только кнопка 7TV
+        if (f.classList.contains('cy-chat-f')) {
             const remember = bindMessageHistory(f, input);
             bindPingAutocomplete(f, input);
             const record = () => {
-                remember(input.value);
-                recordRecentFromMessage(input.value);
+            remember(input.value);
+            recordRecentFromMessage(input.value);
             };
-            f.addEventListener('submit', record, true);
-            input.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !e.isComposing && e.keyCode !== 229)
-                    record();
+            f.addEventListener("submit", record, true);
+            input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !e.isComposing && e.keyCode !== 229)
+                record();
             }, true);
         }
-        if (f.querySelector('.t7-btn')) return;
-        const b = document.createElement('button');
-        b.type = 'button';       // не отправляет сообщение
-        b.className = 't7-btn';
-        b.textContent = '7TV';
-        b.title = 'Эмоуты 7TV';
-        b.setAttribute('aria-label', 'Эмоуты 7TV');
-        b.setAttribute('aria-haspopup', 'dialog');
-        b.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); togglePop(b); });
-        const sub = f.querySelector('button[type=submit]');
-        if (sub) sub.after(b); else f.appendChild(b);
+        }
+
+        if (f.querySelector(".t7-btn")) return;
+        
+        // Создаем кнопку 7TV
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "t7-btn";
+        b.textContent = "7TV";
+        b.title = "Эмоуты 7TV";
+        b.setAttribute("aria-label", "Эмоуты 7TV");
+        b.setAttribute("aria-haspopup", "dialog");
+        b.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        togglePop(b); // Открывает ваш попап с эмоутами
+        });
+
+        const sub = f.querySelector("button[type=submit]");
+        if (sub) sub.after(b);
+        else f.appendChild(b);
     });
+
     if (st.pop && st.anchor && !st.anchor.isConnected) closePop();
 }
