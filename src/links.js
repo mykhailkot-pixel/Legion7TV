@@ -1,5 +1,11 @@
 // Ссылки в чате: отправка через [ref]{...}, разбор на приёме
+import { store } from './store.js';
+
 export const SAY_RE = /^\/api\/(?:city\/say|mine\/chat\/say)(?:\?|$)/;
+const LINK_ENCODING_KEY = 't7LinkEncoding';
+
+export const isLinkEncodingEnabled = () => store.get(LINK_ENCODING_KEY) === true;
+export const setLinkEncodingEnabled = (enabled) => store.set(LINK_ENCODING_KEY, !!enabled);
 
 const HTTP_RE = /(?<![\p{L}\p{N}_])http:\/\/\S/iu;
 // bare-домены: 2 латинские буквы (ccTLD) или частые общие зоны; так "кто.то" и "main.txt" ссылками не считаются
@@ -31,6 +37,7 @@ export function refToUrl(body) {
 
 // call(path, body) - исходный api сайта
 export async function sendWithLinks(call, path, body) {
+    if (!isLinkEncodingEnabled()) return call(path, body);
     const text = body && body.text;
     if (typeof text !== 'string') return call(path, body);
     if (HTTP_RE.test(text)) return { ok: false, error: 'ссылки http:// не отправляются - используй https://' };

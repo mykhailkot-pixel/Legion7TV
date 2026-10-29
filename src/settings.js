@@ -8,6 +8,7 @@ import { clearImgs } from './imgcache.js';
 import { clamp } from './util.js';
 import { pingSystem } from './pingSystem.js';
 import { getRecentLimit, setRecentLimit } from './recentEmotes.js';
+import { isLinkEncodingEnabled, setLinkEncodingEnabled } from './links.js';
 
 // смещение окна настроек от центра экрана
 let SOFF = (() => {
@@ -122,6 +123,12 @@ export function openSettings() {
             </div>
 
             <div class="t7-sec">
+                <h4>Ссылки в чате</h4>
+                <label class="t7-chk"><input type="checkbox" class="t7-link-encoding"> Преобразовывать HTTPS-ссылки при отправке</label>
+                <div class="t7-note" role="note"><span class="t7-note-icon" aria-hidden="true">!</span><span>Используйте на свой страх и риск.</span></div>
+            </div>
+
+            <div class="t7-sec">
                 <h4>Пинги и фильтры</h4>
                 <label class="t7-chk"><input type="checkbox" class="t7-tab-completion"> Дополнять ник по Tab</label>
                 <label class="t7-fl">Ники и варианты для пинга<textarea class="t7-ping-aliases" rows="2" placeholder="ник, nick, @ник"></textarea></label>
@@ -231,6 +238,10 @@ export function openSettings() {
     recentLimit.addEventListener('change', () => {
         recentLimit.value = String(setRecentLimit(recentLimit.value));
     });
+
+    const linkEncoding = el.querySelector('.t7-link-encoding');
+    linkEncoding.checked = isLinkEncodingEnabled();
+    linkEncoding.addEventListener('change', () => setLinkEncodingEnabled(linkEncoding.checked));
 
     el.addEventListener('click', async (e) => {
         const b = e.target.closest('[data-act]');

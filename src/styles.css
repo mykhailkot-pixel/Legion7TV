@@ -87,6 +87,8 @@ form.cy-chat-f>.t7-ping-menu>.t7-ping-option:hover,form.cy-chat-f>.t7-ping-menu>
 .t7-fl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t7-mute)}
 .t7-chk{display:flex;gap:8px;align-items:center;cursor:pointer}
 .t7-sst{min-height:1.3em;font-size:11px;color:var(--t7-mute)}
+.t7-note{display:flex;align-items:center;gap:8px;margin:0;padding:8px 10px;border:1px solid rgba(255,201,77,.3);border-left:3px solid #ffc94d;border-radius:4px;background:rgba(255,201,77,.08);color:#e8d6a4;font-size:12px;line-height:1.35}
+.t7-note-icon{display:grid;place-items:center;flex:none;width:18px;height:18px;border-radius:50%;background:rgba(255,201,77,.18);color:#ffc94d;font-size:12px;font-weight:700}
 
 .t7-sw input[type=text],.t7-sw input[type=number]{
     width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);
