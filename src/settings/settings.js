@@ -10,6 +10,7 @@ import { getChatFont, getChatFontSize, getCustomChatFont, setChatFont, setChatFo
 import { getRecentLimit, setRecentLimit } from '../chat/prefs.js';
 import { isLinkEncodingEnabled, setLinkEncodingEnabled } from '../chat/links.js';
 import { CHAT_TABS, getChatTabPrefs, setChatTabPrefs } from '../chat/prefs.js';
+import { arePastesEnabled, setPastesEnabled } from '../chat/pastes.js';
 import { STORE } from '../core/consts.js';
 
 // смещение окна настроек от центра экрана
@@ -125,6 +126,11 @@ export function openSettings() {
             </details>
 
             <details class="t7-sec">
+                <summary>Пасты</summary>
+                <label class="t7-chk"><input type="checkbox" class="t7-pastes-enabled"> Показывать кнопку паст в чате</label>
+            </details>
+
+            <details class="t7-sec">
                 <summary>Недавно использованные</summary>
                 <label class="t7-fl">Количество эмоутов в списке "Недавние"<input class="t7-recent-limit" type="number" min="1" max="100" step="1" inputmode="numeric"></label>
             </details>
@@ -210,6 +216,9 @@ export function openSettings() {
     const tabCompletion = el.querySelector('.t7-tab-completion');
     tabCompletion.checked = pingSystem.config.tabCompletion;
     tabCompletion.addEventListener('change', () => pingSystem.setTabCompletion(tabCompletion.checked));
+    const pastesEnabled = el.querySelector('.t7-pastes-enabled');
+    pastesEnabled.checked = arePastesEnabled();
+    pastesEnabled.addEventListener('change', () => setPastesEnabled(pastesEnabled.checked));
     const pingColor = el.querySelector('.t7-ping-color');
     pingColor.value = pingSystem.config.pingColor;
     pingColor.addEventListener('input', () => pingSystem.setPingColor(pingColor.value));

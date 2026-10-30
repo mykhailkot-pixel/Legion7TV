@@ -18,7 +18,9 @@ export const STORE = Object.freeze({
     chatTabPrefs: 't7ChatTabPrefs',
     cityChatPosition: 't7CityChatPosition',
     linkEncoding: 't7LinkEncoding',
-    networkProxy: 't7proxy'
+    networkProxy: 't7proxy',
+    pastes: 't7Pastes',
+    pastesEnabled: 't7PastesEnabled'
 });
 
 export const EV = Object.freeze({

@@ -20,6 +20,7 @@ form.cy-chat-f .t7-btn{
     font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;
     white-space:nowrap;vertical-align:middle;cursor:pointer}
 form.cy-chat-f .t7-btn:hover{background:rgb(165,100,255)}
+form.cy-chat-f .t7-pastes-btn[hidden],form.dm-f .t7-pastes-btn[hidden]{display:none!important}
 form.cy-chat-f{position:relative}
 form.cy-chat-f>.t7-ping-menu{position:absolute;left:auto;right:0;bottom:calc(100% + 5px);z-index:20;display:flex;flex-direction:column;width:min(210px,calc(100vw - 24px));max-height:132px;overflow-y:auto;padding:3px;border:1px solid rgba(255,255,255,.16);border-radius:6px;background:rgba(24,24,32,.88);box-shadow:0 5px 14px rgba(0,0,0,.28);backdrop-filter:blur(5px)}
 form.cy-chat-f>.t7-ping-menu[hidden]{display:none}
@@ -27,6 +28,25 @@ form.cy-chat-f>.t7-ping-menu>.t7-ping-option{display:block;flex:none;width:100%;
 form.cy-chat-f>.t7-ping-menu>.t7-ping-option:hover,form.cy-chat-f>.t7-ping-menu>.t7-ping-option:focus-visible{background:rgba(255,255,255,.12);color:#fff;outline:none}
 form.cy-chat-f>.t7-banword-warning{position:absolute;left:0;right:0;bottom:calc(100% + 5px);z-index:21;padding:7px 9px;border:1px solid rgba(255,201,77,.38);border-left:3px solid #ffc94d;border-radius:4px;background:rgba(24,24,32,.96);color:#f2dda0;font:12px/1.35 system-ui,sans-serif;box-shadow:0 5px 14px rgba(0,0,0,.28)}
 form.cy-chat-f>.t7-banword-warning[hidden]{display:none}
+.t7-paste-overlay{position:fixed;inset:0;z-index:2147483100;display:grid;place-items:center;padding:12px;background:rgba(0,0,0,.58);font:13px/1.35 system-ui,sans-serif}
+.t7-paste-dialog{display:flex;flex-direction:column;gap:10px;width:min(440px,100%);max-height:min(620px,90vh);overflow-y:auto;padding:12px;border:1px solid rgba(255,255,255,.18);border-radius:8px;background:#1b1b24;color:#eee;box-shadow:0 10px 32px rgba(0,0,0,.48)}
+.t7-paste-header,.t7-paste-row,.t7-paste-actions{display:flex;align-items:center;gap:6px}
+.t7-paste-header{justify-content:space-between;font-size:15px}
+.t7-paste-list{display:flex;flex-direction:column;gap:4px;min-height:36px;overflow-y:auto}
+.t7-paste-item,.t7-paste-delete,.t7-paste-close,.t7-paste-primary,.t7-paste-secondary{border:1px solid rgba(255,255,255,.18);border-radius:4px;background:#101018;color:#eee;cursor:pointer}
+.t7-paste-item{flex:1;min-width:0;padding:7px 9px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.t7-paste-item:hover,.t7-paste-delete:hover,.t7-paste-close:hover,.t7-paste-secondary:hover{background:#292936}
+.t7-paste-delete,.t7-paste-close{display:grid;place-items:center;flex:none;width:30px;height:30px;padding:0;font-size:20px}
+.t7-paste-add,.t7-paste-primary,.t7-paste-secondary{padding:7px 10px}
+.t7-paste-primary{border-color:#7650c9;background:#6844b5;color:#fff}
+.t7-paste-primary:hover{background:#7954c5}
+.t7-paste-editor{display:flex;flex-direction:column;gap:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.12)}
+.t7-paste-editor[hidden],.t7-paste-add[hidden]{display:none}
+.t7-paste-field{display:flex;flex-direction:column;gap:4px;color:#bbb;font-size:12px}
+.t7-paste-field input,.t7-paste-field textarea{box-sizing:border-box;width:100%;padding:7px 8px;border:1px solid rgba(255,255,255,.2);border-radius:4px;background:#101018;color:#fff;font:13px/1.35 system-ui,sans-serif}
+.t7-paste-field textarea{min-height:100px;resize:vertical}
+.t7-paste-actions{justify-content:flex-end}
+.t7-paste-empty{padding:10px 4px;color:#aaa;text-align:center}
 
 /* ========== Общая палитра окон (список эмоутов и настройки) ========== */
 .t7-pop,.t7-set{

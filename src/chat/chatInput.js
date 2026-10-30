@@ -3,6 +3,7 @@ import { HARD_BANNED_WORDS } from '../core/config.js';
 import { EV, SEL, on } from '../core/consts.js';
 import { togglePop, closePop, recordRecentFromMessage } from '../emotes/popup.js';
 import { pingSystem } from './pingSystem.js';
+import { arePastesEnabled, openPastes } from './pastes.js';
 
 const bindings = new WeakMap();
 function normalizeBanword(value) {
@@ -258,23 +259,42 @@ export function ensureButtons() {
             bindings.set(form, form.matches(SEL.chatForm) ? bindChatForm(form, input) : () => {});
         }
 
-        if (form.querySelector('.t7-btn')) return;
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 't7-btn';
-        button.textContent = '7TV';
-        button.title = 'Эмоуты 7TV';
-        button.setAttribute('aria-label', 'Эмоуты 7TV');
-        button.setAttribute('aria-haspopup', 'dialog');
-        button.addEventListener('click', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            togglePop(button);
-        });
+        let button = form.querySelector('.t7-btn');
+        if (!button) {
+            button = document.createElement('button');
+            button.type = 'button';
+            button.className = 't7-btn';
+            button.textContent = '7TV';
+            button.title = 'Эмоуты 7TV';
+            button.setAttribute('aria-label', 'Эмоуты 7TV');
+            button.setAttribute('aria-haspopup', 'dialog');
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                togglePop(button);
+            });
 
-        const submit = form.querySelector(SEL.submitButton);
-        if (submit) submit.after(button);
-        else form.appendChild(button);
+            const submit = form.querySelector(SEL.submitButton);
+            if (submit) submit.after(button);
+            else form.appendChild(button);
+        }
+
+        if (!input) return;
+        let pastesButton = form.querySelector('.t7-pastes-btn');
+        if (!pastesButton) {
+            pastesButton = document.createElement('button');
+            pastesButton.type = 'button';
+            pastesButton.className = 't7-btn t7-pastes-btn';
+            pastesButton.textContent = 'Пасты';
+            pastesButton.title = 'Сохранённые пасты';
+            pastesButton.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                openPastes(input);
+            });
+            button.after(pastesButton);
+        }
+        pastesButton.hidden = !arePastesEnabled();
     });
 
     if (st.pop && st.anchor && !st.anchor.isConnected) closePop();
