@@ -3,7 +3,7 @@ import { SIZES } from '../core/config.js';
 import { store } from '../core/store.js';
 import { clamp } from '../core/util.js';
 import { fetchImg } from './imgcache.js';
-import { urlFor } from './emotes.js';
+import { reusableUrlsFor, urlFor } from './emotes.js';
 import { openSettings } from '../settings/settings.js';
 import { getRecentLimit } from '../chat/prefs.js';
 import { EV, STORE, on } from '../core/consts.js';
@@ -95,7 +95,8 @@ function onVis(entries) {
         const em = emoteFor(el.dataset.name);
         if (!em || el.dataset.l) continue;
         el.dataset.l = '1';
-        fetchImg(urlFor(em, SIZES[S.size].n), false).then((d) => { el.firstChild.src = d; }, () => {});
+        const resolution = SIZES[S.size].n;
+        fetchImg(urlFor(em, resolution), false, reusableUrlsFor(em, resolution)).then((d) => { el.firstChild.src = d; }, () => {});
     }
 }
 

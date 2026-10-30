@@ -5,7 +5,8 @@ export const SIZES = {
     s: { h: '1.3em', n: 2, p: 32, label: 'S' },
     m: { h: '1.9em', n: 2, p: 40, label: 'M' },
     l: { h: '2.6em', n: 3, p: 52, label: 'L' },
-    x: { h: '3.4em', n: 3, p: 68, label: 'XL' }
+    x: { h: '3.4em', n: 3, p: 68, label: 'XL' },
+    xxl: { h: '4.2em', n: 4, p: 84, label: 'XXL' }
 };
 
 export const HARD_BANNED_WORDS = [

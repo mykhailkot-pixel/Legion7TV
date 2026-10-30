@@ -7,6 +7,7 @@ const DEFAULTS = {
     volume: 0.5,
     selectedPreset: 'bell',
     customSound: '',
+    pingColor: '#e89aa3',
     tabCompletion: true,
     aliases: [],
     blacklist: [],
@@ -23,6 +24,7 @@ function readConfig() {
     config.volume = Number.isFinite(config.volume) ? Math.max(0, Math.min(1, config.volume)) : DEFAULTS.volume;
     config.selectedPreset = PRESETS.has(config.selectedPreset) ? config.selectedPreset : DEFAULTS.selectedPreset;
     config.customSound = typeof config.customSound === 'string' && config.customSound.startsWith('data:audio/') ? config.customSound : '';
+    config.pingColor = /^#[0-9a-f]{6}$/i.test(config.pingColor) ? config.pingColor : DEFAULTS.pingColor;
     config.tabCompletion = config.tabCompletion !== false;
     for (const key of ['aliases', 'blacklist', 'stopWords']) {
         config[key] = Array.isArray(config[key]) ? normalizeList(config[key].join('\n')) : [];
@@ -91,6 +93,18 @@ class PingSystem {
         const volume = Number(value);
         this.config.volume = Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : DEFAULTS.volume;
         this.save();
+    }
+
+    setPingColor(value) {
+        const color = String(value || '').trim();
+        if (!/^#[0-9a-f]{6}$/i.test(color)) return;
+        this.config.pingColor = color.toLowerCase();
+        this.save();
+        document.documentElement?.style.setProperty('--t7-ping-color', this.config.pingColor);
+    }
+
+    applyPingColor() {
+        document.documentElement?.style.setProperty('--t7-ping-color', this.config.pingColor);
     }
 
     setPreset(value) {

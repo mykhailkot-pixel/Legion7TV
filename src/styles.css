@@ -121,6 +121,16 @@ form.cy-chat-f>.t7-banword-warning[hidden]{display:none}
 .t7-volume input{grid-column:1/-1;width:100%;margin:2px 0}
 .t7-volume output,.t7-ping-status{font-size:11px;color:var(--t7-mute)}
 .t7-ping-status{min-height:1.3em}
+.t7-ping-color-control input{width:38px;height:30px;padding:2px;border:1px solid var(--t7-line);border-radius:5px;background:var(--t7-bg-in);cursor:pointer}
+.t7-chat-font-control{min-width:0;width:100%}
+.t7-chat-font-control select{box-sizing:border-box;min-width:0;max-width:100%}
+.t7-chat-font-size-control{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:8px}
+.t7-chat-font-size-control input{grid-column:1/-1;width:100%;margin:2px 0;accent-color:var(--t7-acc)}
+.t7-chat-font-size-control output{min-width:42px;text-align:right;font-variant-numeric:tabular-nums}
+.t7-chat-font-actions{min-width:0;align-items:center}
+.t7-chat-font-actions .t7-b{flex:1 1 130px;min-width:0;white-space:normal}
+.t7-chat-font-actions .t7-b:disabled{opacity:.45;cursor:default}
+.t7-chat-font-status{overflow-wrap:anywhere}
 
 .t7-b{padding:6px 10px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}
 .t7-b:hover{background:#1d1d29}
@@ -174,6 +184,8 @@ form.cy-chat-f>.t7-banword-warning[hidden]{display:none}
 .cy-chat .cy-chat-pn[hidden]{display:none!important}
 .cy-chat-l>li.t7-ping-hidden{display:none!important}
 .cy-chat-l[data-t7-no-pings="true"]:after{display:block;padding:12px 6px;color:#aaa;font:12px/1.4 system-ui,sans-serif;text-align:center;content:"Пингов пока нет"}
+.cy-chat-l,.cy-chat-dmx .dm-l{font-family:var(--t7-chat-font,inherit);font-size:var(--t7-chat-font-size,inherit)}
+.t7-mention{color:var(--t7-ping-color,#e89aa3);font-weight:600}
 .cy-chat-l>li.t7-filtered{font-style:italic}
 .cy-chat-l>li>.t7-filter-label{display:inline-block;margin-right:5px;padding:2px 6px;border-radius:4px;background:rgba(255,201,77,.14);color:#ffca66;font-size:13px;font-weight:700;white-space:nowrap}
 .cy-chat-l>li.t7-filtered>:not(.t7-filter-label){display:none!important}

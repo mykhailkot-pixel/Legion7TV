@@ -44,10 +44,14 @@ const enqueue = (fn, hi) => new Promise((res, rej) => { (hi ? Q.hi : Q.lo).push(
 
 const imgCache = new Map();   // url -> Promise<blob: URL>
 
-export function fetchImg(url, hi) {
+export function fetchImg(url, hi, reusableUrls = []) {
     if (imgCache.has(url)) return imgCache.get(url);
     const p = (async () => {
         let blob = await DB.get(url);
+        for (const candidate of reusableUrls) {
+            if (blob) break;
+            if (candidate !== url) blob = await DB.get(candidate);
+        }
         if (!blob) {
             blob = await enqueue(() => getBuf(url), hi);
             DB.set(url, blob);

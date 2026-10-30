@@ -3,6 +3,7 @@ import { SEL } from '../core/consts.js';
 import { S } from '../core/state.js';
 import { processEmotes } from './chatEmotes.js';
 import { processLinks } from './links.js';
+import { processMentions } from './mentions.js';
 
 const processors = [];
 const SOURCE_KEY = 'l7tvEmoteSource';
@@ -11,6 +12,7 @@ export function registerChatProcessor(processor) {
 }
 registerChatProcessor(processEmotes);
 registerChatProcessor(processLinks);
+registerChatProcessor(processMentions);
 
 /* ---------- не даём ленте «уползать» вверх, когда эмоуты увеличивают строки ---------- */
 // scroll не всплывает, поэтому ловим в capture-фазе; программный рост высоты событие scroll не вызывает,

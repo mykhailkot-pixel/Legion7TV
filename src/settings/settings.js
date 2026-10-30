@@ -6,6 +6,7 @@ import { reload, setStatus } from '../emotes/emotes.js';
 import { rescanAll, applySize } from '../chat/chat.js';
 import { clearImgs } from '../emotes/imgcache.js';
 import { pingSystem } from '../chat/pingSystem.js';
+import { getChatFont, getChatFontSize, getCustomChatFont, setChatFont, setChatFontSize, uploadChatFont, removeCustomChatFont } from '../chat/chatFonts.js';
 import { getRecentLimit, setRecentLimit } from '../chat/prefs.js';
 import { isLinkEncodingEnabled, setLinkEncodingEnabled } from '../chat/links.js';
 import { CHAT_TABS, getChatTabPrefs, setChatTabPrefs } from '../chat/prefs.js';
@@ -135,9 +136,18 @@ export function openSettings() {
             </details>
 
             <details class="t7-sec">
+                <summary>Шрифт чата</summary>
+                <label class="t7-fl t7-chat-font-control">Гарнитура<select class="t7-chat-font"><option value="site">Как на сайте</option><option value="nunito">Nunito</option><option value="comfortaa">Comfortaa</option><option value="custom">Свой шрифт…</option></select></label>
+                <label class="t7-fl t7-chat-font-size-control">Размер текста<input type="range" class="t7-chat-font-size" min="11" max="22" step="1"><output class="t7-chat-font-size-value"></output></label>
+                <div class="t7-row t7-wrap t7-chat-font-actions"><button type="button" class="t7-b" data-act="chat-font">Загрузить файл шрифта</button><button type="button" class="t7-b" data-act="chat-font-reset">Удалить свой шрифт</button><input type="file" class="t7-chat-font-file" accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf" hidden></div>
+                <div class="t7-ping-status t7-chat-font-status" role="status"></div>
+            </details>
+
+            <details class="t7-sec">
                 <summary>Пинги и фильтры</summary>
                 <label class="t7-chk"><input type="checkbox" class="t7-tab-completion"> Дополнять ник по Tab</label>
                 <label class="t7-fl">Ники и варианты для пинга<textarea class="t7-ping-aliases" rows="2" placeholder="ник, nick, @ник"></textarea></label>
+                <label class="t7-fl t7-ping-color-control">Цвет упоминаний (@ник)<input type="color" class="t7-ping-color"></label>
                 <label class="t7-fl">Черный список ников<textarea class="t7-ping-blacklist" rows="2" placeholder="по одному нику на строку"></textarea></label>
                 <label class="t7-fl">Игнорировать сообщения со словами или фразами<textarea class="t7-ping-stopwords" rows="2" placeholder="по одному слову или фразе на строку"></textarea></label>
                 <label class="t7-fl">Звук пинга<select class="t7-ping-preset"><option value="bell">Колокольчик</option><option value="chime">Звон</option><option value="pop">Короткий сигнал</option><option value="custom">Свой звук</option></select></label>
@@ -200,6 +210,9 @@ export function openSettings() {
     const tabCompletion = el.querySelector('.t7-tab-completion');
     tabCompletion.checked = pingSystem.config.tabCompletion;
     tabCompletion.addEventListener('change', () => pingSystem.setTabCompletion(tabCompletion.checked));
+    const pingColor = el.querySelector('.t7-ping-color');
+    pingColor.value = pingSystem.config.pingColor;
+    pingColor.addEventListener('input', () => pingSystem.setPingColor(pingColor.value));
     const preset = el.querySelector('.t7-ping-preset');
     const customOption = preset.querySelector('option[value="custom"]');
     customOption.disabled = !pingSystem.config.customSound;
@@ -226,6 +239,49 @@ export function openSettings() {
         }
         pingFile.value = '';
     });
+
+    const chatFont = el.querySelector('.t7-chat-font');
+    const chatFontFile = el.querySelector('.t7-chat-font-file');
+    const chatFontStatus = el.querySelector('.t7-chat-font-status');
+    const chatFontSize = el.querySelector('.t7-chat-font-size');
+    const chatFontSizeValue = el.querySelector('.t7-chat-font-size-value');
+    const customChatFont = getCustomChatFont();
+    chatFont.value = getChatFont();
+    chatFontSize.value = String(getChatFontSize());
+    chatFontSizeValue.value = chatFontSize.value + ' px';
+    chatFontSize.addEventListener('input', () => {
+        const size = setChatFontSize(chatFontSize.value);
+        chatFontSize.value = String(size);
+        chatFontSizeValue.value = size + ' px';
+    });
+    el.querySelector('[data-act="chat-font-reset"]').disabled = !customChatFont;
+    chatFontStatus.textContent = customChatFont ? `Загружен: ${customChatFont.name}` : '';
+    chatFont.addEventListener('change', async () => {
+        if (chatFont.value === 'custom' && !getCustomChatFont()) {
+            chatFontFile.click();
+            return;
+        }
+        if (await setChatFont(chatFont.value)) {
+            const font = getCustomChatFont();
+            chatFontStatus.textContent = chatFont.value === 'custom' && font ? `Загружен: ${font.name}` : '';
+        } else {
+            chatFont.value = getChatFont();
+            chatFontStatus.textContent = 'Сначала загрузите свой шрифт';
+        }
+    });
+    chatFontFile.addEventListener('change', async () => {
+        try {
+            const name = await uploadChatFont(chatFontFile.files[0]);
+            chatFont.value = 'custom';
+            el.querySelector('[data-act="chat-font-reset"]').disabled = false;
+            chatFontStatus.textContent = `Загружен: ${name}`;
+        } catch (error) {
+            chatFont.value = getChatFont();
+            chatFontStatus.textContent = error.message;
+        }
+        chatFontFile.value = '';
+    });
+    chatFontFile.addEventListener('cancel', () => { chatFont.value = getChatFont(); });
 
     const mark = () => el.querySelectorAll('[data-sz]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sz === S.size)));
     mark();
@@ -289,6 +345,13 @@ export function openSettings() {
         if (b.dataset.act === 'custom-sound') {
             pingSystem.unlockAudio();
             pingFile.click();
+        }
+        else if (b.dataset.act === 'chat-font') chatFontFile.click();
+        else if (b.dataset.act === 'chat-font-reset') {
+            await removeCustomChatFont();
+            chatFont.value = getChatFont();
+            b.disabled = true;
+            chatFontStatus.textContent = 'Свой шрифт удалён';
         }
         else if (b.dataset.act === 'test-ping') pingSystem.play();
         else if (b.dataset.act === 'refresh') reload(true);

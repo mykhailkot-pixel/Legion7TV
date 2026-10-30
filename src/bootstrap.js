@@ -9,6 +9,8 @@ import { renderGrid, place } from './emotes/popup.js';
 import { updateSetStatus } from './settings/settings.js';
 import { ensureButtons } from './chat/chatInput.js';
 import { startChatObservers } from './chat/chatObservers.js';
+import { applyChatFont } from './chat/chatFonts.js';
+import { pingSystem } from './chat/pingSystem.js';
 import './chat/minetabs.js';
 
 let started = false;
@@ -31,6 +33,8 @@ function initialize() {
     st.hooks.status = updateSetStatus;
     st.hooks.place = place;
     st.hooks.emotes = () => { rescanAll(); renderGrid(); };
+    pingSystem.applyPingColor();
+    applyChatFont();
 
     startChatObservers();
     ensureButtons();

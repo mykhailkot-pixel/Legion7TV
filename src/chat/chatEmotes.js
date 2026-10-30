@@ -2,7 +2,7 @@ import { SIZES } from '../core/config.js';
 import { S, EM } from '../core/state.js';
 import { has } from '../core/util.js';
 import { fetchImg } from '../emotes/imgcache.js';
-import { urlFor } from '../emotes/emotes.js';
+import { reusableUrlsFor, urlFor } from '../emotes/emotes.js';
 
 function makeImg(name, em, cls, stickFrom) {
     const img = document.createElement('img');
@@ -10,7 +10,8 @@ function makeImg(name, em, cls, stickFrom) {
     img.alt = name;
     img.title = name;
     img.addEventListener('load', () => stickFrom(img));
-    fetchImg(urlFor(em, SIZES[S.size].n), true).then(
+    const resolution = SIZES[S.size].n;
+    fetchImg(urlFor(em, resolution), true, reusableUrlsFor(em, resolution)).then(
         (data) => { img.src = data; },
         (error) => {
             console.warn('[7TV] картинка не загрузилась', name, error);

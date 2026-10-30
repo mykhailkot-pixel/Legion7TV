@@ -74,6 +74,15 @@ export function urlFor(em, n) {
     return em.base + '/' + (best || em.f[0]);
 }
 
+export function reusableUrlsFor(em, n) {
+    const target = urlFor(em, n);
+    const targetSize = parseInt(target.slice(em.base.length + 1), 10);
+    const higher = em.f.filter((f) => parseInt(f, 10) > targetSize)
+        .sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
+        .map((f) => em.base + '/' + f);
+    return [target, ...higher];
+}
+
 async function loadEmotes(nick, force) {
     const key = STORE.emoteCachePrefix + nick + ':' + xsig();
     if (!force) {
