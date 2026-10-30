@@ -2,7 +2,7 @@
 // @author       ProCto_Fliy
 // @name         Legion chat extentions (7TV, более удобный чат и тд)
 // @namespace    https://play.multidonate.ru/
-// @version      4.7.4
+// @version      4.7.5
 // @description  Эмоуты 7TV в чате: кнопка 7TV, ник стримера, размер, список эмоутов, быстрый кеш
 // @match        https://play.multidonate.ru/*
 // @icon         https://cdn.7tv.app/emote/01F71VQYHR000D3ZZ6Q11NR7TV/2x.webp
@@ -813,14 +813,13 @@
     }
   };
   var pingSystem = new PingSystem();
-  var DEFAULT_ORDER = ["lg", "g", "mn", "dm", "tr", "ev"];
+  var DEFAULT_ORDER = ["lg", "g", "dm", "tr", "ev"];
   var TAB_IDS = new Set(DEFAULT_ORDER);
   var DEFAULT_RECENT_LIMIT = 20;
   var MAX_RECENT_LIMIT = 100;
   var CHAT_TABS = [
     { id: "lg", label: "\u0416\u0443\u0440\u043D\u0430\u043B" },
-    { id: "g", label: "\u0413\u043E\u0440\u043E\u0434" },
-    { id: "mn", label: "\u0428\u0430\u0445\u0442\u0430" },
+    { id: "g", label: "\u041E\u0431\u0449\u0438\u0439" },
     { id: "dm", label: "\u041B\u0438\u0447\u043D\u044B\u0435" },
     { id: "tr", label: "\u0422\u043E\u0440\u0433\u043E\u0432\u043B\u044F" },
     { id: "ev", label: "\u0414\u043E\u0441\u0442\u0438\u0436\u0435\u043D\u0438\u044F" }
@@ -838,10 +837,10 @@
   }
   function normalizeChatTabs(value) {
     const prefs = value && typeof value === "object" ? value : {};
-    const savedOrder = Array.isArray(prefs.order) ? prefs.order.filter((id) => TAB_IDS.has(id)) : [];
+    const savedOrder = Array.isArray(prefs.order) ? prefs.order.map((id) => id === "mn" ? "g" : id).filter((id) => TAB_IDS.has(id)) : [];
     const order = [.../* @__PURE__ */ new Set([...savedOrder, ...DEFAULT_ORDER])];
     const hiddenValues = prefs.hidden instanceof Set ? [...prefs.hidden] : Array.isArray(prefs.hidden) ? prefs.hidden : [];
-    const hidden = new Set(hiddenValues.filter((id) => TAB_IDS.has(id)));
+    const hidden = new Set(hiddenValues.map((id) => id === "mn" ? "g" : id).filter((id) => TAB_IDS.has(id)));
     if (hidden.size === order.length) hidden.delete(order[0]);
     return { order, hidden };
   }
@@ -1828,7 +1827,6 @@
   var W = unsafeWindow;
   var CITY = "/api/city/chat";
   var MINE = "/api/mine/chat";
-  var MINE_ID = "home";
   var PING_ONLY_KEY = STORE.pingOnly;
   var PING_ARCHIVE_KEY = STORE.pingArchive;
   var PING_ARCHIVE_LIMIT = 500;
@@ -1837,10 +1835,9 @@
   var storedPingArchive = store.get(PING_ARCHIVE_KEY) || {};
   var cityPingArchive = Array.isArray(storedPingArchive.city) ? storedPingArchive.city.filter((m) => m && m.id != null) : [];
   var minePingArchive = Array.isArray(storedPingArchive.mine) ? storedPingArchive.mine.filter((m) => m && m.id != null) : [];
-  var unifiedPingArchive = [...new Map([...cityPingArchive, ...minePingArchive].map((m) => [String(m.id), m])).values()];
+  var unifiedPingArchive = Array.isArray(storedPingArchive.one) ? storedPingArchive.one.filter((m) => m && m.id != null) : [];
   var ROOM_IDS = ["city", "mine", "one"];
   var createRoomState = (archive = []) => ({
-    buffer: [],
     instance: null,
     pings: {},
     archive,
@@ -1856,20 +1853,12 @@
     one: createRoomState(unifiedPingArchive)
   };
   var pingArchiveSaveTimer = 0;
-  var lastRoom = "";
   var hasUnifiedChat = () => !!rooms.one.instance;
   pingSystem.subscribe(() => {
     for (const room of Object.values(rooms)) if (room.instance) room.instance.raw.render();
   });
   var tagMn = (m) => m && m.tb !== "mn" ? { ...m, tb: "mn" } : m;
   var tagMsg = (r) => r && r.msg ? { ...r, msg: tagMn(r.msg) } : r;
-  var byTime = (a, b) => (a.at || 0) - (b.at || 0);
-  function push(room, msgs) {
-    const a = rooms[room].buffer;
-    for (const m of msgs || []) if (m && m.id && !a.some((x) => x.id === m.id)) a.push(m);
-    a.sort(byTime);
-    if (a.length > 300) a.splice(0, a.length - 300);
-  }
   function schedulePingArchiveSave() {
     clearTimeout(pingArchiveSaveTimer);
     pingArchiveSaveTimer = setTimeout(() => {
@@ -1877,110 +1866,54 @@
       store.set(PING_ARCHIVE_KEY, Object.fromEntries(ROOM_IDS.map((room) => [room, rooms[room].archive])));
     }, 500);
   }
-  function drop(ids) {
-    for (const room of ROOM_IDS)
-      rooms[room].buffer = rooms[room].buffer.filter((message) => !ids.includes(message.id));
-  }
-  function active(room) {
-    const i = rooms[room].instance;
-    const S2 = i && i.K.state();
-    return !!(S2 && S2.chat && S2.chat.on);
-  }
-  function forward(room, d, sourceRoom) {
-    if (!active(room)) return;
-    const chat = chatOf(room);
-    const forceUnread = !!(chat && sourceRoom && sourceRoom !== lastRoom);
-    const wasOpen = forceUnread && chat.C.open;
-    if (forceUnread) chat.C.open = false;
-    let applied = false;
-    try {
-      rooms[room].instance.raw.apply(d);
-      applied = true;
-    } catch (e) {
-      console.warn("[mine-tabs] forward", e);
-    } finally {
-      if (forceUnread) chat.C.open = wasOpen;
-    }
-    if (applied) {
-      countPings(room, d && d.chat);
-      if (pingOnly) refreshPingArchive(room);
-    }
-  }
-  var mineHist = 0;
-  async function loadMineHistory(K) {
-    if (mineHist) return;
-    mineHist = 1;
-    try {
-      const x = K.X();
-      if (!x) {
-        mineHist = 0;
-        return;
-      }
-      const r = await x.api("/api/mine/state?c=" + MINE_ID + "&mc=0");
-      const src = r && r.mchat && Array.isArray(r.mchat.chat) ? r.mchat.chat : null;
-      if (!src) {
-        console.log("[mine-tabs] \u0438\u0441\u0442\u043E\u0440\u0438\u044F \u0448\u0430\u0445\u0442\u044B: \u0432 \u043E\u0442\u0432\u0435\u0442\u0435 \u043D\u0435\u0442 mchat", r);
-        return;
-      }
-      const msgs = src.map(tagMn).filter((m) => m && m.id);
-      push("mine", msgs);
-      rememberPingMessages("mine", msgs);
-      rememberPingMessages("city", msgs);
-      const i = rooms.city.instance;
-      const c = i && i.K.state() && i.K.state().chat;
-      if (!c || !c.on) return;
-      const have = new Set(c.list.map((m) => m.id));
-      for (const m of msgs.slice(-80)) if (!have.has(m.id)) c.list.push(m);
-      c.list.sort((a, b) => (a.at || 0) - (b.at || 0));
-      i.raw.render();
-      if (pingOnly) refreshPingArchive("city");
-    } catch (e) {
-      mineHist = 0;
-      console.warn("[mine-tabs] \u0438\u0441\u0442\u043E\u0440\u0438\u044F \u0448\u0430\u0445\u0442\u044B", e);
-    }
-  }
   function setupTabs(K) {
     const S2 = K.state();
     if (!S2 || !S2.chat || !S2.el) return;
     const C = S2.chat;
-    if (!K.one) C.mn = true;
-    if (C.un.mn == null) C.un.mn = 0;
     const tabs = S2.el.querySelector(SEL.chatTabs);
     if (!tabs) return;
-    if (!K.one && !tabs.querySelector('[data-tab="mn"]')) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.setAttribute("role", "tab");
-      b.setAttribute("aria-selected", "false");
-      b.dataset.tab = "mn";
-      b.title = "\u0421\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0438\u0437 \u0448\u0430\u0445\u0442\u044B";
-      b.innerHTML = '\u0428\u0430\u0445\u0442\u0430<b class="cy-chat-tn" hidden></b>';
-      tabs.appendChild(b);
+    const preferredTab = !K.one && K.base === MINE ? "mn" : "g";
+    const otherCommonTab = preferredTab === "g" ? "mn" : "g";
+    const commonTab = tabs.querySelector(`[data-tab="${preferredTab}"]`) ? preferredTab : tabs.querySelector(`[data-tab="${otherCommonTab}"]`) ? otherCommonTab : preferredTab;
+    const alternateTab = commonTab === "g" ? "mn" : "g";
+    const prefId = (id) => id === "g" || id === "mn" ? "g" : id;
+    const siteId = (id) => id === "g" ? commonTab : id;
+    if (!K.one) {
+      C[commonTab] = true;
+      if (C.un && C.un[commonTab] == null) C.un[commonTab] = 0;
     }
     const prefs = getChatTabPrefs();
     for (const k of prefs.order) {
-      const e = tabs.querySelector(`[data-tab="${k}"]`);
+      const id = siteId(k);
+      const e = tabs.querySelector(`[data-tab="${id}"]`);
       if (!e) continue;
-      const legacyAlwaysAvailable = !K.one && (k === "g" || k === "mn");
-      const shouldBeHidden = prefs.hidden.has(k) || !legacyAlwaysAvailable && !C[k];
+      const legacyAlwaysAvailable = !K.one && id === commonTab;
+      const shouldBeHidden = prefs.hidden.has(prefId(k)) || !legacyAlwaysAvailable && !C[id];
       e.hidden = shouldBeHidden;
       tabs.appendChild(e);
     }
     tabs.querySelectorAll("[data-tab]").forEach((b) => {
+      if (b.dataset.tab === alternateTab) b.hidden = true;
       if (b._t7h) return;
       b._t7h = 1;
       new MutationObserver(() => {
-        if (!b.hidden && getChatTabPrefs().hidden.has(b.dataset.tab)) b.hidden = true;
+        const hidden = getChatTabPrefs().hidden.has(prefId(b.dataset.tab));
+        if (hidden || b.dataset.tab === alternateTab) {
+          if (!b.hidden) b.hidden = true;
+        } else if (b.dataset.tab === commonTab && !K.one && b.hidden) b.hidden = false;
       }).observe(b, { attributes: true, attributeFilter: ["hidden"] });
     });
-    const cityTab = tabs.querySelector('[data-tab="g"]');
-    if (cityTab && cityTab.firstChild && cityTab.firstChild.nodeType === 3) cityTab.firstChild.nodeValue = "\u0413\u043E\u0440\u043E\u0434";
-    if (prefs.hidden.has(C.tab)) {
+    for (const id of ["g", "mn"]) {
+      const button = tabs.querySelector(`[data-tab="${id}"]`);
+      if (button && button.firstChild && button.firstChild.nodeType === 3) button.firstChild.nodeValue = "\u041E\u0431\u0449\u0438\u0439";
+      if (button) button.title = "\u041E\u0431\u0449\u0438\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F";
+    }
+    if (prefs.hidden.has(prefId(C.tab))) {
       const fallback = prefs.order.find((id) => {
-        const button = tabs.querySelector(`[data-tab="${id}"]`);
+        const button = tabs.querySelector(`[data-tab="${siteId(id)}"]`);
         return !prefs.hidden.has(id) && button && !button.hidden;
       });
-      if (fallback) selectTab(K, fallback);
+      if (fallback) selectTab(K, siteId(fallback));
     }
     if (!tabs._t7) {
       tabs._t7 = 1;
@@ -1999,29 +1932,6 @@
     const b = S2 && S2.el && S2.el.querySelector(`${SEL.chatTabs} [data-tab="${t}"]`);
     if (b) b.click();
   }
-  var cityIn = false;
-  var cityOutT = 0;
-  async function cityPost(api, b) {
-    let r = await api("/api/city/say", b);
-    if (r && r.ok === false && /не в городе/.test(r.error || "")) {
-      const e = await api("/api/city/enter", { x: 1e3, y: 1010, town: "fair" });
-      if (e && e.ok) {
-        cityIn = true;
-        r = await api("/api/city/say", b);
-      }
-    }
-    if (cityIn) {
-      clearTimeout(cityOutT);
-      cityOutT = setTimeout(() => {
-        cityIn = false;
-        try {
-          api("/api/city/leave", {});
-        } catch (e) {
-        }
-      }, 2e4);
-    }
-    return r;
-  }
   var CHAT_JS = "/lib/site-chat.js";
   var chatLoad = null;
   function loadChatLib() {
@@ -2037,22 +1947,8 @@
   function patchK(K, room) {
     const cache = /* @__PURE__ */ new WeakMap();
     const route = (api, p, b) => {
-      if (K.one) return api(p, b);
-      const C = (K.state() || {}).chat;
-      const tab = C && C.tab;
-      if (p === K.say) {
-        if (room === "mine") {
-          if (tab === "mn") return Promise.resolve(api(p, b)).then(tagMsg);
-          return cityPost(api, b);
-        }
-        if (tab === "mn") {
-          return Promise.resolve(api("/api/mine/chat/say?c=" + MINE_ID, { text: b.text })).then((r) => {
-            if (r && r.msg) push("mine", [tagMn(r.msg)]);
-            return tagMsg(r);
-          });
-        }
-      }
-      return api(p, b);
+      const result = api(p, b);
+      return room === "mine" && p === K.say ? Promise.resolve(result).then(tagMsg) : result;
     };
     return {
       ...K,
@@ -2392,10 +2288,8 @@
     updatePingArchiveControl(room);
   }
   function wrapInst(raw, K, room) {
-    const other = room === "mine" ? "city" : "mine";
     const mine = room === "mine";
     const unified = !!K.one;
-    const byTime2 = (a, b) => (a.at || 0) - (b.at || 0);
     return {
       ...raw,
       init() {
@@ -2415,31 +2309,15 @@
           return;
         }
         if (pingOnly) stripArchivedPings(room);
-        let rr = r;
-        if (r && Array.isArray(r.chat)) {
-          const own = mine ? r.chat.map(tagMn) : r.chat;
-          push(room, own);
-          const extra = rooms[other].buffer.filter((m) => !own.some((x) => x.id === m.id));
-          rr = { ...r, chat: own.concat(extra).sort(byTime2) };
-        }
-        raw.enter(rr);
+        const entered = r && Array.isArray(r.chat) && mine ? { ...r, chat: r.chat.map(tagMn) } : r;
+        raw.enter(entered);
         rooms[room].injectedPings.clear();
-        if (rr && Array.isArray(rr.chat)) rememberPingMessages(room, rr.chat);
+        if (entered && Array.isArray(entered.chat)) rememberPingMessages(room, entered.chat);
         setupTabs(K);
         rooms[room].pings = {};
         pingBind(room);
         paint(room);
-        if (lastRoom !== room) {
-          lastRoom = room;
-          selectTab(K, mine ? "mn" : "g");
-        }
-        if (!mine && typeof loadMineHistory === "function") {
-          try {
-            loadMineHistory(K);
-          } catch (e) {
-            console.warn("[mine-tabs] \u0438\u0441\u0442\u043E\u0440\u0438\u044F", e);
-          }
-        }
+        selectTab(K, mine ? "mn" : "g");
         if (pingOnly) refreshPingArchive(room);
       },
       apply(d, rm) {
@@ -2448,29 +2326,20 @@
           if (d && Array.isArray(d.chat)) countPings(room, d.chat);
           if (d && Array.isArray(d.chatDel)) {
             const deleted = new Set(d.chatDel.map(String));
-            let changed = false;
-            for (const archiveRoom of ROOM_IDS) {
-              const archive = rooms[archiveRoom];
-              const kept = archive.archive.filter((m) => !deleted.has(String(m.id)));
-              if (kept.length !== archive.archive.length) {
-                archive.archive = kept;
-                archive.archiveIds = new Set(kept.map((m) => String(m.id)));
-                changed = true;
-              }
+            const archive = rooms[room];
+            const kept = archive.archive.filter((m) => !deleted.has(String(m.id)));
+            if (kept.length !== archive.archive.length) {
+              archive.archive = kept;
+              archive.archiveIds = new Set(kept.map((m) => String(m.id)));
+              schedulePingArchiveSave();
             }
-            if (changed) schedulePingArchiveSave();
           }
           if (pingOnly) refreshPingArchive(room);
           return;
         }
-        let dd = d;
-        if (d && Array.isArray(d.chat)) {
-          const own = mine ? d.chat.map(tagMn) : d.chat;
-          push(room, own);
-          dd = { ...d, chat: own };
-        }
-        raw.apply(dd);
-        if (dd && dd.chat) countPings(room, dd.chat);
+        const own = d && Array.isArray(d.chat) && mine ? { ...d, chat: d.chat.map(tagMn) } : d;
+        raw.apply(own);
+        if (own && own.chat) countPings(room, own.chat);
         if (pingOnly) refreshPingArchive(room);
       }
     };
@@ -2498,23 +2367,19 @@
     v.onEvent = function(d) {
       try {
         if (d) {
-          if (!hasUnifiedChat() && Array.isArray(d.chat) && d.chat.length) push("city", d.chat);
           if (Array.isArray(d.chatDel) && d.chatDel.length) {
-            drop(d.chatDel);
             const deleted = new Set(d.chatDel.map(String));
             let changed = false;
-            for (const room of ROOM_IDS) {
-              const archive = rooms[room];
-              const kept = archive.archive.filter((m) => !deleted.has(String(m.id)));
-              if (kept.length !== archive.archive.length) {
-                archive.archive = kept;
-                archive.archiveIds = new Set(kept.map((m) => String(m.id)));
-                changed = true;
-              }
+            const archiveRoom = hasUnifiedChat() ? "one" : "city";
+            const archive = rooms[archiveRoom];
+            const kept = archive.archive.filter((m) => !deleted.has(String(m.id)));
+            if (kept.length !== archive.archive.length) {
+              archive.archive = kept;
+              archive.archiveIds = new Set(kept.map((m) => String(m.id)));
+              changed = true;
             }
             if (changed) schedulePingArchiveSave();
           }
-          if (!hasUnifiedChat() && (d.chat || d.chatDel)) forward("mine", { chat: d.chat, chatDel: d.chatDel }, "city");
         }
       } catch (e) {
         console.warn("[mine-tabs] city", e);
@@ -2525,20 +2390,7 @@
     return v;
   }
   function wrapMine(v) {
-    if (!v || v.__t7 || typeof v.onEvent !== "function") return v;
-    const o = v.onEvent;
-    v.onEvent = function(d) {
-      try {
-        if (!hasUnifiedChat() && d && d.chatRoom === "mine" && Array.isArray(d.chat) && !v.on) {
-          const t = d.chat.map(tagMn);
-          push("mine", t);
-          forward("city", { chat: t }, "mine");
-        }
-      } catch (e) {
-        console.warn("[mine-tabs] mine", e);
-      }
-      return o.apply(this, arguments);
-    };
+    if (!v || v.__t7) return v;
     const op = v.open;
     if (typeof op === "function") {
       v.open = function() {

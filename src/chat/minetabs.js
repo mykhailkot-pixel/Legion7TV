@@ -1,4 +1,4 @@
-// Единые вкладки в чате города и шахты: Город · Личные · Достижения · Торговля · Шахта
+// Единые настройки вкладок для отдельных чатов города и шахты.
 import { pingSystem } from './pingSystem.js';
 import { store } from '../core/store.js';
 import { SAY_RE, sendWithLinks } from './links.js';
@@ -7,7 +7,6 @@ import { EV, SEL, STORE, on } from '../core/consts.js';
 
 const W = unsafeWindow;
 const CITY = '/api/city/chat', MINE = '/api/mine/chat';
-const MINE_ID = 'home'; 
 const PING_ONLY_KEY = STORE.pingOnly;
 const PING_ARCHIVE_KEY = STORE.pingArchive;
 const PING_ARCHIVE_LIMIT = 500;
@@ -16,10 +15,9 @@ let pingOnly = store.get(PING_ONLY_KEY) === true;
 const storedPingArchive = store.get(PING_ARCHIVE_KEY) || {};
 const cityPingArchive = Array.isArray(storedPingArchive.city) ? storedPingArchive.city.filter((m) => m && m.id != null) : [];
 const minePingArchive = Array.isArray(storedPingArchive.mine) ? storedPingArchive.mine.filter((m) => m && m.id != null) : [];
-const unifiedPingArchive = [...new Map([...cityPingArchive, ...minePingArchive].map((m) => [String(m.id), m])).values()];
+const unifiedPingArchive = Array.isArray(storedPingArchive.one) ? storedPingArchive.one.filter((m) => m && m.id != null) : [];
 const ROOM_IDS = ['city', 'mine', 'one'];
 const createRoomState = (archive = []) => ({
-    buffer: [],
     instance: null,
     pings: {},
     archive,
@@ -36,7 +34,6 @@ const rooms = {
 };
 let pingArchiveSaveTimer = 0;
 
-let lastRoom = '';
 const hasUnifiedChat = () => !!rooms.one.instance;
 
 pingSystem.subscribe(() => {
@@ -45,14 +42,7 @@ pingSystem.subscribe(() => {
 
 const tagMn = (m) => (m && m.tb !== 'mn' ? { ...m, tb: 'mn' } : m);
 const tagMsg = (r) => (r && r.msg ? { ...r, msg: tagMn(r.msg) } : r);
-const byTime = (a, b) => (a.at || 0) - (b.at || 0);
 
-function push(room, msgs) {
-    const a = rooms[room].buffer;
-    for (const m of msgs || []) if (m && m.id && !a.some((x) => x.id === m.id)) a.push(m);
-    a.sort(byTime);
-    if (a.length > 300) a.splice(0, a.length - 300);
-}
 function schedulePingArchiveSave() {
     clearTimeout(pingArchiveSaveTimer);
     pingArchiveSaveTimer = setTimeout(() => {
@@ -60,117 +50,62 @@ function schedulePingArchiveSave() {
         store.set(PING_ARCHIVE_KEY, Object.fromEntries(ROOM_IDS.map((room) => [room, rooms[room].archive])));
     }, 500);
 }
-function drop(ids) {
-    for (const room of ROOM_IDS)
-        rooms[room].buffer = rooms[room].buffer.filter((message) => !ids.includes(message.id));
-}
-function active(room) {
-    const i = rooms[room].instance;
-    const S = i && i.K.state();
-    return !!(S && S.chat && S.chat.on);
-}
-function forward(room, d, sourceRoom) {
-    if (!active(room)) return;
-    const chat = chatOf(room);
-    const forceUnread = !!(chat && sourceRoom && sourceRoom !== lastRoom);
-    const wasOpen = forceUnread && chat.C.open;
-    if (forceUnread) chat.C.open = false;
-    let applied = false;
-    try {
-        rooms[room].instance.raw.apply(d);
-        applied = true;
-    } catch (e) { console.warn('[mine-tabs] forward', e); }
-    finally {
-        if (forceUnread) chat.C.open = wasOpen;
-    }
-    if (applied) {
-        countPings(room, d && d.chat);
-        if (pingOnly) refreshPingArchive(room);
-    }
-}
-
-let mineHist = 0;   // история шахты за этот визит запрашивается один раз
-
-async function loadMineHistory(K) {
-    if (mineHist) return;
-    mineHist = 1;
-    try {
-        const x = K.X();
-        if (!x) { mineHist = 0; return; }
-        const r = await x.api('/api/mine/state?c=' + MINE_ID + '&mc=0');
-        const src = r && r.mchat && Array.isArray(r.mchat.chat) ? r.mchat.chat : null;
-        if (!src) { console.log('[mine-tabs] история шахты: в ответе нет mchat', r); return; }
-
-        const msgs = src.map(tagMn).filter((m) => m && m.id);
-        push('mine', msgs);
-        rememberPingMessages('mine', msgs);
-        rememberPingMessages('city', msgs);
-
-        const i = rooms.city.instance;
-        const c = i && i.K.state() && i.K.state().chat;
-        if (!c || !c.on) return;
-
-        // кладём прямо в список чата: apply() дал бы облачка над героями и счётчики «новых»
-        const have = new Set(c.list.map((m) => m.id));
-        for (const m of msgs.slice(-80)) if (!have.has(m.id)) c.list.push(m);
-        c.list.sort((a, b) => (a.at || 0) - (b.at || 0));
-        i.raw.render();
-        if (pingOnly) refreshPingArchive('city');
-    } catch (e) {
-        mineHist = 0;
-        console.warn('[mine-tabs] история шахты', e);
-    }
-}
-
-/* ---------- кнопка «Шахта», порядок и подписи ---------- */
+/* ---------- подписи и порядок вкладок ---------- */
 function setupTabs(K) {
     const S = K.state();
     if (!S || !S.chat || !S.el) return;
     const C = S.chat;
-    if (!K.one) C.mn = true;
-    if (C.un.mn == null) C.un.mn = 0;
     const tabs = S.el.querySelector(SEL.chatTabs);
     if (!tabs) return;
-    if (!K.one && !tabs.querySelector('[data-tab="mn"]')) {
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.setAttribute('role', 'tab');
-        b.setAttribute('aria-selected', 'false');
-        b.dataset.tab = 'mn';
-        b.title = 'Сообщения из шахты';
-        b.innerHTML = 'Шахта<b class="cy-chat-tn" hidden></b>';
-        tabs.appendChild(b);
+    const preferredTab = !K.one && K.base === MINE ? 'mn' : 'g';
+    const otherCommonTab = preferredTab === 'g' ? 'mn' : 'g';
+    const commonTab = tabs.querySelector(`[data-tab="${preferredTab}"]`)
+        ? preferredTab
+        : tabs.querySelector(`[data-tab="${otherCommonTab}"]`) ? otherCommonTab : preferredTab;
+    const alternateTab = commonTab === 'g' ? 'mn' : 'g';
+    const prefId = (id) => id === 'g' || id === 'mn' ? 'g' : id;
+    const siteId = (id) => id === 'g' ? commonTab : id;
+    if (!K.one) {
+        C[commonTab] = true;
+        if (C.un && C.un[commonTab] == null) C.un[commonTab] = 0;
     }
     const prefs = getChatTabPrefs();
     for (const k of prefs.order) {
-        const e = tabs.querySelector(`[data-tab="${k}"]`);
+        const id = siteId(k);
+        const e = tabs.querySelector(`[data-tab="${id}"]`);
         if (!e) continue;
-        // Принудительно скрываем, если вкладка вprefs.hidden ИЛИ заблокирована логикой чата
-        const legacyAlwaysAvailable = !K.one && (k === 'g' || k === 'mn');
-        const shouldBeHidden = prefs.hidden.has(k) || (!legacyAlwaysAvailable && !C[k]);
+        const legacyAlwaysAvailable = !K.one && id === commonTab;
+        const shouldBeHidden = prefs.hidden.has(prefId(k)) || (!legacyAlwaysAvailable && !C[id]);
         e.hidden = shouldBeHidden;
         tabs.appendChild(e);
     }
     tabs.querySelectorAll('[data-tab]').forEach((b) => {
-    if (b._t7h) return;
+        if (b.dataset.tab === alternateTab) b.hidden = true;
+        if (b._t7h) return;
         b._t7h = 1;
-        // библиотека сбрасывает hidden на каждом рендере - возвращаем скрытие из настроек
+        // Библиотека сбрасывает hidden при рендере; восстанавливаем настройки и контекстную общую вкладку.
         new MutationObserver(() => {
-            if (!b.hidden && getChatTabPrefs().hidden.has(b.dataset.tab)) b.hidden = true;
+            const hidden = getChatTabPrefs().hidden.has(prefId(b.dataset.tab));
+            if (hidden || b.dataset.tab === alternateTab) {
+                if (!b.hidden) b.hidden = true;
+            } else if (b.dataset.tab === commonTab && !K.one && b.hidden) b.hidden = false;
         }).observe(b, { attributes: true, attributeFilter: ['hidden'] });
     });
-    const cityTab = tabs.querySelector('[data-tab="g"]');
-    if (cityTab && cityTab.firstChild && cityTab.firstChild.nodeType === 3) cityTab.firstChild.nodeValue = 'Город';
-    if (prefs.hidden.has(C.tab)) {
+    for (const id of ['g', 'mn']) {
+        const button = tabs.querySelector(`[data-tab="${id}"]`);
+        if (button && button.firstChild && button.firstChild.nodeType === 3) button.firstChild.nodeValue = 'Общий';
+        if (button) button.title = 'Общие сообщения';
+    }
+    if (prefs.hidden.has(prefId(C.tab))) {
         const fallback = prefs.order.find((id) => {
-            const button = tabs.querySelector(`[data-tab="${id}"]`);
+            const button = tabs.querySelector(`[data-tab="${siteId(id)}"]`);
             return !prefs.hidden.has(id) && button && !button.hidden;
         });
-        if (fallback) selectTab(K, fallback);
+        if (fallback) selectTab(K, siteId(fallback));
     }
     if (!tabs._t7) {
         tabs._t7 = 1;
-        // библиотека прячет ряд вкладок, если нет «Торговли» и «Личных» - у нас всегда есть «Шахта»
+        // Библиотека может прятать ряд вкладок, если нет «Торговли» и «Личных».
         new MutationObserver(() => {
             const c = K.state() && K.state().chat;
             if (tabs.hidden && c && !c.panel) tabs.hidden = false;
@@ -187,27 +122,6 @@ function selectTab(K, t) {
     const S = K.state();
     const b = S && S.el && S.el.querySelector(`${SEL.chatTabs} [data-tab="${t}"]`);
     if (b) b.click();
-}
-
-// отправка в город из шахты: если сервер говорит «не в городе» - тихо входим, пишем, позже выходим
-let cityIn = false, cityOutT = 0;
-async function cityPost(api, b) {
-    let r = await api('/api/city/say', b);
-    if (r && r.ok === false && /не в городе/.test(r.error || '')) {
-        const e = await api('/api/city/enter', { x: 1000, y: 1010, town: 'fair' });
-        if (e && e.ok) {
-            cityIn = true;
-            r = await api('/api/city/say', b);
-        }
-    }
-    if (cityIn) {
-        clearTimeout(cityOutT);
-        cityOutT = setTimeout(() => {
-            cityIn = false;
-            try { api('/api/city/leave', {}); } catch (e) {}
-        }, 20000);
-    }
-    return r;
 }
 
 const CHAT_JS = '/lib/site-chat.js';   // адрес проверь, см. ниже
@@ -227,24 +141,8 @@ function loadChatLib() {
 function patchK(K, room) {
     const cache = new WeakMap();
     const route = (api, p, b) => {
-        if (K.one) return api(p, b);
-        const C = (K.state() || {}).chat;
-        const tab = C && C.tab;
-        if (p === K.say) {
-            if (room === 'mine') {
-                if (tab === 'mn') return Promise.resolve(api(p, b)).then(tagMsg);
-                return cityPost(api, b);      // город, торговля, личные - в городской чат
-            }
-            if (tab === 'mn') {
-                // из города в шахту: тот же запрос, что делает сама шахта
-                return Promise.resolve(api('/api/mine/chat/say?c=' + MINE_ID, { text: b.text }))
-                    .then((r) => {
-                        if (r && r.msg) push('mine', [tagMn(r.msg)]);
-                        return tagMsg(r);
-                    });
-            }
-        }
-        return api(p, b);
+        const result = api(p, b);
+        return room === 'mine' && p === K.say ? Promise.resolve(result).then(tagMsg) : result;
     };
     return {
         ...K,
@@ -593,10 +491,8 @@ function pingBind(room) {
 }
 
 function wrapInst(raw, K, room) {
-    const other = room === 'mine' ? 'city' : 'mine';
     const mine = room === 'mine';
     const unified = !!K.one;
-    const byTime = (a, b) => (a.at || 0) - (b.at || 0);
     return {
         ...raw,
         init() { raw.init(); setupTabs(K); pingBind(room); },
@@ -612,27 +508,15 @@ function wrapInst(raw, K, room) {
                 return;
             }
             if (pingOnly) stripArchivedPings(room);
-            let rr = r;
-            if (r && Array.isArray(r.chat)) {
-                const own = mine ? r.chat.map(tagMn) : r.chat;
-                push(room, own);
-                const extra = rooms[other].buffer.filter((m) => !own.some((x) => x.id === m.id));
-                rr = { ...r, chat: own.concat(extra).sort(byTime) };
-            }
-            raw.enter(rr);
+            const entered = r && Array.isArray(r.chat) && mine ? { ...r, chat: r.chat.map(tagMn) } : r;
+            raw.enter(entered);
             rooms[room].injectedPings.clear();
-            if (rr && Array.isArray(rr.chat)) rememberPingMessages(room, rr.chat);
+            if (entered && Array.isArray(entered.chat)) rememberPingMessages(room, entered.chat);
             setupTabs(K);
             rooms[room].pings = {};
             pingBind(room);
             paint(room);
-            if (lastRoom !== room) {
-                lastRoom = room;
-                selectTab(K, mine ? 'mn' : 'g');
-            }
-            if (!mine && typeof loadMineHistory === 'function') {
-                try { loadMineHistory(K); } catch (e) { console.warn('[mine-tabs] история', e); }
-            }
+            selectTab(K, mine ? 'mn' : 'g');
             if (pingOnly) refreshPingArchive(room);
         },
         apply(d, rm) {
@@ -641,29 +525,20 @@ function wrapInst(raw, K, room) {
                 if (d && Array.isArray(d.chat)) countPings(room, d.chat);
                 if (d && Array.isArray(d.chatDel)) {
                     const deleted = new Set(d.chatDel.map(String));
-                    let changed = false;
-                    for (const archiveRoom of ROOM_IDS) {
-                        const archive = rooms[archiveRoom];
-                        const kept = archive.archive.filter((m) => !deleted.has(String(m.id)));
-                        if (kept.length !== archive.archive.length) {
-                            archive.archive = kept;
-                            archive.archiveIds = new Set(kept.map((m) => String(m.id)));
-                            changed = true;
-                        }
+                    const archive = rooms[room];
+                    const kept = archive.archive.filter((m) => !deleted.has(String(m.id)));
+                    if (kept.length !== archive.archive.length) {
+                        archive.archive = kept;
+                        archive.archiveIds = new Set(kept.map((m) => String(m.id)));
+                        schedulePingArchiveSave();
                     }
-                    if (changed) schedulePingArchiveSave();
                 }
                 if (pingOnly) refreshPingArchive(room);
                 return;
             }
-            let dd = d;
-            if (d && Array.isArray(d.chat)) {
-                const own = mine ? d.chat.map(tagMn) : d.chat;
-                push(room, own);
-                dd = { ...d, chat: own };
-            }
-            raw.apply(dd);
-            if (dd && dd.chat) countPings(room, dd.chat);
+            const own = d && Array.isArray(d.chat) && mine ? { ...d, chat: d.chat.map(tagMn) } : d;
+            raw.apply(own);
+            if (own && own.chat) countPings(room, own.chat);
             if (pingOnly) refreshPingArchive(room);
         }
     };
@@ -687,30 +562,26 @@ function wrapChat(v) {
     return w;
 }
 
-/* ---------- события: город и шахта доставляют их только «своей» комнате ---------- */
+/* ---------- обработка событий и удалений в пределах своей ленты ---------- */
 function wrapCity(v) {
     if (!v || v.__t7 || typeof v.onEvent !== 'function') return v;
     const o = v.onEvent;
     v.onEvent = function (d) {
         try {
             if (d) {
-                if (!hasUnifiedChat() && Array.isArray(d.chat) && d.chat.length) push('city', d.chat);
                 if (Array.isArray(d.chatDel) && d.chatDel.length) {
-                    drop(d.chatDel);
                     const deleted = new Set(d.chatDel.map(String));
                     let changed = false;
-                    for (const room of ROOM_IDS) {
-                        const archive = rooms[room];
-                        const kept = archive.archive.filter((m) => !deleted.has(String(m.id)));
-                        if (kept.length !== archive.archive.length) {
-                            archive.archive = kept;
-                            archive.archiveIds = new Set(kept.map((m) => String(m.id)));
-                            changed = true;
-                        }
+                    const archiveRoom = hasUnifiedChat() ? 'one' : 'city';
+                    const archive = rooms[archiveRoom];
+                    const kept = archive.archive.filter((m) => !deleted.has(String(m.id)));
+                    if (kept.length !== archive.archive.length) {
+                        archive.archive = kept;
+                        archive.archiveIds = new Set(kept.map((m) => String(m.id)));
+                        changed = true;
                     }
                     if (changed) schedulePingArchiveSave();
                 }
-                if (!hasUnifiedChat() && (d.chat || d.chatDel)) forward('mine', { chat: d.chat, chatDel: d.chatDel }, 'city');
             }
         } catch (e) { console.warn('[mine-tabs] city', e); }
         return o.apply(this, arguments);
@@ -720,18 +591,7 @@ function wrapCity(v) {
 }
 
 function wrapMine(v) {
-    if (!v || v.__t7 || typeof v.onEvent !== 'function') return v;
-    const o = v.onEvent;
-    v.onEvent = function (d) {
-        try {
-            if (!hasUnifiedChat() && d && d.chatRoom === 'mine' && Array.isArray(d.chat) && !v.on) {
-                const t = d.chat.map(tagMn);
-                push('mine', t);
-                forward('city', { chat: t }, 'mine');
-            }
-        } catch (e) { console.warn('[mine-tabs] mine', e); }
-        return o.apply(this, arguments);
-    };
+    if (!v || v.__t7) return v;
     const op = v.open;
     if (typeof op === 'function') {
         v.open = function () {

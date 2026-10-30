@@ -1,15 +1,14 @@
 import { store } from '../core/store.js';
 import { EV, STORE, emit } from '../core/consts.js';
 
-const DEFAULT_ORDER = ['lg', 'g', 'mn', 'dm', 'tr', 'ev'];
+const DEFAULT_ORDER = ['lg', 'g', 'dm', 'tr', 'ev'];
 const TAB_IDS = new Set(DEFAULT_ORDER);
 const DEFAULT_RECENT_LIMIT = 20;
 const MAX_RECENT_LIMIT = 100;
 
 export const CHAT_TABS = [
     { id: 'lg', label: 'Журнал' },
-    { id: 'g', label: 'Город' },
-    { id: 'mn', label: 'Шахта' },
+    { id: 'g',  label: 'Общий' },
     { id: 'dm', label: 'Личные' },
     { id: 'tr', label: 'Торговля' },
     { id: 'ev', label: 'Достижения' }
@@ -29,12 +28,14 @@ export function createPref(key, { read = (value) => value, write = (value) => va
 
 function normalizeChatTabs(value) {
     const prefs = value && typeof value === 'object' ? value : {};
-    const savedOrder = Array.isArray(prefs.order) ? prefs.order.filter((id) => TAB_IDS.has(id)) : [];
+    const savedOrder = Array.isArray(prefs.order)
+        ? prefs.order.map((id) => id === 'mn' ? 'g' : id).filter((id) => TAB_IDS.has(id))
+        : [];
     const order = [...new Set([...savedOrder, ...DEFAULT_ORDER])];
     const hiddenValues = prefs.hidden instanceof Set
         ? [...prefs.hidden]
         : Array.isArray(prefs.hidden) ? prefs.hidden : [];
-    const hidden = new Set(hiddenValues.filter((id) => TAB_IDS.has(id)));
+    const hidden = new Set(hiddenValues.map((id) => id === 'mn' ? 'g' : id).filter((id) => TAB_IDS.has(id)));
     if (hidden.size === order.length) hidden.delete(order[0]);
     return { order, hidden };
 }
