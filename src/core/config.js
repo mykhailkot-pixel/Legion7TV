@@ -18,6 +18,8 @@ export const pageChan = (() => {
 // name - своё имя (необязательно, без пробелов); нет - берётся имя с 7TV
 export const EXTRA_EMOTES = [
     { id: '01KPTZTF2P1MP5RFNJ4Q1ZQZS6'},
+    { id: '01J64BY7C0000FXZ59PB5ZMYVJ'},
+    { id: '01JW6SB53B0B9T6EMJ4QWZA326'},
 ];
 
 // Целые наборы эмоутов: id из ссылки 7tv.app/emote-sets/<id>
