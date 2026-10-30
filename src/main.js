@@ -64,8 +64,8 @@ function init() {
         for (const record of records) {
             if (record.type !== "childList") continue;
                 const target = record.target.nodeType === 1 ? record.target : record.target.parentElement;
-                const form = target && target.closest("form.cy-chat-f");
-            if (form && form.querySelector("input[type=text]") && !form.dataset.t7RecentBound) needsButtons = true;
+                const form = target && target.closest("form.cy-chat-f, form.dm-f");
+            if (form && form.querySelector("input[type=text]") && (!form.dataset.t7RecentBound || !form.querySelector(".t7-btn"))) needsButtons = true;
             
             // Добавляем флаг необходимости сканирования при любых изменениях в .cy-chat (включая .cy-chat-dmx)
             if (target && target.closest(".cy-chat")) {
@@ -73,7 +73,7 @@ function init() {
             }
 
             for (const node of record.addedNodes) {
-                if (contains(node, "form.cy-chat-f")) needsButtons = true;
+                if (contains(node, "form.cy-chat-f, form.dm-f")) needsButtons = true;
                 if (contains(node, ".cy-chat-l li") || contains(node, ".cy-chat-dmx")) needsScan = true;
             }
         }

@@ -739,13 +739,14 @@
     return limit;
   }
   var KEY = "t7ChatTabPrefs";
-  var DEFAULT_ORDER = ["dm", "tr", "g", "mn", "ev"];
+  var DEFAULT_ORDER = ["lg", "g", "mn", "dm", "tr", "ev"];
   var TAB_IDS = new Set(DEFAULT_ORDER);
   var CHAT_TABS = [
-    { id: "dm", label: "\u041B\u0438\u0447\u043D\u044B\u0435" },
-    { id: "tr", label: "\u0422\u043E\u0440\u0433\u043E\u0432\u043B\u044F" },
+    { id: "lg", label: "\u0416\u0443\u0440\u043D\u0430\u043B" },
     { id: "g", label: "\u0413\u043E\u0440\u043E\u0434" },
     { id: "mn", label: "\u0428\u0430\u0445\u0442\u0430" },
+    { id: "dm", label: "\u041B\u0438\u0447\u043D\u044B\u0435" },
+    { id: "tr", label: "\u0422\u043E\u0440\u0433\u043E\u0432\u043B\u044F" },
     { id: "ev", label: "\u0414\u043E\u0441\u0442\u0438\u0436\u0435\u043D\u0438\u044F" }
   ];
   function getChatTabPrefs() {
@@ -1607,21 +1608,28 @@
   var PING_PAGE_SIZE = 50;
   var pingOnly = store.get(PING_ONLY_KEY) === true;
   var storedPingArchive = store.get(PING_ARCHIVE_KEY) || {};
+  var cityPingArchive = Array.isArray(storedPingArchive.city) ? storedPingArchive.city.filter((m) => m && m.id != null) : [];
+  var minePingArchive = Array.isArray(storedPingArchive.mine) ? storedPingArchive.mine.filter((m) => m && m.id != null) : [];
+  var unifiedPingArchive = [...new Map([...cityPingArchive, ...minePingArchive].map((m) => [String(m.id), m])).values()];
   var pingArchive = {
-    city: Array.isArray(storedPingArchive.city) ? storedPingArchive.city.filter((m) => m && m.id != null) : [],
-    mine: Array.isArray(storedPingArchive.mine) ? storedPingArchive.mine.filter((m) => m && m.id != null) : []
+    city: cityPingArchive,
+    mine: minePingArchive,
+    one: unifiedPingArchive
   };
   var pingArchiveIds = {
     city: new Set(pingArchive.city.map((m) => String(m.id))),
-    mine: new Set(pingArchive.mine.map((m) => String(m.id)))
+    mine: new Set(pingArchive.mine.map((m) => String(m.id))),
+    one: new Set(pingArchive.one.map((m) => String(m.id)))
   };
-  var injectedPingIds = { city: /* @__PURE__ */ new Set(), mine: /* @__PURE__ */ new Set() };
-  var pingArchivePage = { city: 0, mine: 0 };
+  var injectedPingIds = { city: /* @__PURE__ */ new Set(), mine: /* @__PURE__ */ new Set(), one: /* @__PURE__ */ new Set() };
+  var pingArchivePage = { city: 0, mine: 0, one: 0 };
   var pingArchiveSaveTimer = 0;
   var buf = { city: [], mine: [] };
-  var inst = { city: null, mine: null };
-  var filterObservers = { city: null, mine: null };
+  var inst = { city: null, mine: null, one: null };
+  var filterObservers = { city: null, mine: null, one: null };
+  var filterLists = { city: null, mine: null, one: null };
   var lastRoom = "";
+  var hasUnifiedChat = () => !!inst.one;
   pingSystem.onChange = () => {
     for (const i of Object.values(inst)) if (i) i.raw.render();
   };
@@ -1706,12 +1714,11 @@
     const S2 = K.state();
     if (!S2 || !S2.chat || !S2.el) return;
     const C = S2.chat;
-    C.mn = true;
-    C.un = C.un || {};
+    if (!K.one) C.mn = true;
     if (C.un.mn == null) C.un.mn = 0;
     const tabs = S2.el.querySelector(".cy-chat-tabs");
     if (!tabs) return;
-    if (!tabs.querySelector('[data-tab="mn"]')) {
+    if (!K.one && !tabs.querySelector('[data-tab="mn"]')) {
       const b = document.createElement("button");
       b.type = "button";
       b.setAttribute("role", "tab");
@@ -1725,7 +1732,8 @@
     for (const k of prefs.order) {
       const e = tabs.querySelector(`[data-tab="${k}"]`);
       if (!e) continue;
-      const shouldBeHidden = prefs.hidden.has(k) || k !== "g" && k !== "mn" && !C[k];
+      const legacyAlwaysAvailable = !K.one && (k === "g" || k === "mn");
+      const shouldBeHidden = prefs.hidden.has(k) || !legacyAlwaysAvailable && !C[k];
       e.hidden = shouldBeHidden;
       tabs.appendChild(e);
     }
@@ -1739,7 +1747,10 @@
     const cityTab = tabs.querySelector('[data-tab="g"]');
     if (cityTab && cityTab.firstChild && cityTab.firstChild.nodeType === 3) cityTab.firstChild.nodeValue = "\u0413\u043E\u0440\u043E\u0434";
     if (prefs.hidden.has(C.tab)) {
-      const fallback = prefs.order.find((id) => !prefs.hidden.has(id) && tabs.querySelector(`[data-tab="${id}"]`));
+      const fallback = prefs.order.find((id) => {
+        const button = tabs.querySelector(`[data-tab="${id}"]`);
+        return !prefs.hidden.has(id) && button && !button.hidden;
+      });
       if (fallback) selectTab(K, fallback);
     }
     if (!tabs._t7) {
@@ -1797,6 +1808,7 @@
   function patchK(K, room) {
     const cache = /* @__PURE__ */ new WeakMap();
     const route = (api, p, b) => {
+      if (K.one) return api(p, b);
       const C = (K.state() || {}).chat;
       const tab = C && C.tab;
       if (p === K.say) {
@@ -1815,7 +1827,7 @@
     };
     return {
       ...K,
-      flags: room === "mine" ? () => {
+      flags: room === "mine" && !K.one ? () => {
         const x = K.X();
         const h = x && x.hero && x.hero() || {};
         return { on: K.flags(h).on, tr: !!h.ct, dm: !!h.cd };
@@ -1840,14 +1852,14 @@
       }
     };
   }
-  var pings = { city: {}, mine: {} };
+  var pings = { city: {}, mine: {}, one: {} };
   function chatOf(room) {
     const i = inst[room];
     const S2 = i && i.K.state();
     return S2 && S2.chat ? { S: S2, C: S2.chat } : null;
   }
   function tabOfMsg(C, m) {
-    return m.tb || (m.ev ? C.tr ? "ev" : "g" : m.k === "tr" ? "tr" : m.k === "dm" ? "dm" : "g");
+    return m.tb || (m.rm === "mine" ? "mn" : m.ev ? C.tr ? "ev" : "g" : m.k === "tr" ? "tr" : m.k === "dm" ? "dm" : "g");
   }
   function isPingMessage(room, m, me) {
     const o = chatOf(room);
@@ -1961,6 +1973,7 @@
     const o = chatOf(room);
     const list = o && o.S.el && o.S.el.querySelector(".cy-chat-l");
     if (!list || !o.C) return;
+    if (o.C.tab === "lg") return;
     const visible = o.C.list.filter((m) => tabOfMsg(o.C, m) === o.C.tab && !(o.C.ign && o.C.ign.has(m.l)) && (o.C.tab !== "dm" || !o.C.peer || m.sys || m.l === o.C.peer || m.to === o.C.peer));
     const rows = list.querySelectorAll(":scope > li:not(.cy-chat-0)");
     const x = inst[room].K.X();
@@ -1990,6 +2003,11 @@
     const o = chatOf(room);
     const list = o && o.S.el && o.S.el.querySelector(".cy-chat-l");
     if (!list) return;
+    if (o.C.tab === "lg") {
+      list.querySelectorAll(":scope > li.t7-ping-hidden").forEach((row) => row.classList.remove("t7-ping-hidden"));
+      list.dataset.t7NoPings = "false";
+      return;
+    }
     const visible = o.C.list.filter((m) => tabOfMsg(o.C, m) === o.C.tab && !(o.C.ign && o.C.ign.has(m.l)) && (o.C.tab !== "dm" || !o.C.peer || m.sys || m.l === o.C.peer || m.to === o.C.peer));
     const pageIds = new Set(archivePage(room, o.C).map((m) => String(m.id)));
     let messageIndex = 0;
@@ -2005,7 +2023,7 @@
     list.dataset.t7NoPings = String(pingOnly && !hasPing);
   }
   function syncPingOnlyControls() {
-    for (const room of ["city", "mine"]) {
+    for (const room of hasUnifiedChat() ? ["one"] : ["city", "mine"]) {
       const o = chatOf(room);
       const input = o && o.S.el && o.S.el.querySelector(".t7-chat-filter input");
       if (input) input.checked = pingOnly;
@@ -2126,12 +2144,14 @@
         });
       }, true);
     }
-    if (list && !filterObservers[room]) {
+    if (list && filterLists[room] !== list) {
+      if (filterObservers[room]) filterObservers[room].disconnect();
       filterObservers[room] = new MutationObserver(() => {
         markFilteredMessages(room);
         applyPingOnly(room);
       });
       filterObservers[room].observe(list, { childList: true });
+      filterLists[room] = list;
     }
     markFilteredMessages(room);
     applyPingOnly(room);
@@ -2140,6 +2160,7 @@
   function wrapInst(raw, K, room) {
     const other = room === "mine" ? "city" : "mine";
     const mine = room === "mine";
+    const unified = !!K.one;
     const byTime2 = (a, b) => (a.at || 0) - (b.at || 0);
     return {
       ...raw,
@@ -2148,7 +2169,17 @@
         setupTabs(K);
         pingBind(room);
       },
-      enter(r) {
+      enter(r, rm) {
+        if (unified) {
+          raw.enter(r, rm);
+          if (r && Array.isArray(r.chat)) rememberPingMessages(room, r.chat);
+          pings[room] = {};
+          setupTabs(K);
+          pingBind(room);
+          paint(room);
+          if (pingOnly) refreshPingArchive(room);
+          return;
+        }
         if (pingOnly) stripArchivedPings(room);
         let rr = r;
         if (r && Array.isArray(r.chat)) {
@@ -2177,7 +2208,26 @@
         }
         if (pingOnly) refreshPingArchive(room);
       },
-      apply(d) {
+      apply(d, rm) {
+        if (unified) {
+          raw.apply(d, rm);
+          if (d && Array.isArray(d.chat)) countPings(room, d.chat);
+          if (d && Array.isArray(d.chatDel)) {
+            const deleted = new Set(d.chatDel.map(String));
+            let changed = false;
+            for (const archiveRoom of ["city", "mine", "one"]) {
+              const kept = pingArchive[archiveRoom].filter((m) => !deleted.has(String(m.id)));
+              if (kept.length !== pingArchive[archiveRoom].length) {
+                pingArchive[archiveRoom] = kept;
+                pingArchiveIds[archiveRoom] = new Set(kept.map((m) => String(m.id)));
+                changed = true;
+              }
+            }
+            if (changed) schedulePingArchiveSave();
+          }
+          if (pingOnly) refreshPingArchive(room);
+          return;
+        }
         let dd = d;
         if (d && Array.isArray(d.chat)) {
           const own = mine ? d.chat.map(tagMn) : d.chat;
@@ -2196,7 +2246,7 @@
     const w = {
       ...v,
       make(K) {
-        const room = K && K.base === MINE ? "mine" : K && K.base === CITY ? "city" : null;
+        const room = K && K.one ? "one" : K && K.base === MINE ? "mine" : K && K.base === CITY ? "city" : null;
         if (!room) return make(K);
         const KK = patchK(K, room);
         const raw = make(KK);
@@ -2213,12 +2263,12 @@
     v.onEvent = function(d) {
       try {
         if (d) {
-          if (Array.isArray(d.chat) && d.chat.length) push("city", d.chat);
+          if (!hasUnifiedChat() && Array.isArray(d.chat) && d.chat.length) push("city", d.chat);
           if (Array.isArray(d.chatDel) && d.chatDel.length) {
             drop(d.chatDel);
             const deleted = new Set(d.chatDel.map(String));
             let changed = false;
-            for (const room of ["city", "mine"]) {
+            for (const room of ["city", "mine", "one"]) {
               const kept = pingArchive[room].filter((m) => !deleted.has(String(m.id)));
               if (kept.length !== pingArchive[room].length) {
                 pingArchive[room] = kept;
@@ -2228,7 +2278,7 @@
             }
             if (changed) schedulePingArchiveSave();
           }
-          if (d.chat || d.chatDel) forward("mine", { chat: d.chat, chatDel: d.chatDel }, "city");
+          if (!hasUnifiedChat() && (d.chat || d.chatDel)) forward("mine", { chat: d.chat, chatDel: d.chatDel }, "city");
         }
       } catch (e) {
         console.warn("[mine-tabs] city", e);
@@ -2243,7 +2293,7 @@
     const o = v.onEvent;
     v.onEvent = function(d) {
       try {
-        if (d && d.chatRoom === "mine" && Array.isArray(d.chat) && !v.on) {
+        if (!hasUnifiedChat() && d && d.chatRoom === "mine" && Array.isArray(d.chat) && !v.on) {
           const t = d.chat.map(tagMn);
           push("mine", t);
           forward("city", { chat: t }, "mine");
@@ -2328,13 +2378,13 @@
       for (const record of records) {
         if (record.type !== "childList") continue;
         const target = record.target.nodeType === 1 ? record.target : record.target.parentElement;
-        const form = target && target.closest("form.cy-chat-f");
-        if (form && form.querySelector("input[type=text]") && !form.dataset.t7RecentBound) needsButtons = true;
+        const form = target && target.closest("form.cy-chat-f, form.dm-f");
+        if (form && form.querySelector("input[type=text]") && (!form.dataset.t7RecentBound || !form.querySelector(".t7-btn"))) needsButtons = true;
         if (target && target.closest(".cy-chat")) {
           needsScan = true;
         }
         for (const node of record.addedNodes) {
-          if (contains(node, "form.cy-chat-f")) needsButtons = true;
+          if (contains(node, "form.cy-chat-f, form.dm-f")) needsButtons = true;
           if (contains(node, ".cy-chat-l li") || contains(node, ".cy-chat-dmx")) needsScan = true;
         }
       }

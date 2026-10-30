@@ -1,14 +1,15 @@
 import { store } from './store.js';
 
 const KEY = 't7ChatTabPrefs';
-const DEFAULT_ORDER = ['dm', 'tr', 'g', 'mn', 'ev'];
+const DEFAULT_ORDER = ['lg', 'g', 'mn', 'dm', 'tr', 'ev'];
 const TAB_IDS = new Set(DEFAULT_ORDER);
 
 export const CHAT_TABS = [
-    { id: 'dm', label: 'Личные' },
-    { id: 'tr', label: 'Торговля' },
+    { id: 'lg', label: 'Журнал' },
     { id: 'g', label: 'Город' },
     { id: 'mn', label: 'Шахта' },
+    { id: 'dm', label: 'Личные' },
+    { id: 'tr', label: 'Торговля' },
     { id: 'ev', label: 'Достижения' }
 ];
 
