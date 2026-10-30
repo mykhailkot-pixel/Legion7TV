@@ -12,17 +12,6 @@ Userscript для [Multidonate Play](https://play.multidonate.ru/): эмоуты
 
 Скрипт предназначен для `https://play.multidonate.ru/*`.
 
-### Сборка из исходников
-
-Нужны Node.js и npm. В корне проекта выполни:
-
-```sh
-npm install
-npm run build
-```
-
-Сборка создаст `7tv-multidonate.user.js` в корне проекта. Его можно установить через Tampermonkey.
-
 ## Эмоуты 7TV
 
 - Кнопка **7TV** появляется у формы обычного чата и у формы личных сообщений.

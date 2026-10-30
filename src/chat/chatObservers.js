@@ -113,35 +113,10 @@ export function startChatObservers() {
     let queued = false;
     let needsButtons = false;
     let needsScan = false;
-    let dmContainer = null;
-    let dmObserver = null;
-    let onDmScroll = null;
 
     const bindCityChats = () => document.querySelectorAll('.cy .cy-chat').forEach(bindCityChatMove);
 
-    const bindDmScrollGuard = () => {
-        const next = document.querySelector(SEL.dmRoot);
-        if (next === dmContainer) return;
-
-        if (dmObserver) dmObserver.disconnect();
-        if (dmContainer && onDmScroll) dmContainer.removeEventListener('scroll', onDmScroll);
-        dmContainer = next;
-        dmObserver = null;
-        onDmScroll = null;
-        if (!dmContainer) return;
-
-        let lastScrollTop = dmContainer.scrollTop;
-        onDmScroll = () => { lastScrollTop = dmContainer.scrollTop; };
-        dmContainer.addEventListener('scroll', onDmScroll, { passive: true });
-        dmObserver = new MutationObserver(() => {
-            if (dmContainer.scrollTop < lastScrollTop - 2 && dmContainer.scrollTop > 10)
-                dmContainer.scrollTop = lastScrollTop;
-        });
-        dmObserver.observe(dmContainer, { childList: true, subtree: true });
-    };
-
     const schedule = (records) => {
-        bindDmScrollGuard();
         bindCityChats();
         for (const record of records) {
             if (record.type !== 'childList') continue;
@@ -173,7 +148,6 @@ export function startChatObservers() {
 
     const observer = new MutationObserver(schedule);
     observer.observe(document.body, { childList: true, subtree: true });
-    bindDmScrollGuard();
     bindCityChats();
     window.addEventListener('resize', normalizeCityChatPositions, { passive: true });
     requestAnimationFrame(normalizeCityChatPositions);
@@ -181,7 +155,5 @@ export function startChatObservers() {
     return () => {
         observer.disconnect();
         window.removeEventListener('resize', normalizeCityChatPositions);
-        if (dmObserver) dmObserver.disconnect();
-        if (dmContainer && onDmScroll) dmContainer.removeEventListener('scroll', onDmScroll);
     };
 }

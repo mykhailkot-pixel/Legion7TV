@@ -21,8 +21,8 @@ document.addEventListener('scroll', (e) => {
         t.dataset.t7end = (t.scrollHeight - t.scrollTop - t.clientHeight < 40) ? '1' : '0';
 }, true);
 
-function stickEnds() {
-    document.querySelectorAll(SEL.chatList).forEach((l) => {
+function stickEnds(lists) {
+    lists.forEach((l) => {
         if (l.dataset.t7end !== '0') l.scrollTop = l.scrollHeight;
     });
 }
@@ -61,7 +61,10 @@ function processMessage(message, room) {
 export function scan() {
     const chatFresh = document.querySelectorAll(SEL.freshChatRows);
     chatFresh.forEach((message) => processMessage(message, 'chat'));
-    if (chatFresh.length) stickEnds();
+    if (chatFresh.length) {
+        const lists = new Set([...chatFresh].map((message) => message.closest(SEL.chatList)).filter(Boolean));
+        stickEnds(lists);
+    }
 
     document.querySelectorAll(SEL.freshDmRows)
         .forEach((message) => processMessage(message, 'dm'));

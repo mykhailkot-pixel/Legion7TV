@@ -604,6 +604,30 @@ function wrapMine(v) {
     return v;
 }
 
+function wrapDm(v) {
+    if (!v || v.__t7 || typeof v.init !== 'function') return v;
+    const init = v.init;
+    let lastContext = '';
+    const wrapped = {
+        ...v,
+        init(ctx) {
+            let context = '';
+            try {
+                context = `${String(ctx && ctx.me && ctx.me() || '').toLowerCase()}|${String(ctx && ctx.ch || '').toLowerCase()}`;
+            } catch (e) {}
+            const list = context && context === lastContext ? document.querySelector('.dm-l') : null;
+            const scrollTop = list ? list.scrollTop : 0;
+            const atEnd = list && list.scrollHeight - list.scrollTop - list.clientHeight < 40;
+            const result = init.apply(this, arguments);
+            if (list && list.isConnected) list.scrollTop = atEnd ? list.scrollHeight : scrollTop;
+            lastContext = context;
+            return result;
+        }
+    };
+    wrapped.__t7 = 1;
+    return wrapped;
+}
+
 function hook(name, fn) {
     let val = W[name];
     if (val) val = fn(val);
@@ -619,3 +643,4 @@ function hook(name, fn) {
 hook('LGChat', wrapChat);
 hook('LGCity', wrapCity);
 hook('LGMine', wrapMine);
+hook('LGDm', wrapDm);

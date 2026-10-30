@@ -1,9 +1,39 @@
 import { st } from '../core/state.js';
+import { HARD_BANNED_WORDS } from '../core/config.js';
 import { EV, SEL, on } from '../core/consts.js';
 import { togglePop, closePop, recordRecentFromMessage } from '../emotes/popup.js';
 import { pingSystem } from './pingSystem.js';
 
 const bindings = new WeakMap();
+function normalizeBanword(value) {
+    return String(value || '').normalize('NFKC').toLowerCase().replace(/\s+/gu, ' ').trim();
+}
+
+function findTwitchBanword(message) {
+    const text = normalizeBanword(message);
+    for (const raw of HARD_BANNED_WORDS) {
+        const word = normalizeBanword(raw);
+        if (!word) continue;
+        const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const matcher = new RegExp(`(^|[^\\p{L}\\p{N}_])${escaped}(?=$|[^\\p{L}\\p{N}_])`, 'u');
+        if (matcher.test(text)) return String(raw).trim();
+    }
+    return '';
+}
+
+function showTwitchBanwordWarning(form, word) {
+    let warning = form.querySelector(':scope > .t7-banword-warning');
+    if (!warning) {
+        warning = document.createElement('div');
+        warning.className = 't7-banword-warning';
+        warning.setAttribute('role', 'alert');
+        form.appendChild(warning);
+    }
+    warning.textContent = `Сообщение не отправлено: найдено запрещённое слово «${word}».`;
+    warning.hidden = false;
+    const menu = form.querySelector('.t7-ping-menu');
+    if (menu) menu.hidden = true;
+}
 
 function bindMessageHistory(input) {
     const history = [];
@@ -154,6 +184,16 @@ function bindChatForm(form, input) {
     const disposeAutocomplete = bindPingAutocomplete(form, input);
     let lastRecentMessage = '';
     let recentRecorded = false;
+    let warning = null;
+
+    const blockBannedWord = (event) => {
+        const word = findTwitchBanword(input.value);
+        if (!word) return false;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        showTwitchBanwordWarning(form, word);
+        return true;
+    };
 
     const record = () => {
         const text = input.value.trim();
@@ -166,22 +206,34 @@ function bindChatForm(form, input) {
     };
     const onInput = () => {
         if (input.value.trim() !== lastRecentMessage) recentRecorded = false;
+        warning = form.querySelector(':scope > .t7-banword-warning');
+        if (warning) warning.hidden = true;
     };
-    const onSubmit = () => record();
+    const onSubmit = (event) => {
+        if (blockBannedWord(event)) return;
+        record();
+    };
+    const onClick = (event) => {
+        if (event.target.closest(SEL.submitButton)) blockBannedWord(event);
+    };
     const onKeyDown = (event) => {
-        if (event.key === 'Enter' && !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey && !event.isComposing && event.keyCode !== 229)
+        if (event.key === 'Enter' && !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey && !event.isComposing && event.keyCode !== 229) {
+            if (blockBannedWord(event)) return;
             record();
+        }
     };
 
     input.addEventListener('input', onInput);
     input.addEventListener('keydown', onKeyDown, true);
     form.addEventListener('submit', onSubmit, true);
+    form.addEventListener('click', onClick, true);
     return () => {
         history.dispose();
         disposeAutocomplete();
         input.removeEventListener('input', onInput);
         input.removeEventListener('keydown', onKeyDown, true);
         form.removeEventListener('submit', onSubmit, true);
+        form.removeEventListener('click', onClick, true);
     };
 }
 

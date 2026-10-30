@@ -25,6 +25,8 @@ form.cy-chat-f>.t7-ping-menu{position:absolute;left:auto;right:0;bottom:calc(100
 form.cy-chat-f>.t7-ping-menu[hidden]{display:none}
 form.cy-chat-f>.t7-ping-menu>.t7-ping-option{display:block;flex:none;width:100%;min-width:0;min-height:0;height:auto;margin:0;padding:4px 8px;border:0;border-radius:4px;background:transparent;color:#eee;text-align:left;text-transform:none;font:12px/1.25 system-ui,sans-serif;box-shadow:none}
 form.cy-chat-f>.t7-ping-menu>.t7-ping-option:hover,form.cy-chat-f>.t7-ping-menu>.t7-ping-option:focus-visible{background:rgba(255,255,255,.12);color:#fff;outline:none}
+form.cy-chat-f>.t7-banword-warning{position:absolute;left:0;right:0;bottom:calc(100% + 5px);z-index:21;padding:7px 9px;border:1px solid rgba(255,201,77,.38);border-left:3px solid #ffc94d;border-radius:4px;background:rgba(24,24,32,.96);color:#f2dda0;font:12px/1.35 system-ui,sans-serif;box-shadow:0 5px 14px rgba(0,0,0,.28)}
+form.cy-chat-f>.t7-banword-warning[hidden]{display:none}
 
 /* ========== Общая палитра окон (список эмоутов и настройки) ========== */
 .t7-pop,.t7-set{
