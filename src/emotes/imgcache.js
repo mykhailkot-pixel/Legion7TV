@@ -1,4 +1,4 @@
-import { getBuf } from './net.js';
+import { getBuf } from '../network/net.js';
 
 // IndexedDB: картинки хранятся навсегда (адрес содержит ID эмоута, содержимое не меняется)
 const DB = (() => {

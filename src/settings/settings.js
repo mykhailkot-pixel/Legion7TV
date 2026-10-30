@@ -1,19 +1,19 @@
-import { SIZES, pageChan } from './config.js';
-import { S, st } from './state.js';
-import { store } from './store.js';
-import { parseNick } from './util.js';
-import { reload, setStatus } from './emotes.js';
-import { rescanAll, applySize } from './chat.js';
-import { clearImgs } from './imgcache.js';
-import { clamp } from './util.js';
-import { pingSystem } from './pingSystem.js';
-import { getRecentLimit, setRecentLimit } from './recentEmotes.js';
-import { isLinkEncodingEnabled, setLinkEncodingEnabled } from './links.js';
-import { CHAT_TABS, getChatTabPrefs, setChatTabPrefs } from './chatTabPrefs.js';
+import { SIZES, pageChan } from '../core/config.js';
+import { S, st } from '../core/state.js';
+import { store } from '../core/store.js';
+import { parseNick, clamp } from '../core/util.js';
+import { reload, setStatus } from '../emotes/emotes.js';
+import { rescanAll, applySize } from '../chat/chat.js';
+import { clearImgs } from '../emotes/imgcache.js';
+import { pingSystem } from '../chat/pingSystem.js';
+import { getRecentLimit, setRecentLimit } from '../chat/prefs.js';
+import { isLinkEncodingEnabled, setLinkEncodingEnabled } from '../chat/links.js';
+import { CHAT_TABS, getChatTabPrefs, setChatTabPrefs } from '../chat/prefs.js';
+import { STORE } from '../core/consts.js';
 
 // смещение окна настроек от центра экрана
 let SOFF = (() => {
-    const p = store.get('t7spos');
+    const p = store.get(STORE.settingsPosition);
     return p && Number.isFinite(p.x) && Number.isFinite(p.y) ? p : { x: 0, y: 0 };
 })();
 
@@ -56,7 +56,7 @@ function setupDrag(el) {
             win.classList.remove('t7-drag');
             SOFF = { x: nx, y: ny };
             put();
-            store.set('t7spos', SOFF);
+            store.set(STORE.settingsPosition, SOFF);
         };
         hd.addEventListener('pointermove', move);
         hd.addEventListener('pointerup', up);
@@ -66,7 +66,7 @@ function setupDrag(el) {
     hd.addEventListener('dblclick', (e) => {
         if (e.target.closest('button')) return;
         SOFF = { x: 0, y: 0 };
-        store.set('t7spos', null);
+        store.set(STORE.settingsPosition, null);
         put();
     });
 }
@@ -169,7 +169,7 @@ export function openSettings() {
     on.checked = S.on;
     on.addEventListener('change', () => {
         S.on = on.checked;
-        store.set('t7on', S.on);
+        store.set(STORE.emotesEnabled, S.on);
         rescanAll();
     });
 
@@ -183,7 +183,7 @@ export function openSettings() {
         if (raw && !n) { setStatus('Неверный ник: нужны латинские буквы, цифры и _'); return; }
         S.nick = n;
         nickInp.value = n;
-        store.set('t7nick:' + pageChan, n);
+        store.set(STORE.channelNickPrefix + pageChan, n);
         reload(true);
     });
 
@@ -233,7 +233,7 @@ export function openSettings() {
         const b = e.target.closest('[data-sz]');
         if (!b || b.dataset.sz === S.size) return;
         S.size = b.dataset.sz;
-        store.set('t7size', S.size);
+        store.set(STORE.emoteSize, S.size);
         applySize();
         mark();
         rescanAll();
@@ -299,11 +299,11 @@ export function openSettings() {
         } else if (b.dataset.act === 'pos') {
             st.pos = null;
             st.win = null;
-            store.set('t7pos', null);
-            store.set('t7win', null);
+            store.set(STORE.popupPosition, null);
+            store.set(STORE.popupSize, null);
             st.hooks.place();
             SOFF = { x: 0, y: 0 };
-            store.set('t7spos', null);
+            store.set(STORE.settingsPosition, null);
             el.querySelector('.t7-sw').style.transform = '';
             setStatus('Положение окошка сброшено');
         }

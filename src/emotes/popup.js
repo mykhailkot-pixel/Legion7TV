@@ -1,18 +1,19 @@
-import { EM, S, st } from './state.js';
-import { SIZES } from './config.js';
-import { store } from './store.js';
-import { clamp } from './util.js';
+import { EM, S, st } from '../core/state.js';
+import { SIZES } from '../core/config.js';
+import { store } from '../core/store.js';
+import { clamp } from '../core/util.js';
 import { fetchImg } from './imgcache.js';
 import { urlFor } from './emotes.js';
-import { openSettings } from './settings.js';
-import { getRecentLimit } from './recentEmotes.js';
+import { openSettings } from '../settings/settings.js';
+import { getRecentLimit } from '../chat/prefs.js';
+import { EV, STORE, on } from '../core/consts.js';
 
-const FAVORITES_KEY = 't7favorites';
-const RECENT_KEY = 't7recent';
+const FAVORITES_KEY = STORE.favorites;
+const RECENT_KEY = STORE.recentEmotes;
 let gridMode = 'all';
 let emoteData = new Map();
 
-document.addEventListener('t7-recent-limit-change', () => {
+on(EV.recentLimitChange, () => {
     if (st.pop && gridMode === 'recent') renderGrid();
 });
 
@@ -293,7 +294,7 @@ function setupDrag(pop) {
             if (!started || st.pop !== pop) return;
             pop.classList.remove('t7-drag');
             st.pos = { x: nx, y: ny };
-            store.set('t7pos', st.pos);
+            store.set(STORE.popupPosition, st.pos);
             place();   // один раз: переносит transform в left/top и пересчитывает высоту
         };
         hd.addEventListener('pointermove', move);
@@ -305,8 +306,8 @@ function setupDrag(pop) {
         if (e.target.closest('button')) return;
         st.pos = null;
         st.win = null;
-        store.set('t7pos', null);
-        store.set('t7win', null);
+        store.set(STORE.popupPosition, null);
+        store.set(STORE.popupSize, null);
         place();
     });
 }
@@ -348,8 +349,8 @@ function setupResize(pop) {
             pop.classList.remove('t7-drag');
             st.win = { w, h };
             st.pos = { x: r.left, y: r.top };
-            store.set('t7win', st.win);
-            store.set('t7pos', st.pos);
+            store.set(STORE.popupSize, st.win);
+            store.set(STORE.popupPosition, st.pos);
             place();
         };
         rs.addEventListener('pointermove', move);

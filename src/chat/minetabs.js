@@ -1,14 +1,15 @@
 // Единые вкладки в чате города и шахты: Город · Личные · Достижения · Торговля · Шахта
 import { pingSystem } from './pingSystem.js';
-import { store } from './store.js';
+import { store } from '../core/store.js';
 import { SAY_RE, sendWithLinks } from './links.js';
-import { getChatTabPrefs } from './chatTabPrefs.js';
+import { getChatTabPrefs } from './prefs.js';
+import { EV, SEL, STORE, on } from '../core/consts.js';
 
 const W = unsafeWindow;
 const CITY = '/api/city/chat', MINE = '/api/mine/chat';
 const MINE_ID = 'home'; 
-const PING_ONLY_KEY = 't7PingOnly';
-const PING_ARCHIVE_KEY = 't7PingArchive';
+const PING_ONLY_KEY = STORE.pingOnly;
+const PING_ARCHIVE_KEY = STORE.pingArchive;
 const PING_ARCHIVE_LIMIT = 500;
 const PING_PAGE_SIZE = 50;
 let pingOnly = store.get(PING_ONLY_KEY) === true;
@@ -16,37 +17,38 @@ const storedPingArchive = store.get(PING_ARCHIVE_KEY) || {};
 const cityPingArchive = Array.isArray(storedPingArchive.city) ? storedPingArchive.city.filter((m) => m && m.id != null) : [];
 const minePingArchive = Array.isArray(storedPingArchive.mine) ? storedPingArchive.mine.filter((m) => m && m.id != null) : [];
 const unifiedPingArchive = [...new Map([...cityPingArchive, ...minePingArchive].map((m) => [String(m.id), m])).values()];
-const pingArchive = {
-    city: cityPingArchive,
-    mine: minePingArchive,
-    one: unifiedPingArchive
+const ROOM_IDS = ['city', 'mine', 'one'];
+const createRoomState = (archive = []) => ({
+    buffer: [],
+    instance: null,
+    pings: {},
+    archive,
+    archiveIds: new Set(archive.map((m) => String(m.id))),
+    archivePage: 0,
+    injectedPings: new Set(),
+    filterObserver: null,
+    filterList: null
+});
+const rooms = {
+    city: createRoomState(cityPingArchive),
+    mine: createRoomState(minePingArchive),
+    one: createRoomState(unifiedPingArchive)
 };
-const pingArchiveIds = {
-    city: new Set(pingArchive.city.map((m) => String(m.id))),
-    mine: new Set(pingArchive.mine.map((m) => String(m.id))),
-    one: new Set(pingArchive.one.map((m) => String(m.id)))
-};
-const injectedPingIds = { city: new Set(), mine: new Set(), one: new Set() };
-const pingArchivePage = { city: 0, mine: 0, one: 0 };
 let pingArchiveSaveTimer = 0;
 
-const buf = { city: [], mine: [] };      // последние сообщения комнат (для истории при переходе)
-const inst = { city: null, mine: null, one: null }; // legacy rooms plus the unified chat
-const filterObservers = { city: null, mine: null, one: null };
-const filterLists = { city: null, mine: null, one: null };
 let lastRoom = '';
-const hasUnifiedChat = () => !!inst.one;
+const hasUnifiedChat = () => !!rooms.one.instance;
 
-pingSystem.onChange = () => {
-    for (const i of Object.values(inst)) if (i) i.raw.render();
-};
+pingSystem.subscribe(() => {
+    for (const room of Object.values(rooms)) if (room.instance) room.instance.raw.render();
+});
 
 const tagMn = (m) => (m && m.tb !== 'mn' ? { ...m, tb: 'mn' } : m);
 const tagMsg = (r) => (r && r.msg ? { ...r, msg: tagMn(r.msg) } : r);
 const byTime = (a, b) => (a.at || 0) - (b.at || 0);
 
 function push(room, msgs) {
-    const a = buf[room];
+    const a = rooms[room].buffer;
     for (const m of msgs || []) if (m && m.id && !a.some((x) => x.id === m.id)) a.push(m);
     a.sort(byTime);
     if (a.length > 300) a.splice(0, a.length - 300);
@@ -55,14 +57,15 @@ function schedulePingArchiveSave() {
     clearTimeout(pingArchiveSaveTimer);
     pingArchiveSaveTimer = setTimeout(() => {
         pingArchiveSaveTimer = 0;
-        store.set(PING_ARCHIVE_KEY, pingArchive);
+        store.set(PING_ARCHIVE_KEY, Object.fromEntries(ROOM_IDS.map((room) => [room, rooms[room].archive])));
     }, 500);
 }
 function drop(ids) {
-    for (const k of Object.keys(buf)) buf[k] = buf[k].filter((m) => !ids.includes(m.id));
+    for (const room of ROOM_IDS)
+        rooms[room].buffer = rooms[room].buffer.filter((message) => !ids.includes(message.id));
 }
 function active(room) {
-    const i = inst[room];
+    const i = rooms[room].instance;
     const S = i && i.K.state();
     return !!(S && S.chat && S.chat.on);
 }
@@ -74,7 +77,7 @@ function forward(room, d, sourceRoom) {
     if (forceUnread) chat.C.open = false;
     let applied = false;
     try {
-        inst[room].raw.apply(d);
+        rooms[room].instance.raw.apply(d);
         applied = true;
     } catch (e) { console.warn('[mine-tabs] forward', e); }
     finally {
@@ -103,7 +106,7 @@ async function loadMineHistory(K) {
         rememberPingMessages('mine', msgs);
         rememberPingMessages('city', msgs);
 
-        const i = inst.city;
+        const i = rooms.city.instance;
         const c = i && i.K.state() && i.K.state().chat;
         if (!c || !c.on) return;
 
@@ -126,7 +129,7 @@ function setupTabs(K) {
     const C = S.chat;
     if (!K.one) C.mn = true;
     if (C.un.mn == null) C.un.mn = 0;
-    const tabs = S.el.querySelector('.cy-chat-tabs');
+    const tabs = S.el.querySelector(SEL.chatTabs);
     if (!tabs) return;
     if (!K.one && !tabs.querySelector('[data-tab="mn"]')) {
         const b = document.createElement('button');
@@ -176,13 +179,13 @@ function setupTabs(K) {
     if (!C.panel) tabs.hidden = false;
 }
 
-document.addEventListener('t7-chat-tabs-change', () => {
-    for (const i of Object.values(inst)) if (i) setupTabs(i.K);
+on(EV.chatTabsChange, () => {
+    for (const room of Object.values(rooms)) if (room.instance) setupTabs(room.instance.K);
 });
 
 function selectTab(K, t) {
     const S = K.state();
-    const b = S && S.el && S.el.querySelector(`.cy-chat-tabs [data-tab="${t}"]`);
+    const b = S && S.el && S.el.querySelector(`${SEL.chatTabs} [data-tab="${t}"]`);
     if (b) b.click();
 }
 
@@ -272,10 +275,8 @@ function patchK(K, room) {
 }
 
 /* ---------- пинги (@ник): жёлтые кружки ---------- */
-const pings = { city: {}, mine: {}, one: {} };   // комната → { вкладка: сколько упоминаний }
-
 function chatOf(room) {
-    const i = inst[room];
+    const i = rooms[room].instance;
     const S = i && i.K.state();
     return S && S.chat ? { S, C: S.chat } : null;
 }
@@ -290,11 +291,13 @@ function isPingMessage(room, m, me) {
     return pingSystem.isPinged(m.t, me ? [me] : []);
 }
 function rememberPingMessages(room, msgs) {
-    const i = inst[room] || inst[room === 'mine' ? 'city' : 'mine'];
+    const roomState = rooms[room];
+    const fallbackRoom = room === 'mine' ? 'city' : 'mine';
+    const i = roomState.instance || rooms[fallbackRoom].instance;
     const x = i && i.K.X();
     const me = String((x && x.login && x.login()) || '').toLowerCase();
-    const items = pingArchive[room];
-    const ids = pingArchiveIds[room];
+    const items = roomState.archive;
+    const ids = roomState.archiveIds;
     let changed = false;
     for (const m of msgs || []) {
         if (!isPingMessage(room, m, me)) continue;
@@ -311,7 +314,7 @@ function rememberPingMessages(room, msgs) {
 }
 function stripArchivedPings(room) {
     const o = chatOf(room);
-    const injected = injectedPingIds[room];
+    const injected = rooms[room].injectedPings;
     if (o && o.C.list && injected.size) {
         const list = o.C.list.filter((m) => !injected.has(String(m.id)));
         o.C.list.splice(0, o.C.list.length, ...list);
@@ -319,16 +322,17 @@ function stripArchivedPings(room) {
     injected.clear();
 }
 function archivePage(room, C) {
-    const messages = pingArchive[room].filter((m) => tabOfMsg(C, m) === C.tab);
+    const roomState = rooms[room];
+    const messages = roomState.archive.filter((m) => tabOfMsg(C, m) === C.tab);
     const pageCount = Math.max(1, Math.ceil(messages.length / PING_PAGE_SIZE));
-    pingArchivePage[room] = Math.min(pingArchivePage[room], pageCount - 1);
-    const end = messages.length - pingArchivePage[room] * PING_PAGE_SIZE;
+    roomState.archivePage = Math.min(roomState.archivePage, pageCount - 1);
+    const end = messages.length - roomState.archivePage * PING_PAGE_SIZE;
     return messages.slice(Math.max(0, end - PING_PAGE_SIZE), end);
 }
 function syncPingArchive(room) {
     const o = chatOf(room);
     if (!o || !o.C.list) return false;
-    const injected = injectedPingIds[room];
+    const injected = rooms[room].injectedPings;
     const wanted = pingOnly ? archivePage(room, o.C) : [];
     const wantedIds = new Set(wanted.map((m) => String(m.id)));
     const presentIds = new Set(o.C.list.map((m) => String(m.id)));
@@ -354,7 +358,7 @@ function syncPingArchive(room) {
     return changed;
 }
 function refreshPingArchive(room) {
-    const i = inst[room];
+    const i = rooms[room].instance;
     if (!i) return;
     if (syncPingArchive(room)) i.raw.render();
     markFilteredMessages(room);
@@ -365,9 +369,9 @@ function countPings(room, msgs) {
     const o = chatOf(room);
     if (!o) return;
     rememberPingMessages(room, msgs);
-    const x = inst[room].K.X();
+    const x = rooms[room].instance.K.X();
     const me = String((x && x.login && x.login()) || '').toLowerCase();
-    const pg = pings[room];
+    const pg = rooms[room].pings;
     let hit = false;
     for (const m of msgs || []) {
         if (!m || String(m.l || '').toLowerCase() === me || m.ev || m.sys) continue;
@@ -393,12 +397,12 @@ function countPings(room, msgs) {
 const seenPings = new Set();
 function markFilteredMessages(room) {
     const o = chatOf(room);
-    const list = o && o.S.el && o.S.el.querySelector('.cy-chat-l');
+    const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
     if (!list || !o.C) return;
     if (o.C.tab === 'lg') return;
     const visible = o.C.list.filter((m) => tabOfMsg(o.C, m) === o.C.tab && !(o.C.ign && o.C.ign.has(m.l)) && (o.C.tab !== 'dm' || !o.C.peer || m.sys || m.l === o.C.peer || m.to === o.C.peer));
-    const rows = list.querySelectorAll(':scope > li:not(.cy-chat-0)');
-    const x = inst[room].K.X();
+    const rows = list.querySelectorAll(SEL.nonEmptyChatRows);
+    const x = rooms[room].instance.K.X();
     const me = String((x && x.login && x.login()) || '').toLowerCase();
     visible.forEach((m, index) => {
         const row = rows[index];
@@ -424,7 +428,7 @@ function markFilteredMessages(room) {
 
 function applyPingOnly(room) {
     const o = chatOf(room);
-    const list = o && o.S.el && o.S.el.querySelector('.cy-chat-l');
+    const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
     if (!list) return;
     if (o.C.tab === 'lg') {
         list.querySelectorAll(':scope > li.t7-ping-hidden').forEach((row) => row.classList.remove('t7-ping-hidden'));
@@ -458,7 +462,7 @@ function syncPingOnlyControls() {
 }
 
 function addPingOnlyControl(room, box) {
-    const header = box.querySelector('.cy-chat-h');
+    const header = box.querySelector(SEL.chatHeader);
     if (!header) return;
     let label = header.querySelector('.t7-chat-filter');
     if (!label) {
@@ -474,7 +478,7 @@ function addPingOnlyControl(room, box) {
         });
     }
     label.querySelector('input').checked = pingOnly;
-    const close = header.querySelector('.cy-chat-x');
+    const close = header.querySelector(SEL.chatCloseButton);
     if (!label.isConnected) header.insertBefore(label, close || null);
 
     let nav = header.querySelector('.t7-ping-nav');
@@ -486,7 +490,8 @@ function addPingOnlyControl(room, box) {
             const button = e.target.closest('button[data-direction]');
             if (!button) return;
             e.stopPropagation();
-            pingArchivePage[room] = Math.max(0, pingArchivePage[room] + (button.dataset.direction === 'older' ? 1 : -1));
+            const roomState = rooms[room];
+            roomState.archivePage = Math.max(0, roomState.archivePage + (button.dataset.direction === 'older' ? 1 : -1));
             refreshPingArchive(room);
             updatePingArchiveControl(room);
         });
@@ -497,17 +502,18 @@ function addPingOnlyControl(room, box) {
 }
 function updatePingArchiveControl(room) {
     const o = chatOf(room);
-    const header = o && o.S.el && o.S.el.querySelector('.cy-chat-h');
+    const header = o && o.S.el && o.S.el.querySelector(SEL.chatHeader);
     const nav = header && header.querySelector('.t7-ping-nav');
     if (!nav || !o.C) return;
-    const count = pingArchive[room].filter((m) => tabOfMsg(o.C, m) === o.C.tab).length;
+    const roomState = rooms[room];
+    const count = roomState.archive.filter((m) => tabOfMsg(o.C, m) === o.C.tab).length;
     const pages = Math.ceil(count / PING_PAGE_SIZE);
-    pingArchivePage[room] = Math.min(pingArchivePage[room], Math.max(0, pages - 1));
+    roomState.archivePage = Math.min(roomState.archivePage, Math.max(0, pages - 1));
     nav.hidden = !pingOnly || pages < 2;
     const older = nav.querySelector('[data-direction="older"]');
     const newer = nav.querySelector('[data-direction="newer"]');
-    if (older) older.disabled = pingArchivePage[room] >= pages - 1;
-    if (newer) newer.disabled = pingArchivePage[room] === 0;
+    if (older) older.disabled = roomState.archivePage >= pages - 1;
+    if (newer) newer.disabled = roomState.archivePage === 0;
 }
 
 const num = (n) => (n > 99 ? '99+' : String(n));
@@ -526,20 +532,20 @@ function paint(room) {
     const o = chatOf(room);
     const box = o && o.S.el && o.S.el.querySelector('.cy-chat');
     if (!box) return;
-    const pg = pings[room];
+    const pg = rooms[room].pings;
     if (o.C.open) pg[o.C.tab] = 0;   // открытая вкладка прочитана
     let total = 0;
-    box.querySelectorAll('.cy-chat-tabs [data-tab]').forEach((b) => {
+    box.querySelectorAll(SEL.chatTabButtons).forEach((b) => {
         const n = pg[b.dataset.tab] || 0;
         total += n;
         badge(b, 'cy-chat-tp', n, 'Упоминаний');
     });
-    const t = box.querySelector('.cy-chat-t');
+    const t = box.querySelector(SEL.chatToggleButton);
     if (t) badge(t, 'cy-chat-pn', o.C.open ? 0 : total, 'Упоминаний');
 }
 function pingBind(room) {
     const o = chatOf(room);
-    const box = o && o.S.el && o.S.el.querySelector('.cy-chat');
+    const box = o && o.S.el && o.S.el.querySelector(SEL.chatRoot);
     if (!box || box.dataset.t7pg) return;
     box.dataset.t7pg = '1';
     addPingOnlyControl(room, box);
@@ -548,11 +554,11 @@ function pingBind(room) {
         updatePingArchiveControl(room);
         paint(room);
     });   // вкладка / «Чат» / × → пересчитать
-    const list = box.querySelector('.cy-chat-l');
+    const list = box.querySelector(SEL.chatList);
     if (list && !list.dataset.t7BlacklistMenu) {
         list.dataset.t7BlacklistMenu = '1';
         list.addEventListener('contextmenu', (e) => {
-            const nick = e.target.closest('b[data-nick]');
+            const nick = e.target.closest(SEL.nickButton);
             if (!nick || !list.contains(nick)) return;
             const login = String(nick.dataset.nick || '').trim();
             if (!login) return;
@@ -571,14 +577,15 @@ function pingBind(room) {
             });
         }, true);
     }
-    if (list && filterLists[room] !== list) {
-        if (filterObservers[room]) filterObservers[room].disconnect();
-        filterObservers[room] = new MutationObserver(() => {
+    const roomState = rooms[room];
+    if (list && roomState.filterList !== list) {
+        if (roomState.filterObserver) roomState.filterObserver.disconnect();
+        roomState.filterObserver = new MutationObserver(() => {
             markFilteredMessages(room);
             applyPingOnly(room);
         });
-        filterObservers[room].observe(list, { childList: true });
-        filterLists[room] = list;
+        roomState.filterObserver.observe(list, { childList: true });
+        roomState.filterList = list;
     }
     markFilteredMessages(room);
     applyPingOnly(room);
@@ -597,7 +604,7 @@ function wrapInst(raw, K, room) {
             if (unified) {
                 raw.enter(r, rm);
                 if (r && Array.isArray(r.chat)) rememberPingMessages(room, r.chat);
-                pings[room] = {};
+                rooms[room].pings = {};
                 setupTabs(K);
                 pingBind(room);
                 paint(room);
@@ -609,14 +616,14 @@ function wrapInst(raw, K, room) {
             if (r && Array.isArray(r.chat)) {
                 const own = mine ? r.chat.map(tagMn) : r.chat;
                 push(room, own);
-                const extra = buf[other].filter((m) => !own.some((x) => x.id === m.id));
+                const extra = rooms[other].buffer.filter((m) => !own.some((x) => x.id === m.id));
                 rr = { ...r, chat: own.concat(extra).sort(byTime) };
             }
             raw.enter(rr);
-            injectedPingIds[room].clear();
+            rooms[room].injectedPings.clear();
             if (rr && Array.isArray(rr.chat)) rememberPingMessages(room, rr.chat);
             setupTabs(K);
-            pings[room] = {};
+            rooms[room].pings = {};
             pingBind(room);
             paint(room);
             if (lastRoom !== room) {
@@ -635,11 +642,12 @@ function wrapInst(raw, K, room) {
                 if (d && Array.isArray(d.chatDel)) {
                     const deleted = new Set(d.chatDel.map(String));
                     let changed = false;
-                    for (const archiveRoom of ['city', 'mine', 'one']) {
-                        const kept = pingArchive[archiveRoom].filter((m) => !deleted.has(String(m.id)));
-                        if (kept.length !== pingArchive[archiveRoom].length) {
-                            pingArchive[archiveRoom] = kept;
-                            pingArchiveIds[archiveRoom] = new Set(kept.map((m) => String(m.id)));
+                    for (const archiveRoom of ROOM_IDS) {
+                        const archive = rooms[archiveRoom];
+                        const kept = archive.archive.filter((m) => !deleted.has(String(m.id)));
+                        if (kept.length !== archive.archive.length) {
+                            archive.archive = kept;
+                            archive.archiveIds = new Set(kept.map((m) => String(m.id)));
                             changed = true;
                         }
                     }
@@ -671,7 +679,7 @@ function wrapChat(v) {
             if (!room) return make(K);
             const KK = patchK(K, room);
             const raw = make(KK);
-            inst[room] = { raw, K: KK };
+            rooms[room].instance = { raw, K: KK };
             return wrapInst(raw, KK, room);
         }
     };
@@ -691,11 +699,12 @@ function wrapCity(v) {
                     drop(d.chatDel);
                     const deleted = new Set(d.chatDel.map(String));
                     let changed = false;
-                    for (const room of ['city', 'mine', 'one']) {
-                        const kept = pingArchive[room].filter((m) => !deleted.has(String(m.id)));
-                        if (kept.length !== pingArchive[room].length) {
-                            pingArchive[room] = kept;
-                            pingArchiveIds[room] = new Set(kept.map((m) => String(m.id)));
+                    for (const room of ROOM_IDS) {
+                        const archive = rooms[room];
+                        const kept = archive.archive.filter((m) => !deleted.has(String(m.id)));
+                        if (kept.length !== archive.archive.length) {
+                            archive.archive = kept;
+                            archive.archiveIds = new Set(kept.map((m) => String(m.id)));
                             changed = true;
                         }
                     }

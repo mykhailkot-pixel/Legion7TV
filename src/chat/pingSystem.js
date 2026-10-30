@@ -1,6 +1,7 @@
-import { store } from './store.js';
+import { store } from '../core/store.js';
+import { EV, STORE, emit } from '../core/consts.js';
 
-const CONFIG_KEY = 't7ping';
+const CONFIG_KEY = STORE.pingConfig;
 const PRESETS = new Set(['bell', 'chime', 'pop', 'custom']);
 const DEFAULTS = {
     volume: 0.5,
@@ -36,9 +37,27 @@ function escapeRegex(value) {
 class PingSystem {
     constructor() {
         this.config = readConfig();
+        this.listeners = new Set();
+        this.regexCache = new Map();
         this.audioContext = null;
         this.customBuffer = null;
         this.customBufferPromise = null;
+    }
+
+    subscribe(listener) {
+        if (typeof listener !== 'function') return () => {};
+        this.listeners.add(listener);
+        return () => this.listeners.delete(listener);
+    }
+
+    notify() {
+        for (const listener of this.listeners) {
+            try {
+                listener(this.config);
+            } catch (error) {
+                console.warn('[7TV] обработчик настроек пингов', error);
+            }
+        }
     }
 
     save() {
@@ -48,14 +67,15 @@ class PingSystem {
     setList(key, value) {
         if (!['aliases', 'blacklist', 'stopWords'].includes(key)) return;
         this.config[key] = normalizeList(value);
+        if (key === 'aliases') this.regexCache.clear();
         this.save();
-        if (this.onChange) this.onChange();
+        this.notify();
     }
 
     setTabCompletion(enabled) {
         this.config.tabCompletion = !!enabled;
         this.save();
-        document.dispatchEvent(new Event('t7-tab-completion-change'));
+        emit(EV.tabCompletionChange);
     }
 
     toggleBlacklist(login) {
@@ -99,11 +119,17 @@ class PingSystem {
 
     isPinged(messageText, extraAliases = []) {
         const text = String(messageText || '');
-        return [...this.config.aliases, ...extraAliases].some((raw) => {
+        for (const raw of [...this.config.aliases, ...extraAliases]) {
             const alias = String(raw || '').trim().toLowerCase();
-            if (!alias) return false;
-            return new RegExp('(^|[^\\p{L}\\p{N}_])' + escapeRegex(alias) + '(?=$|[^\\p{L}\\p{N}_])', 'iu').test(text);
-        });
+            if (!alias) continue;
+            let matcher = this.regexCache.get(alias);
+            if (!matcher) {
+                matcher = new RegExp('(^|[^\\p{L}\\p{N}_])' + escapeRegex(alias) + '(?=$|[^\\p{L}\\p{N}_])', 'iu');
+                this.regexCache.set(alias, matcher);
+            }
+            if (matcher.test(text)) return true;
+        }
+        return false;
     }
 
     filterLabel(sender, messageText) {

@@ -38,6 +38,66 @@
   ];
   var EXTRA_SETS = [
   ];
+  var STORE = Object.freeze({
+    emoteSize: "t7size",
+    channelNickPrefix: "t7nick:",
+    popupPosition: "t7pos",
+    popupSize: "t7win",
+    settingsPosition: "t7spos",
+    emotesEnabled: "t7on",
+    emoteCachePrefix: "t7c2:",
+    favorites: "t7favorites",
+    recentEmotes: "t7recent",
+    recentEmoteLimit: "t7recentLimit",
+    pingConfig: "t7ping",
+    pingOnly: "t7PingOnly",
+    pingArchive: "t7PingArchive",
+    chatTabPrefs: "t7ChatTabPrefs",
+    linkEncoding: "t7LinkEncoding",
+    networkProxy: "t7proxy"
+  });
+  var EV = Object.freeze({
+    tabCompletionChange: "t7-tab-completion-change",
+    chatTabsChange: "t7-chat-tabs-change",
+    recentLimitChange: "t7-recent-limit-change"
+  });
+  var SEL = Object.freeze({
+    chatRoot: ".cy-chat",
+    chatList: ".cy-chat-l",
+    chatRows: ".cy-chat-l li",
+    freshChatRows: ".cy-chat-l li:not([data-l7tv-processed])",
+    processedChatRows: ".cy-chat-l li[data-l7tv-processed]",
+    dmRoot: ".cy-chat-dmx",
+    freshDmRows: ".cy-chat-dmx li:not([data-l7tv-processed])",
+    processedDmRows: ".cy-chat-dmx li[data-l7tv-processed]",
+    messageContent: ":scope > span:not([class])",
+    nonEmptyChatRows: ":scope > li:not(.cy-chat-0)",
+    chatForm: "form.cy-chat-f",
+    dmForm: "form.dm-f",
+    chatForms: "form.cy-chat-f, form.dm-f",
+    textInput: "input[type=text]",
+    submitButton: "button[type=submit]",
+    nickButtons: ".cy-chat-l b[data-nick]",
+    nickButton: "b[data-nick]",
+    chatTabs: ".cy-chat-tabs",
+    chatTabButtons: ".cy-chat-tabs [data-tab]",
+    chatHeader: ".cy-chat-h",
+    chatCloseButton: ".cy-chat-x",
+    chatToggleButton: ".cy-chat-t",
+    emptyMessage: ".cy-chat-0",
+    systemMessage: ".cy-chat-sys",
+    eventMessage: ".cy-chat-ev"
+  });
+  var clamp = (value, min, max) => Math.max(min, Math.min(value, max));
+  function emit(name, detail) {
+    const event = detail === void 0 ? new Event(name) : new CustomEvent(name, { detail });
+    document.dispatchEvent(event);
+    return event;
+  }
+  function on(name, listener, options) {
+    document.addEventListener(name, listener, options);
+    return () => document.removeEventListener(name, listener, options);
+  }
   var S = { nick: pageChan, size: "m", on: true };
   var EM = {};
   var st = {
@@ -85,7 +145,7 @@
     }
   };
   var proxy = (() => {
-    const v = store.get("t7proxy");
+    const v = store.get(STORE.networkProxy);
     return normProxy(typeof v === "string" ? v : DEFAULT_PROXY);
   })();
   var proxyDownUntil = 0;
@@ -127,13 +187,13 @@
   var getBuf = async (url) => {
     const r = await gm(url, "blob");
     const type = r.response && r.response.type || "image/webp";
-    const buf2 = await new Promise((res, rej) => {
+    const buf = await new Promise((res, rej) => {
       const fr = new FileReader();
       fr.onload = () => res(fr.result);
       fr.onerror = rej;
       fr.readAsArrayBuffer(r.response);
     });
-    return new Blob([buf2], { type });
+    return new Blob([buf], { type });
   };
   function mk(host, flags, isGlobal, isExtra) {
     const files = (host.files || []).filter((f) => f.format === "WEBP").map((f) => f.name);
@@ -200,7 +260,7 @@
     return em.base + "/" + (best || em.f[0]);
   }
   async function loadEmotes(nick, force) {
-    const key = "t7c2:" + nick + ":" + xsig();
+    const key = STORE.emoteCachePrefix + nick + ":" + xsig();
     if (!force) {
       const c = store.get(key);
       if (c) return { map: c.map, msg: c.msg, stale: Date.now() - c.at >= CACHE_TTL };
@@ -263,7 +323,6 @@
     st.hooks.emotes();
     if (stale) reload(true);
   }
-  var clamp = (v, a, b) => Math.max(a, Math.min(v, b));
   var has = (m, k) => Object.prototype.hasOwnProperty.call(m, k);
   function parseNick(v) {
     v = String(v || "").trim().toLowerCase().replace(/[?#].*$/, "").replace(/\/+$/, "");
@@ -339,23 +398,101 @@
     imgCache.clear();
     await DB.clear();
   }
+  function makeImg(name, em, cls, stickFrom2) {
+    const img = document.createElement("img");
+    img.className = cls;
+    img.alt = name;
+    img.title = name;
+    img.addEventListener("load", () => stickFrom2(img));
+    fetchImg(urlFor(em, SIZES[S.size].n), true).then(
+      (data) => {
+        img.src = data;
+      },
+      (error) => {
+        console.warn("[7TV] \u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0430 \u043D\u0435 \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u043B\u0430\u0441\u044C", name, error);
+        img.replaceWith(document.createTextNode(name));
+      }
+    );
+    return img;
+  }
+  function processEmotes({ content, kind, source, stickFrom: stickFrom2 }) {
+    if (kind !== "message") return;
+    const parts = source.split(/(\s+)/);
+    if (!S.on || !parts.some((part) => has(EM, part))) return;
+    const fragment = document.createDocumentFragment();
+    let lastWrap = null;
+    for (const part of parts) {
+      const emote = has(EM, part) ? EM[part] : null;
+      if (emote && emote.zw && lastWrap) {
+        lastWrap.appendChild(makeImg(part, emote, "t7-zw", stickFrom2));
+        continue;
+      }
+      if (emote) {
+        const wrapper = document.createElement("span");
+        wrapper.className = "t7-w";
+        wrapper.appendChild(makeImg(part, emote, "t7-e", stickFrom2));
+        fragment.appendChild(wrapper);
+        lastWrap = wrapper;
+        continue;
+      }
+      if (/^\s+$/.test(part)) {
+        if (lastWrap) {
+          fragment.appendChild(document.createTextNode(part));
+          continue;
+        }
+      } else if (part) {
+        lastWrap = null;
+      }
+      if (part) fragment.appendChild(document.createTextNode(part));
+    }
+    content.replaceChildren(fragment);
+  }
   var SAY_RE = /^\/api\/(?:city\/say|mine\/chat\/say)(?:\?|$)/;
-  var LINK_ENCODING_KEY = "t7LinkEncoding";
+  var LINK_ENCODING_KEY = STORE.linkEncoding;
   var isLinkEncodingEnabled = () => store.get(LINK_ENCODING_KEY) === true;
   var setLinkEncodingEnabled = (enabled) => store.set(LINK_ENCODING_KEY, !!enabled);
   var HTTP_RE = /(?<![\p{L}\p{N}_])http:\/\/\S/iu;
+  var URL_RE = /\[ref\]\{[^{}\s]+\}|https:\/\/[^\s<>"']+|www\.[^\s<>"']+/giu;
+  var HOST_OK = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
   var TLD = "[a-z]{2}|com|net|org|info|dev|app|xyz|online|site|tech|gov|edu|club|shop|store|blog|cloud|live|link";
   var LINK_RE = new RegExp(
     "(?<![\\p{L}\\p{N}_@/.:%-])(?:https:\\/\\/)?(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+(?:" + TLD + ")(?![\\p{L}\\p{N}-])(?::\\d{1,5})?(?:[/?#]\\S*)?",
     "giu"
   );
-  function encodeOne(raw) {
-    let url = raw, tail = "";
-    const m = /[.,!?;:)\]'"]+$/.exec(url);
-    if (m) {
-      tail = m[0];
-      url = url.slice(0, -tail.length);
+  function trimTrailingPunct(raw, options = {}) {
+    let end = raw.length;
+    while (end > 0) {
+      const char = raw[end - 1];
+      if (/[.,!?;:]/.test(char) || options.stripQuotes && (char === '"' || char === "'") || options.stripBrackets && char === "]") {
+        end--;
+        continue;
+      }
+      if (char === ")") {
+        const text = raw.slice(0, end);
+        const unbalanced = (text.match(/\)/g) || []).length > (text.match(/\(/g) || []).length;
+        if (options.stripClosingParens || unbalanced) {
+          end--;
+          continue;
+        }
+      }
+      break;
     }
+    return { clean: raw.slice(0, end), tail: raw.slice(end) };
+  }
+  function isSafeHttpsUrl(value) {
+    try {
+      const url = new URL(value);
+      return url.protocol === "https:" && HOST_OK.test(url.hostname);
+    } catch {
+      return false;
+    }
+  }
+  function encodeOne(raw) {
+    let { clean: url, tail } = trimTrailingPunct(raw, {
+      stripClosingParens: true,
+      stripQuotes: true,
+      stripBrackets: true
+    });
     url = url.replace(/^https:\/\//i, "");
     const i = url.search(/[/?#]/);
     const host = (i < 0 ? url : url.slice(0, i)).toLowerCase().replace(/\./g, "_");
@@ -369,47 +506,6 @@
     const rest = i < 0 ? "" : body.slice(i).replace(/%2E/gi, ".");
     return "https://" + host + rest;
   }
-  async function sendWithLinks(call, path, body) {
-    if (!isLinkEncodingEnabled()) return call(path, body);
-    const text = body && body.text;
-    if (typeof text !== "string") return call(path, body);
-    if (HTTP_RE.test(text)) return { ok: false, error: "\u0441\u0441\u044B\u043B\u043A\u0438 http:// \u043D\u0435 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u044E\u0442\u0441\u044F - \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439 https://" };
-    const encoded = encodeLinks(text);
-    return call(path, encoded === text ? body : { ...body, text: encoded });
-  }
-  document.addEventListener("scroll", (e) => {
-    const t = e.target;
-    if (t && t.classList && t.classList.contains("cy-chat-l"))
-      t.dataset.t7end = t.scrollHeight - t.scrollTop - t.clientHeight < 40 ? "1" : "0";
-  }, true);
-  function stickEnds() {
-    document.querySelectorAll(".cy-chat-l").forEach((l) => {
-      if (l.dataset.t7end !== "0") l.scrollTop = l.scrollHeight;
-    });
-  }
-  function stickFrom(el) {
-    const l = el.closest && el.closest(".cy-chat-l");
-    if (l && l.dataset.t7end !== "0") l.scrollTop = l.scrollHeight;
-  }
-  function makeImg(name, em, cls) {
-    const img = document.createElement("img");
-    img.className = cls;
-    img.alt = name;
-    img.title = name;
-    img.addEventListener("load", () => stickFrom(img));
-    fetchImg(urlFor(em, SIZES[S.size].n), true).then(
-      (d) => {
-        img.src = d;
-      },
-      (e) => {
-        console.warn("[7TV] \u043A\u0430\u0440\u0442\u0438\u043D\u043A\u0430 \u043D\u0435 \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u043B\u0430\u0441\u044C", name, e);
-        img.replaceWith(document.createTextNode(name));
-      }
-    );
-    return img;
-  }
-  var URL_RE = /\[ref\]\{[^{}\s]+\}|https:\/\/[^\s<>"']+|www\.[^\s<>"']+/giu;
-  var HOST_OK = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
   function linkifyText(root) {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const nodes = [];
@@ -424,35 +520,26 @@
       for (const match of matches) {
         const start = match.index;
         if (start < offset) continue;
-        let url = match[0], href, label, len;
+        const { clean: url } = trimTrailingPunct(match[0]);
+        let href, label;
         if (/^\[ref\]/i.test(url)) {
           href = refToUrl(url.slice(6, -1));
           label = href.slice(8);
-          len = url.length;
         } else {
-          while (/[.,!?;:]$/.test(url)) url = url.slice(0, -1);
-          while (url.endsWith(")") && (url.match(/\)/g) || []).length > (url.match(/\(/g) || []).length) url = url.slice(0, -1);
           href = url.startsWith("www.") ? "https://" + url : url;
           label = url;
-          len = url.length;
         }
         fragment.appendChild(document.createTextNode(text.slice(offset, start)));
-        let valid = false;
-        try {
-          const p = new URL(href);
-          valid = p.protocol === "https:" && HOST_OK.test(p.hostname);
-        } catch {
-        }
-        if (valid) {
-          const a = document.createElement("a");
-          a.className = "t7-link";
-          a.href = href;
-          a.title = href;
-          a.target = "_blank";
-          a.rel = "noopener noreferrer";
-          a.textContent = label;
-          fragment.appendChild(a);
-          offset = start + len;
+        if (isSafeHttpsUrl(href)) {
+          const anchor = document.createElement("a");
+          anchor.className = "t7-link";
+          anchor.href = href;
+          anchor.title = href;
+          anchor.target = "_blank";
+          anchor.rel = "noopener noreferrer";
+          anchor.textContent = label;
+          fragment.appendChild(anchor);
+          offset = start + url.length;
         } else {
           fragment.appendChild(document.createTextNode(match[0]));
           offset = start + match[0].length;
@@ -462,84 +549,65 @@
       node.replaceWith(fragment);
     }
   }
-  function processSpan(sp) {
-    const act = S.on ? EM : NONE;
-    const src = sp.dataset.t7o != null ? sp.dataset.t7o : sp.textContent;
-    const parts = src.split(/(\s+)/);
-    if (!parts.some((p) => has(act, p))) {
-      if (sp.dataset.t7o != null) {
-        sp.textContent = src;
-        delete sp.dataset.t7o;
-      }
-      linkifyText(sp);
-      return;
-    }
-    sp.dataset.t7o = src;
-    const frag = document.createDocumentFragment();
-    let lastWrap = null;
-    for (const p of parts) {
-      const em = has(EM, p) ? EM[p] : null;
-      if (em && em.zw && lastWrap) {
-        lastWrap.appendChild(makeImg(p, em, "t7-zw"));
-        continue;
-      }
-      if (em) {
-        const w = document.createElement("span");
-        w.className = "t7-w";
-        w.appendChild(makeImg(p, em, "t7-e"));
-        frag.appendChild(w);
-        lastWrap = w;
-        continue;
-      }
-      if (/^\s+$/.test(p)) {
-        if (lastWrap) {
-          frag.appendChild(document.createTextNode(p));
-          continue;
-        }
-      } else if (p) {
-        lastWrap = null;
-      }
-      if (p) frag.appendChild(document.createTextNode(p));
-    }
-    linkifyText(frag);
-    sp.textContent = "";
-    sp.appendChild(frag);
+  function processLinks({ content }) {
+    linkifyText(content);
   }
-  function processLi(li) {
-    if (li.dataset.t7) return;
-    li.dataset.t7 = "1";
-    if (li.classList.contains("cy-chat-0")) return;
-    if (li.classList.contains("cy-chat-sys") || li.classList.contains("cy-chat-ev")) {
-      linkifyText(li);
-      return;
+  async function sendWithLinks(call, path, body) {
+    if (!isLinkEncodingEnabled()) return call(path, body);
+    const text = body && body.text;
+    if (typeof text !== "string") return call(path, body);
+    if (HTTP_RE.test(text)) return { ok: false, error: "\u0441\u0441\u044B\u043B\u043A\u0438 http:// \u043D\u0435 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u044E\u0442\u0441\u044F - \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439 https://" };
+    const encoded = encodeLinks(text);
+    return call(path, encoded === text ? body : { ...body, text: encoded });
+  }
+  var processors = [];
+  var SOURCE_KEY = "l7tvEmoteSource";
+  function registerChatProcessor(processor) {
+    if (typeof processor === "function" && !processors.includes(processor)) processors.push(processor);
+  }
+  registerChatProcessor(processEmotes);
+  registerChatProcessor(processLinks);
+  document.addEventListener("scroll", (e) => {
+    const t = e.target;
+    if (t && t.classList && t.classList.contains("cy-chat-l"))
+      t.dataset.t7end = t.scrollHeight - t.scrollTop - t.clientHeight < 40 ? "1" : "0";
+  }, true);
+  function stickEnds() {
+    document.querySelectorAll(SEL.chatList).forEach((l) => {
+      if (l.dataset.t7end !== "0") l.scrollTop = l.scrollHeight;
+    });
+  }
+  function stickFrom(el) {
+    const l = el.closest && el.closest(SEL.chatList);
+    if (l && l.dataset.t7end !== "0") l.scrollTop = l.scrollHeight;
+  }
+  function processMessage(message, room) {
+    if (message.dataset.l7tvProcessed || message.matches(SEL.emptyMessage)) return;
+    const kind = message.matches(SEL.systemMessage) ? "system" : message.matches(SEL.eventMessage) ? "event" : "message";
+    let content = message;
+    if (kind === "message") {
+      const spans = message.querySelectorAll(SEL.messageContent);
+      content = spans[spans.length - 1];
+      if (!content) return;
     }
-    const spans = li.querySelectorAll(":scope > span:not([class])");
-    const sp = spans[spans.length - 1];
-    if (sp) processSpan(sp);
+    const source = kind === "message" ? content.dataset[SOURCE_KEY] != null ? content.dataset[SOURCE_KEY] : content.dataset.t7o != null ? content.dataset.t7o : content.textContent : content.textContent;
+    if (kind === "message") {
+      content.dataset[SOURCE_KEY] = source;
+      content.replaceChildren(document.createTextNode(source));
+    }
+    message.dataset.l7tvProcessed = "1";
+    const context = { message, content, room, kind, source, stickFrom };
+    for (const processor of processors) processor(context);
   }
   function scan() {
-    const chatFresh = document.querySelectorAll(".cy-chat-l li:not([data-t7])");
-    if (chatFresh.length) {
-      chatFresh.forEach(processLi);
-      stickEnds();
-    }
-    const dmFresh = document.querySelectorAll(".cy-chat-dmx li:not([data-t7]), .cy-chat-dmx span:not([data-t7])");
-    if (dmFresh.length) {
-      dmFresh.forEach((node) => {
-        if (node.dataset.t7) return;
-        node.dataset.t7 = "1";
-        if (node.tagName === "LI") {
-          const span = node.querySelector("span");
-          if (span) processSpan(span);
-        } else if (!node.children.length && node.textContent.trim()) {
-          processSpan(node);
-        }
-      });
-    }
+    const chatFresh = document.querySelectorAll(SEL.freshChatRows);
+    chatFresh.forEach((message) => processMessage(message, "chat"));
+    if (chatFresh.length) stickEnds();
+    document.querySelectorAll(SEL.freshDmRows).forEach((message) => processMessage(message, "dm"));
   }
   function rescanAll() {
-    document.querySelectorAll(".cy-chat-l li[data-t7]").forEach((li) => {
-      delete li.dataset.t7;
+    document.querySelectorAll(`${SEL.processedChatRows}, ${SEL.processedDmRows}`).forEach((message) => {
+      delete message.dataset.l7tvProcessed;
     });
     scan();
   }
@@ -547,7 +615,7 @@
     document.documentElement.style.setProperty("--t7-h", SIZES[S.size].h);
     document.documentElement.style.setProperty("--t7-tile", SIZES[S.size].p + "px");
   };
-  var CONFIG_KEY = "t7ping";
+  var CONFIG_KEY = STORE.pingConfig;
   var PRESETS = /* @__PURE__ */ new Set(["bell", "chime", "pop", "custom"]);
   var DEFAULTS = {
     volume: 0.5,
@@ -579,9 +647,26 @@
   var PingSystem = class {
     constructor() {
       this.config = readConfig();
+      this.listeners = /* @__PURE__ */ new Set();
+      this.regexCache = /* @__PURE__ */ new Map();
       this.audioContext = null;
       this.customBuffer = null;
       this.customBufferPromise = null;
+    }
+    subscribe(listener) {
+      if (typeof listener !== "function") return () => {
+      };
+      this.listeners.add(listener);
+      return () => this.listeners.delete(listener);
+    }
+    notify() {
+      for (const listener of this.listeners) {
+        try {
+          listener(this.config);
+        } catch (error) {
+          console.warn("[7TV] \u043E\u0431\u0440\u0430\u0431\u043E\u0442\u0447\u0438\u043A \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A \u043F\u0438\u043D\u0433\u043E\u0432", error);
+        }
+      }
     }
     save() {
       store.set(CONFIG_KEY, this.config);
@@ -589,13 +674,14 @@
     setList(key, value) {
       if (!["aliases", "blacklist", "stopWords"].includes(key)) return;
       this.config[key] = normalizeList(value);
+      if (key === "aliases") this.regexCache.clear();
       this.save();
-      if (this.onChange) this.onChange();
+      this.notify();
     }
     setTabCompletion(enabled) {
       this.config.tabCompletion = !!enabled;
       this.save();
-      document.dispatchEvent(new Event("t7-tab-completion-change"));
+      emit(EV.tabCompletionChange);
     }
     toggleBlacklist(login) {
       const user = String(login || "").trim().toLowerCase();
@@ -634,11 +720,17 @@
     }
     isPinged(messageText, extraAliases = []) {
       const text = String(messageText || "");
-      return [...this.config.aliases, ...extraAliases].some((raw) => {
+      for (const raw of [...this.config.aliases, ...extraAliases]) {
         const alias = String(raw || "").trim().toLowerCase();
-        if (!alias) return false;
-        return new RegExp("(^|[^\\p{L}\\p{N}_])" + escapeRegex(alias) + "(?=$|[^\\p{L}\\p{N}_])", "iu").test(text);
-      });
+        if (!alias) continue;
+        let matcher = this.regexCache.get(alias);
+        if (!matcher) {
+          matcher = new RegExp("(^|[^\\p{L}\\p{N}_])" + escapeRegex(alias) + "(?=$|[^\\p{L}\\p{N}_])", "iu");
+          this.regexCache.set(alias, matcher);
+        }
+        if (matcher.test(text)) return true;
+      }
+      return false;
     }
     filterLabel(sender, messageText) {
       const user = String(sender || "").toLowerCase();
@@ -721,26 +813,10 @@
     }
   };
   var pingSystem = new PingSystem();
-  var RECENT_KEY = "t7recent";
-  var LIMIT_KEY = "t7recentLimit";
-  var DEFAULT_LIMIT = 20;
-  var MAX_LIMIT = 100;
-  function getRecentLimit() {
-    const value = Number(store.get(LIMIT_KEY));
-    return Number.isInteger(value) ? Math.max(1, Math.min(MAX_LIMIT, value)) : DEFAULT_LIMIT;
-  }
-  function setRecentLimit(value) {
-    const parsed = Number(value);
-    const limit = Number.isFinite(parsed) ? Math.max(1, Math.min(MAX_LIMIT, Math.round(parsed))) : DEFAULT_LIMIT;
-    store.set(LIMIT_KEY, limit);
-    const recent = store.get(RECENT_KEY);
-    if (Array.isArray(recent)) store.set(RECENT_KEY, recent.slice(-limit));
-    document.dispatchEvent(new Event("t7-recent-limit-change"));
-    return limit;
-  }
-  var KEY = "t7ChatTabPrefs";
   var DEFAULT_ORDER = ["lg", "g", "mn", "dm", "tr", "ev"];
   var TAB_IDS = new Set(DEFAULT_ORDER);
+  var DEFAULT_RECENT_LIMIT = 20;
+  var MAX_RECENT_LIMIT = 100;
   var CHAT_TABS = [
     { id: "lg", label: "\u0416\u0443\u0440\u043D\u0430\u043B" },
     { id: "g", label: "\u0413\u043E\u0440\u043E\u0434" },
@@ -749,24 +825,61 @@
     { id: "tr", label: "\u0422\u043E\u0440\u0433\u043E\u0432\u043B\u044F" },
     { id: "ev", label: "\u0414\u043E\u0441\u0442\u0438\u0436\u0435\u043D\u0438\u044F" }
   ];
-  function getChatTabPrefs() {
-    const saved = store.get(KEY) || {};
-    const savedOrder = Array.isArray(saved.order) ? saved.order.filter((id) => TAB_IDS.has(id)) : [];
-    const order = [.../* @__PURE__ */ new Set([...savedOrder, ...DEFAULT_ORDER])];
-    const hidden = new Set(Array.isArray(saved.hidden) ? saved.hidden.filter((id) => TAB_IDS.has(id)) : []);
-    if (hidden.size === order.length) hidden.delete(order[0]);
-    return { order, hidden };
+  function createPref(key, { read = (value) => value, write = (value) => value } = {}) {
+    return {
+      get() {
+        return read(store.get(key));
+      },
+      set(value) {
+        store.set(key, write(value));
+        return value;
+      }
+    };
   }
-  function setChatTabPrefs(prefs) {
-    const order = [.../* @__PURE__ */ new Set([...(prefs.order || []).filter((id) => TAB_IDS.has(id)), ...DEFAULT_ORDER])];
+  function normalizeChatTabs(value) {
+    const prefs = value && typeof value === "object" ? value : {};
+    const savedOrder = Array.isArray(prefs.order) ? prefs.order.filter((id) => TAB_IDS.has(id)) : [];
+    const order = [.../* @__PURE__ */ new Set([...savedOrder, ...DEFAULT_ORDER])];
     const hiddenValues = prefs.hidden instanceof Set ? [...prefs.hidden] : Array.isArray(prefs.hidden) ? prefs.hidden : [];
     const hidden = new Set(hiddenValues.filter((id) => TAB_IDS.has(id)));
     if (hidden.size === order.length) hidden.delete(order[0]);
-    store.set(KEY, { order, hidden: [...hidden] });
-    document.dispatchEvent(new Event("t7-chat-tabs-change"));
+    return { order, hidden };
+  }
+  var chatTabsPref = createPref(STORE.chatTabPrefs, {
+    read: normalizeChatTabs,
+    write: (value) => {
+      const prefs = normalizeChatTabs(value);
+      return { order: prefs.order, hidden: [...prefs.hidden] };
+    }
+  });
+  function getChatTabPrefs() {
+    return chatTabsPref.get();
+  }
+  function setChatTabPrefs(prefs) {
+    chatTabsPref.set(prefs);
+    emit(EV.chatTabsChange);
+  }
+  function normalizeRecentLimit(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.max(1, Math.min(MAX_RECENT_LIMIT, Math.round(parsed))) : DEFAULT_RECENT_LIMIT;
+  }
+  var recentLimitPref = createPref(STORE.recentEmoteLimit, {
+    read: (value) => Number.isInteger(Number(value)) ? Math.max(1, Math.min(MAX_RECENT_LIMIT, Number(value))) : DEFAULT_RECENT_LIMIT,
+    write: normalizeRecentLimit
+  });
+  function getRecentLimit() {
+    return recentLimitPref.get();
+  }
+  function setRecentLimit(value) {
+    const limit = normalizeRecentLimit(value);
+    recentLimitPref.set(limit);
+    const recent = store.get(STORE.recentEmotes);
+    if (Array.isArray(recent)) store.set(STORE.recentEmotes, recent.slice(-limit));
+    emit(EV.recentLimitChange);
+    return limit;
   }
   var SOFF = (() => {
-    const p = store.get("t7spos");
+    const p = store.get(STORE.settingsPosition);
     return p && Number.isFinite(p.x) && Number.isFinite(p.y) ? p : { x: 0, y: 0 };
   })();
   function setupDrag(el) {
@@ -790,16 +903,16 @@
       if (e.target.closest("button") || e.button > 0) return;
       const r = win.getBoundingClientRect();
       const sx = e.clientX, sy = e.clientY, pid = e.pointerId, ox = SOFF.x, oy = SOFF.y;
-      let started = false, nx = ox, ny = oy, raf = 0;
+      let started2 = false, nx = ox, ny = oy, raf = 0;
       const apply = () => {
         raf = 0;
         SOFF = { x: nx, y: ny };
         put();
       };
       const move = (ev) => {
-        if (!started) {
+        if (!started2) {
           if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 4) return;
-          started = true;
+          started2 = true;
           win.classList.add("t7-drag");
           try {
             hd.setPointerCapture(pid);
@@ -815,11 +928,11 @@
         hd.removeEventListener("pointerup", up);
         hd.removeEventListener("pointercancel", up);
         if (raf) cancelAnimationFrame(raf);
-        if (!started) return;
+        if (!started2) return;
         win.classList.remove("t7-drag");
         SOFF = { x: nx, y: ny };
         put();
-        store.set("t7spos", SOFF);
+        store.set(STORE.settingsPosition, SOFF);
       };
       hd.addEventListener("pointermove", move);
       hd.addEventListener("pointerup", up);
@@ -828,7 +941,7 @@
     hd.addEventListener("dblclick", (e) => {
       if (e.target.closest("button")) return;
       SOFF = { x: 0, y: 0 };
-      store.set("t7spos", null);
+      store.set(STORE.settingsPosition, null);
       put();
     });
   }
@@ -914,11 +1027,11 @@
       if (e.target === el) closeSettings();
     });
     el.querySelector(".t7-x").onclick = closeSettings;
-    const on = el.querySelector(".t7-on");
-    on.checked = S.on;
-    on.addEventListener("change", () => {
-      S.on = on.checked;
-      store.set("t7on", S.on);
+    const on2 = el.querySelector(".t7-on");
+    on2.checked = S.on;
+    on2.addEventListener("change", () => {
+      S.on = on2.checked;
+      store.set(STORE.emotesEnabled, S.on);
       rescanAll();
     });
     const nickInp = el.querySelector(".t7-nick");
@@ -934,7 +1047,7 @@
       }
       S.nick = n;
       nickInp.value = n;
-      store.set("t7nick:" + pageChan, n);
+      store.set(STORE.channelNickPrefix + pageChan, n);
       reload(true);
     });
     const pingFields = [
@@ -982,7 +1095,7 @@
       const b = e.target.closest("[data-sz]");
       if (!b || b.dataset.sz === S.size) return;
       S.size = b.dataset.sz;
-      store.set("t7size", S.size);
+      store.set(STORE.emoteSize, S.size);
       applySize();
       mark();
       rescanAll();
@@ -1043,11 +1156,11 @@
       } else if (b.dataset.act === "pos") {
         st.pos = null;
         st.win = null;
-        store.set("t7pos", null);
-        store.set("t7win", null);
+        store.set(STORE.popupPosition, null);
+        store.set(STORE.popupSize, null);
         st.hooks.place();
         SOFF = { x: 0, y: 0 };
-        store.set("t7spos", null);
+        store.set(STORE.settingsPosition, null);
         el.querySelector(".t7-sw").style.transform = "";
         setStatus("\u041F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u043E\u043A\u043E\u0448\u043A\u0430 \u0441\u0431\u0440\u043E\u0448\u0435\u043D\u043E");
       }
@@ -1058,11 +1171,11 @@
     updateSetStatus(st.status);
     document.addEventListener("keydown", onKey, true);
   }
-  var FAVORITES_KEY = "t7favorites";
-  var RECENT_KEY2 = "t7recent";
+  var FAVORITES_KEY = STORE.favorites;
+  var RECENT_KEY = STORE.recentEmotes;
   var gridMode = "all";
   var emoteData = /* @__PURE__ */ new Map();
-  document.addEventListener("t7-recent-limit-change", () => {
+  on(EV.recentLimitChange, () => {
     if (st.pop && gridMode === "recent") renderGrid();
   });
   function readEntries(key) {
@@ -1072,9 +1185,9 @@
     return [...new Map(entries.map((item) => [item.name, item])).values()];
   }
   function saveRecent(name) {
-    const recent = readEntries(RECENT_KEY2).filter((item) => item.name !== name);
+    const recent = readEntries(RECENT_KEY).filter((item) => item.name !== name);
     recent.push({ name, emote: EM[name] || emoteData.get(name) || null });
-    store.set(RECENT_KEY2, recent.slice(-getRecentLimit()));
+    store.set(RECENT_KEY, recent.slice(-getRecentLimit()));
   }
   function recordRecentFromMessage(message) {
     const names = String(message || "").split(/\s+/).filter((name) => Object.prototype.hasOwnProperty.call(EM, name));
@@ -1157,7 +1270,7 @@
     gr.textContent = "";
     const allNames = Object.keys(EM).sort((a, b) => a.localeCompare(b, void 0, { sensitivity: "base" }));
     const favoriteEntries = readEntries(FAVORITES_KEY);
-    const recentEntries = readEntries(RECENT_KEY2).reverse();
+    const recentEntries = readEntries(RECENT_KEY).reverse();
     emoteData = new Map(Object.entries(EM));
     for (const item of [...favoriteEntries, ...recentEntries]) {
       if (!emoteData.has(item.name) && item.emote) emoteData.set(item.name, item.emote);
@@ -1282,13 +1395,13 @@
       if (e.target.closest("button") || e.button > 0) return;
       const r = pop.getBoundingClientRect();
       const sx = e.clientX, sy = e.clientY, pid = e.pointerId;
-      let started = false, nx = r.left, ny = r.top, raf = 0;
+      let started2 = false, nx = r.left, ny = r.top, raf = 0;
       const apply = () => {
         raf = 0;
         pop.style.transform = `translate(${nx - r.left}px, ${ny - r.top}px)`;
       };
       const start = () => {
-        started = true;
+        started2 = true;
         pop.style.left = r.left + "px";
         pop.style.top = r.top + "px";
         pop.style.bottom = "auto";
@@ -1300,7 +1413,7 @@
         }
       };
       const move = (ev) => {
-        if (!started) {
+        if (!started2) {
           if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 4) return;
           start();
         }
@@ -1313,10 +1426,10 @@
         hd.removeEventListener("pointerup", up);
         hd.removeEventListener("pointercancel", up);
         if (raf) cancelAnimationFrame(raf);
-        if (!started || st.pop !== pop) return;
+        if (!started2 || st.pop !== pop) return;
         pop.classList.remove("t7-drag");
         st.pos = { x: nx, y: ny };
-        store.set("t7pos", st.pos);
+        store.set(STORE.popupPosition, st.pos);
         place();
       };
       hd.addEventListener("pointermove", move);
@@ -1327,8 +1440,8 @@
       if (e.target.closest("button")) return;
       st.pos = null;
       st.win = null;
-      store.set("t7pos", null);
-      store.set("t7win", null);
+      store.set(STORE.popupPosition, null);
+      store.set(STORE.popupSize, null);
       place();
     });
   }
@@ -1371,8 +1484,8 @@
         pop.classList.remove("t7-drag");
         st.win = { w, h };
         st.pos = { x: r.left, y: r.top };
-        store.set("t7win", st.win);
-        store.set("t7pos", st.pos);
+        store.set(STORE.popupSize, st.win);
+        store.set(STORE.popupPosition, st.pos);
         place();
       };
       rs.addEventListener("pointermove", move);
@@ -1439,7 +1552,8 @@
       openPop(btn);
     }
   }
-  function bindMessageHistory(form, input) {
+  var bindings = /* @__PURE__ */ new WeakMap();
+  function bindMessageHistory(input) {
     const history = [];
     let index = 0;
     let draft = "";
@@ -1461,28 +1575,35 @@
       index = history.length;
       draft = "";
     };
-    input.addEventListener("input", () => {
+    const onInput = () => {
       if (changingHistory) return;
       index = history.length;
       draft = input.value;
-    });
-    input.addEventListener("keydown", (e) => {
-      if (e.altKey || e.ctrlKey || e.metaKey || !history.length) return;
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        e.stopPropagation();
+    };
+    const onKeyDown = (event) => {
+      if (event.altKey || event.ctrlKey || event.metaKey || !history.length) return;
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        event.stopPropagation();
         if (index === history.length) draft = input.value;
         index = Math.max(0, index - 1);
         setValue(history[index]);
-      } else if (e.key === "ArrowDown" && index < history.length) {
-        e.preventDefault();
-        e.stopPropagation();
+      } else if (event.key === "ArrowDown" && index < history.length) {
+        event.preventDefault();
+        event.stopPropagation();
         index++;
         setValue(index === history.length ? draft : history[index]);
       }
-    }, true);
-    form.addEventListener("submit", () => remember(input.value), true);
-    return remember;
+    };
+    input.addEventListener("input", onInput);
+    input.addEventListener("keydown", onKeyDown, true);
+    return {
+      remember,
+      dispose() {
+        input.removeEventListener("input", onInput);
+        input.removeEventListener("keydown", onKeyDown, true);
+      }
+    };
   }
   function bindPingAutocomplete(form, input) {
     const menu = document.createElement("div");
@@ -1499,8 +1620,8 @@
     };
     const candidates = (query) => {
       const names = /* @__PURE__ */ new Map();
-      document.querySelectorAll(".cy-chat-l b[data-nick]").forEach((el) => {
-        const name = String(el.dataset.nick || "").trim();
+      document.querySelectorAll(SEL.nickButtons).forEach((element) => {
+        const name = String(element.dataset.nick || "").trim();
         if (name) names.set(name.toLowerCase(), name);
       });
       for (const alias of pingSystem.config.aliases) {
@@ -1538,72 +1659,178 @@
         option.className = "t7-ping-option";
         option.setAttribute("role", "option");
         option.textContent = "@" + name;
-        option.addEventListener("pointerdown", (e) => e.preventDefault());
+        option.addEventListener("pointerdown", (event) => event.preventDefault());
         option.addEventListener("click", () => complete(name));
         menu.appendChild(option);
       }
       menu.hidden = false;
     };
-    input.addEventListener("input", update);
-    document.addEventListener("t7-tab-completion-change", update);
-    input.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && !menu.hidden) {
+    const onKeyDown = (event) => {
+      if (event.key === "Escape" && !menu.hidden) {
         menu.hidden = true;
         return;
       }
-      if (e.key !== "Tab" || menu.hidden) return;
+      if (event.key !== "Tab" || menu.hidden) return;
       const token = getToken();
       const name = token && candidates(token.query)[0];
       if (!name) return;
-      e.preventDefault();
-      e.stopPropagation();
+      event.preventDefault();
+      event.stopPropagation();
       complete(name);
-    }, true);
+    };
+    input.addEventListener("input", update);
+    input.addEventListener("keydown", onKeyDown, true);
+    const unsubscribe = on(EV.tabCompletionChange, update);
+    return () => {
+      input.removeEventListener("input", update);
+      input.removeEventListener("keydown", onKeyDown, true);
+      unsubscribe();
+      menu.remove();
+    };
+  }
+  function bindChatForm(form, input) {
+    const history = bindMessageHistory(input);
+    const disposeAutocomplete = bindPingAutocomplete(form, input);
+    let lastRecentMessage = "";
+    let recentRecorded = false;
+    const record = () => {
+      const text = input.value.trim();
+      if (!text) return;
+      history.remember(text);
+      if (recentRecorded && text === lastRecentMessage) return;
+      recordRecentFromMessage(text);
+      lastRecentMessage = text;
+      recentRecorded = true;
+    };
+    const onInput = () => {
+      if (input.value.trim() !== lastRecentMessage) recentRecorded = false;
+    };
+    const onSubmit = () => record();
+    const onKeyDown = (event) => {
+      if (event.key === "Enter" && !event.shiftKey && !event.altKey && !event.ctrlKey && !event.metaKey && !event.isComposing && event.keyCode !== 229)
+        record();
+    };
+    input.addEventListener("input", onInput);
+    input.addEventListener("keydown", onKeyDown, true);
+    form.addEventListener("submit", onSubmit, true);
+    return () => {
+      history.dispose();
+      disposeAutocomplete();
+      input.removeEventListener("input", onInput);
+      input.removeEventListener("keydown", onKeyDown, true);
+      form.removeEventListener("submit", onSubmit, true);
+    };
+  }
+  function disposeForm(form) {
+    const dispose = bindings.get(form);
+    if (!dispose) return;
+    if (st.anchor && form.contains(st.anchor)) closePop();
+    dispose();
+    bindings.delete(form);
+  }
+  function disposeInputBindings(node) {
+    if (!node || node.nodeType !== 1) return;
+    if (node.matches(SEL.chatForms)) disposeForm(node);
+    node.querySelectorAll(SEL.chatForms).forEach(disposeForm);
   }
   function ensureButtons() {
-    document.querySelectorAll("form.cy-chat-f, form.dm-f").forEach((f) => {
-      const input = f.querySelector("input[type=text]");
-      if (input && !f.dataset.t7RecentBound) {
-        f.dataset.t7RecentBound = "1";
-        if (f.classList.contains("cy-chat-f")) {
-          const remember = bindMessageHistory(f, input);
-          bindPingAutocomplete(f, input);
-          const record = () => {
-            remember(input.value);
-            recordRecentFromMessage(input.value);
-          };
-          f.addEventListener("submit", record, true);
-          input.addEventListener("keydown", (e) => {
-            if (e.key === "Enter" && !e.shiftKey && !e.altKey && !e.ctrlKey && !e.metaKey && !e.isComposing && e.keyCode !== 229)
-              record();
-          }, true);
-        }
+    document.querySelectorAll(SEL.chatForms).forEach((form) => {
+      const input = form.querySelector(SEL.textInput);
+      if (input && !bindings.has(form)) {
+        bindings.set(form, form.matches(SEL.chatForm) ? bindChatForm(form, input) : () => {
+        });
       }
-      if (f.querySelector(".t7-btn")) return;
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "t7-btn";
-      b.textContent = "7TV";
-      b.title = "\u042D\u043C\u043E\u0443\u0442\u044B 7TV";
-      b.setAttribute("aria-label", "\u042D\u043C\u043E\u0443\u0442\u044B 7TV");
-      b.setAttribute("aria-haspopup", "dialog");
-      b.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        togglePop(b);
+      if (form.querySelector(".t7-btn")) return;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "t7-btn";
+      button.textContent = "7TV";
+      button.title = "\u042D\u043C\u043E\u0443\u0442\u044B 7TV";
+      button.setAttribute("aria-label", "\u042D\u043C\u043E\u0443\u0442\u044B 7TV");
+      button.setAttribute("aria-haspopup", "dialog");
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        togglePop(button);
       });
-      const sub = f.querySelector("button[type=submit]");
-      if (sub) sub.after(b);
-      else f.appendChild(b);
+      const submit = form.querySelector(SEL.submitButton);
+      if (submit) submit.after(button);
+      else form.appendChild(button);
     });
     if (st.pop && st.anchor && !st.anchor.isConnected) closePop();
+  }
+  function contains(node, selector) {
+    return node.nodeType === 1 && (node.matches(selector) || node.querySelector(selector));
+  }
+  function startChatObservers() {
+    let queued = false;
+    let needsButtons = false;
+    let needsScan = false;
+    let dmContainer = null;
+    let dmObserver = null;
+    let onDmScroll = null;
+    const bindDmScrollGuard = () => {
+      const next = document.querySelector(SEL.dmRoot);
+      if (next === dmContainer) return;
+      if (dmObserver) dmObserver.disconnect();
+      if (dmContainer && onDmScroll) dmContainer.removeEventListener("scroll", onDmScroll);
+      dmContainer = next;
+      dmObserver = null;
+      onDmScroll = null;
+      if (!dmContainer) return;
+      let lastScrollTop = dmContainer.scrollTop;
+      onDmScroll = () => {
+        lastScrollTop = dmContainer.scrollTop;
+      };
+      dmContainer.addEventListener("scroll", onDmScroll, { passive: true });
+      dmObserver = new MutationObserver(() => {
+        if (dmContainer.scrollTop < lastScrollTop - 2 && dmContainer.scrollTop > 10)
+          dmContainer.scrollTop = lastScrollTop;
+      });
+      dmObserver.observe(dmContainer, { childList: true, subtree: true });
+    };
+    const schedule = (records) => {
+      bindDmScrollGuard();
+      for (const record of records) {
+        if (record.type !== "childList") continue;
+        for (const node of record.removedNodes) disposeInputBindings(node);
+        const target = record.target.nodeType === 1 ? record.target : record.target.parentElement;
+        const form = target && target.closest(SEL.chatForms);
+        if (form && form.querySelector(SEL.textInput))
+          needsButtons = true;
+        if (target && target.closest(SEL.chatRoot)) needsScan = true;
+        for (const node of record.addedNodes) {
+          if (contains(node, SEL.chatForms)) needsButtons = true;
+          if (contains(node, SEL.chatRows) || contains(node, SEL.dmRoot)) needsScan = true;
+        }
+      }
+      if (!needsButtons && !needsScan || queued) return;
+      queued = true;
+      requestAnimationFrame(() => {
+        queued = false;
+        const addButtons = needsButtons;
+        const scanMessages = needsScan;
+        needsButtons = false;
+        needsScan = false;
+        if (addButtons) ensureButtons();
+        if (scanMessages) scan();
+      });
+    };
+    const observer = new MutationObserver(schedule);
+    observer.observe(document.body, { childList: true, subtree: true });
+    bindDmScrollGuard();
+    return () => {
+      observer.disconnect();
+      if (dmObserver) dmObserver.disconnect();
+      if (dmContainer && onDmScroll) dmContainer.removeEventListener("scroll", onDmScroll);
+    };
   }
   var W = unsafeWindow;
   var CITY = "/api/city/chat";
   var MINE = "/api/mine/chat";
   var MINE_ID = "home";
-  var PING_ONLY_KEY = "t7PingOnly";
-  var PING_ARCHIVE_KEY = "t7PingArchive";
+  var PING_ONLY_KEY = STORE.pingOnly;
+  var PING_ARCHIVE_KEY = STORE.pingArchive;
   var PING_ARCHIVE_LIMIT = 500;
   var PING_PAGE_SIZE = 50;
   var pingOnly = store.get(PING_ONLY_KEY) === true;
@@ -1611,33 +1838,34 @@
   var cityPingArchive = Array.isArray(storedPingArchive.city) ? storedPingArchive.city.filter((m) => m && m.id != null) : [];
   var minePingArchive = Array.isArray(storedPingArchive.mine) ? storedPingArchive.mine.filter((m) => m && m.id != null) : [];
   var unifiedPingArchive = [...new Map([...cityPingArchive, ...minePingArchive].map((m) => [String(m.id), m])).values()];
-  var pingArchive = {
-    city: cityPingArchive,
-    mine: minePingArchive,
-    one: unifiedPingArchive
+  var ROOM_IDS = ["city", "mine", "one"];
+  var createRoomState = (archive = []) => ({
+    buffer: [],
+    instance: null,
+    pings: {},
+    archive,
+    archiveIds: new Set(archive.map((m) => String(m.id))),
+    archivePage: 0,
+    injectedPings: /* @__PURE__ */ new Set(),
+    filterObserver: null,
+    filterList: null
+  });
+  var rooms = {
+    city: createRoomState(cityPingArchive),
+    mine: createRoomState(minePingArchive),
+    one: createRoomState(unifiedPingArchive)
   };
-  var pingArchiveIds = {
-    city: new Set(pingArchive.city.map((m) => String(m.id))),
-    mine: new Set(pingArchive.mine.map((m) => String(m.id))),
-    one: new Set(pingArchive.one.map((m) => String(m.id)))
-  };
-  var injectedPingIds = { city: /* @__PURE__ */ new Set(), mine: /* @__PURE__ */ new Set(), one: /* @__PURE__ */ new Set() };
-  var pingArchivePage = { city: 0, mine: 0, one: 0 };
   var pingArchiveSaveTimer = 0;
-  var buf = { city: [], mine: [] };
-  var inst = { city: null, mine: null, one: null };
-  var filterObservers = { city: null, mine: null, one: null };
-  var filterLists = { city: null, mine: null, one: null };
   var lastRoom = "";
-  var hasUnifiedChat = () => !!inst.one;
-  pingSystem.onChange = () => {
-    for (const i of Object.values(inst)) if (i) i.raw.render();
-  };
+  var hasUnifiedChat = () => !!rooms.one.instance;
+  pingSystem.subscribe(() => {
+    for (const room of Object.values(rooms)) if (room.instance) room.instance.raw.render();
+  });
   var tagMn = (m) => m && m.tb !== "mn" ? { ...m, tb: "mn" } : m;
   var tagMsg = (r) => r && r.msg ? { ...r, msg: tagMn(r.msg) } : r;
   var byTime = (a, b) => (a.at || 0) - (b.at || 0);
   function push(room, msgs) {
-    const a = buf[room];
+    const a = rooms[room].buffer;
     for (const m of msgs || []) if (m && m.id && !a.some((x) => x.id === m.id)) a.push(m);
     a.sort(byTime);
     if (a.length > 300) a.splice(0, a.length - 300);
@@ -1646,14 +1874,15 @@
     clearTimeout(pingArchiveSaveTimer);
     pingArchiveSaveTimer = setTimeout(() => {
       pingArchiveSaveTimer = 0;
-      store.set(PING_ARCHIVE_KEY, pingArchive);
+      store.set(PING_ARCHIVE_KEY, Object.fromEntries(ROOM_IDS.map((room) => [room, rooms[room].archive])));
     }, 500);
   }
   function drop(ids) {
-    for (const k of Object.keys(buf)) buf[k] = buf[k].filter((m) => !ids.includes(m.id));
+    for (const room of ROOM_IDS)
+      rooms[room].buffer = rooms[room].buffer.filter((message) => !ids.includes(message.id));
   }
   function active(room) {
-    const i = inst[room];
+    const i = rooms[room].instance;
     const S2 = i && i.K.state();
     return !!(S2 && S2.chat && S2.chat.on);
   }
@@ -1665,7 +1894,7 @@
     if (forceUnread) chat.C.open = false;
     let applied = false;
     try {
-      inst[room].raw.apply(d);
+      rooms[room].instance.raw.apply(d);
       applied = true;
     } catch (e) {
       console.warn("[mine-tabs] forward", e);
@@ -1697,7 +1926,7 @@
       push("mine", msgs);
       rememberPingMessages("mine", msgs);
       rememberPingMessages("city", msgs);
-      const i = inst.city;
+      const i = rooms.city.instance;
       const c = i && i.K.state() && i.K.state().chat;
       if (!c || !c.on) return;
       const have = new Set(c.list.map((m) => m.id));
@@ -1716,7 +1945,7 @@
     const C = S2.chat;
     if (!K.one) C.mn = true;
     if (C.un.mn == null) C.un.mn = 0;
-    const tabs = S2.el.querySelector(".cy-chat-tabs");
+    const tabs = S2.el.querySelector(SEL.chatTabs);
     if (!tabs) return;
     if (!K.one && !tabs.querySelector('[data-tab="mn"]')) {
       const b = document.createElement("button");
@@ -1762,12 +1991,12 @@
     }
     if (!C.panel) tabs.hidden = false;
   }
-  document.addEventListener("t7-chat-tabs-change", () => {
-    for (const i of Object.values(inst)) if (i) setupTabs(i.K);
+  on(EV.chatTabsChange, () => {
+    for (const room of Object.values(rooms)) if (room.instance) setupTabs(room.instance.K);
   });
   function selectTab(K, t) {
     const S2 = K.state();
-    const b = S2 && S2.el && S2.el.querySelector(`.cy-chat-tabs [data-tab="${t}"]`);
+    const b = S2 && S2.el && S2.el.querySelector(`${SEL.chatTabs} [data-tab="${t}"]`);
     if (b) b.click();
   }
   var cityIn = false;
@@ -1852,9 +2081,8 @@
       }
     };
   }
-  var pings = { city: {}, mine: {}, one: {} };
   function chatOf(room) {
-    const i = inst[room];
+    const i = rooms[room].instance;
     const S2 = i && i.K.state();
     return S2 && S2.chat ? { S: S2, C: S2.chat } : null;
   }
@@ -1869,11 +2097,13 @@
     return pingSystem.isPinged(m.t, me ? [me] : []);
   }
   function rememberPingMessages(room, msgs) {
-    const i = inst[room] || inst[room === "mine" ? "city" : "mine"];
+    const roomState = rooms[room];
+    const fallbackRoom = room === "mine" ? "city" : "mine";
+    const i = roomState.instance || rooms[fallbackRoom].instance;
     const x = i && i.K.X();
     const me = String(x && x.login && x.login() || "").toLowerCase();
-    const items = pingArchive[room];
-    const ids = pingArchiveIds[room];
+    const items = roomState.archive;
+    const ids = roomState.archiveIds;
     let changed = false;
     for (const m of msgs || []) {
       if (!isPingMessage(room, m, me)) continue;
@@ -1890,7 +2120,7 @@
   }
   function stripArchivedPings(room) {
     const o = chatOf(room);
-    const injected = injectedPingIds[room];
+    const injected = rooms[room].injectedPings;
     if (o && o.C.list && injected.size) {
       const list = o.C.list.filter((m) => !injected.has(String(m.id)));
       o.C.list.splice(0, o.C.list.length, ...list);
@@ -1898,16 +2128,17 @@
     injected.clear();
   }
   function archivePage(room, C) {
-    const messages = pingArchive[room].filter((m) => tabOfMsg(C, m) === C.tab);
+    const roomState = rooms[room];
+    const messages = roomState.archive.filter((m) => tabOfMsg(C, m) === C.tab);
     const pageCount = Math.max(1, Math.ceil(messages.length / PING_PAGE_SIZE));
-    pingArchivePage[room] = Math.min(pingArchivePage[room], pageCount - 1);
-    const end = messages.length - pingArchivePage[room] * PING_PAGE_SIZE;
+    roomState.archivePage = Math.min(roomState.archivePage, pageCount - 1);
+    const end = messages.length - roomState.archivePage * PING_PAGE_SIZE;
     return messages.slice(Math.max(0, end - PING_PAGE_SIZE), end);
   }
   function syncPingArchive(room) {
     const o = chatOf(room);
     if (!o || !o.C.list) return false;
-    const injected = injectedPingIds[room];
+    const injected = rooms[room].injectedPings;
     const wanted = pingOnly ? archivePage(room, o.C) : [];
     const wantedIds = new Set(wanted.map((m) => String(m.id)));
     const presentIds = new Set(o.C.list.map((m) => String(m.id)));
@@ -1933,7 +2164,7 @@
     return changed;
   }
   function refreshPingArchive(room) {
-    const i = inst[room];
+    const i = rooms[room].instance;
     if (!i) return;
     if (syncPingArchive(room)) i.raw.render();
     markFilteredMessages(room);
@@ -1944,9 +2175,9 @@
     const o = chatOf(room);
     if (!o) return;
     rememberPingMessages(room, msgs);
-    const x = inst[room].K.X();
+    const x = rooms[room].instance.K.X();
     const me = String(x && x.login && x.login() || "").toLowerCase();
-    const pg = pings[room];
+    const pg = rooms[room].pings;
     let hit = false;
     for (const m of msgs || []) {
       if (!m || String(m.l || "").toLowerCase() === me || m.ev || m.sys) continue;
@@ -1971,12 +2202,12 @@
   var seenPings = /* @__PURE__ */ new Set();
   function markFilteredMessages(room) {
     const o = chatOf(room);
-    const list = o && o.S.el && o.S.el.querySelector(".cy-chat-l");
+    const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
     if (!list || !o.C) return;
     if (o.C.tab === "lg") return;
     const visible = o.C.list.filter((m) => tabOfMsg(o.C, m) === o.C.tab && !(o.C.ign && o.C.ign.has(m.l)) && (o.C.tab !== "dm" || !o.C.peer || m.sys || m.l === o.C.peer || m.to === o.C.peer));
-    const rows = list.querySelectorAll(":scope > li:not(.cy-chat-0)");
-    const x = inst[room].K.X();
+    const rows = list.querySelectorAll(SEL.nonEmptyChatRows);
+    const x = rooms[room].instance.K.X();
     const me = String(x && x.login && x.login() || "").toLowerCase();
     visible.forEach((m, index) => {
       const row = rows[index];
@@ -2001,7 +2232,7 @@
   }
   function applyPingOnly(room) {
     const o = chatOf(room);
-    const list = o && o.S.el && o.S.el.querySelector(".cy-chat-l");
+    const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
     if (!list) return;
     if (o.C.tab === "lg") {
       list.querySelectorAll(":scope > li.t7-ping-hidden").forEach((row) => row.classList.remove("t7-ping-hidden"));
@@ -2033,7 +2264,7 @@
     }
   }
   function addPingOnlyControl(room, box) {
-    const header = box.querySelector(".cy-chat-h");
+    const header = box.querySelector(SEL.chatHeader);
     if (!header) return;
     let label = header.querySelector(".t7-chat-filter");
     if (!label) {
@@ -2049,7 +2280,7 @@
       });
     }
     label.querySelector("input").checked = pingOnly;
-    const close = header.querySelector(".cy-chat-x");
+    const close = header.querySelector(SEL.chatCloseButton);
     if (!label.isConnected) header.insertBefore(label, close || null);
     let nav = header.querySelector(".t7-ping-nav");
     if (!nav) {
@@ -2060,7 +2291,8 @@
         const button = e.target.closest("button[data-direction]");
         if (!button) return;
         e.stopPropagation();
-        pingArchivePage[room] = Math.max(0, pingArchivePage[room] + (button.dataset.direction === "older" ? 1 : -1));
+        const roomState = rooms[room];
+        roomState.archivePage = Math.max(0, roomState.archivePage + (button.dataset.direction === "older" ? 1 : -1));
         refreshPingArchive(room);
         updatePingArchiveControl(room);
       });
@@ -2071,17 +2303,18 @@
   }
   function updatePingArchiveControl(room) {
     const o = chatOf(room);
-    const header = o && o.S.el && o.S.el.querySelector(".cy-chat-h");
+    const header = o && o.S.el && o.S.el.querySelector(SEL.chatHeader);
     const nav = header && header.querySelector(".t7-ping-nav");
     if (!nav || !o.C) return;
-    const count = pingArchive[room].filter((m) => tabOfMsg(o.C, m) === o.C.tab).length;
+    const roomState = rooms[room];
+    const count = roomState.archive.filter((m) => tabOfMsg(o.C, m) === o.C.tab).length;
     const pages = Math.ceil(count / PING_PAGE_SIZE);
-    pingArchivePage[room] = Math.min(pingArchivePage[room], Math.max(0, pages - 1));
+    roomState.archivePage = Math.min(roomState.archivePage, Math.max(0, pages - 1));
     nav.hidden = !pingOnly || pages < 2;
     const older = nav.querySelector('[data-direction="older"]');
     const newer = nav.querySelector('[data-direction="newer"]');
-    if (older) older.disabled = pingArchivePage[room] >= pages - 1;
-    if (newer) newer.disabled = pingArchivePage[room] === 0;
+    if (older) older.disabled = roomState.archivePage >= pages - 1;
+    if (newer) newer.disabled = roomState.archivePage === 0;
   }
   var num = (n) => n > 99 ? "99+" : String(n);
   function badge(parent, cls, n, title) {
@@ -2099,20 +2332,20 @@
     const o = chatOf(room);
     const box = o && o.S.el && o.S.el.querySelector(".cy-chat");
     if (!box) return;
-    const pg = pings[room];
+    const pg = rooms[room].pings;
     if (o.C.open) pg[o.C.tab] = 0;
     let total = 0;
-    box.querySelectorAll(".cy-chat-tabs [data-tab]").forEach((b) => {
+    box.querySelectorAll(SEL.chatTabButtons).forEach((b) => {
       const n = pg[b.dataset.tab] || 0;
       total += n;
       badge(b, "cy-chat-tp", n, "\u0423\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u0439");
     });
-    const t = box.querySelector(".cy-chat-t");
+    const t = box.querySelector(SEL.chatToggleButton);
     if (t) badge(t, "cy-chat-pn", o.C.open ? 0 : total, "\u0423\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u0439");
   }
   function pingBind(room) {
     const o = chatOf(room);
-    const box = o && o.S.el && o.S.el.querySelector(".cy-chat");
+    const box = o && o.S.el && o.S.el.querySelector(SEL.chatRoot);
     if (!box || box.dataset.t7pg) return;
     box.dataset.t7pg = "1";
     addPingOnlyControl(room, box);
@@ -2121,11 +2354,11 @@
       updatePingArchiveControl(room);
       paint(room);
     });
-    const list = box.querySelector(".cy-chat-l");
+    const list = box.querySelector(SEL.chatList);
     if (list && !list.dataset.t7BlacklistMenu) {
       list.dataset.t7BlacklistMenu = "1";
       list.addEventListener("contextmenu", (e) => {
-        const nick = e.target.closest("b[data-nick]");
+        const nick = e.target.closest(SEL.nickButton);
         if (!nick || !list.contains(nick)) return;
         const login = String(nick.dataset.nick || "").trim();
         if (!login) return;
@@ -2144,14 +2377,15 @@
         });
       }, true);
     }
-    if (list && filterLists[room] !== list) {
-      if (filterObservers[room]) filterObservers[room].disconnect();
-      filterObservers[room] = new MutationObserver(() => {
+    const roomState = rooms[room];
+    if (list && roomState.filterList !== list) {
+      if (roomState.filterObserver) roomState.filterObserver.disconnect();
+      roomState.filterObserver = new MutationObserver(() => {
         markFilteredMessages(room);
         applyPingOnly(room);
       });
-      filterObservers[room].observe(list, { childList: true });
-      filterLists[room] = list;
+      roomState.filterObserver.observe(list, { childList: true });
+      roomState.filterList = list;
     }
     markFilteredMessages(room);
     applyPingOnly(room);
@@ -2173,7 +2407,7 @@
         if (unified) {
           raw.enter(r, rm);
           if (r && Array.isArray(r.chat)) rememberPingMessages(room, r.chat);
-          pings[room] = {};
+          rooms[room].pings = {};
           setupTabs(K);
           pingBind(room);
           paint(room);
@@ -2185,14 +2419,14 @@
         if (r && Array.isArray(r.chat)) {
           const own = mine ? r.chat.map(tagMn) : r.chat;
           push(room, own);
-          const extra = buf[other].filter((m) => !own.some((x) => x.id === m.id));
+          const extra = rooms[other].buffer.filter((m) => !own.some((x) => x.id === m.id));
           rr = { ...r, chat: own.concat(extra).sort(byTime2) };
         }
         raw.enter(rr);
-        injectedPingIds[room].clear();
+        rooms[room].injectedPings.clear();
         if (rr && Array.isArray(rr.chat)) rememberPingMessages(room, rr.chat);
         setupTabs(K);
-        pings[room] = {};
+        rooms[room].pings = {};
         pingBind(room);
         paint(room);
         if (lastRoom !== room) {
@@ -2215,11 +2449,12 @@
           if (d && Array.isArray(d.chatDel)) {
             const deleted = new Set(d.chatDel.map(String));
             let changed = false;
-            for (const archiveRoom of ["city", "mine", "one"]) {
-              const kept = pingArchive[archiveRoom].filter((m) => !deleted.has(String(m.id)));
-              if (kept.length !== pingArchive[archiveRoom].length) {
-                pingArchive[archiveRoom] = kept;
-                pingArchiveIds[archiveRoom] = new Set(kept.map((m) => String(m.id)));
+            for (const archiveRoom of ROOM_IDS) {
+              const archive = rooms[archiveRoom];
+              const kept = archive.archive.filter((m) => !deleted.has(String(m.id)));
+              if (kept.length !== archive.archive.length) {
+                archive.archive = kept;
+                archive.archiveIds = new Set(kept.map((m) => String(m.id)));
                 changed = true;
               }
             }
@@ -2250,7 +2485,7 @@
         if (!room) return make(K);
         const KK = patchK(K, room);
         const raw = make(KK);
-        inst[room] = { raw, K: KK };
+        rooms[room].instance = { raw, K: KK };
         return wrapInst(raw, KK, room);
       }
     };
@@ -2268,11 +2503,12 @@
             drop(d.chatDel);
             const deleted = new Set(d.chatDel.map(String));
             let changed = false;
-            for (const room of ["city", "mine", "one"]) {
-              const kept = pingArchive[room].filter((m) => !deleted.has(String(m.id)));
-              if (kept.length !== pingArchive[room].length) {
-                pingArchive[room] = kept;
-                pingArchiveIds[room] = new Set(kept.map((m) => String(m.id)));
+            for (const room of ROOM_IDS) {
+              const archive = rooms[room];
+              const kept = archive.archive.filter((m) => !deleted.has(String(m.id)));
+              if (kept.length !== archive.archive.length) {
+                archive.archive = kept;
+                archive.archiveIds = new Set(kept.map((m) => String(m.id)));
                 changed = true;
               }
             }
@@ -2333,78 +2569,38 @@
   hook("LGChat", wrapChat);
   hook("LGCity", wrapCity);
   hook("LGMine", wrapMine);
-  function init() {
+  var started = false;
+  function initialize() {
     const style = document.createElement("style");
     style.textContent = styles_default;
     document.head.appendChild(style);
-    document.addEventListener("DOMContentLoaded", () => {
-      const dmx = document.querySelector(".cy-chat-dmx");
-      if (!dmx) return;
-      let lastScrollTop = dmx.scrollTop;
-      dmx.addEventListener("scroll", () => {
-        lastScrollTop = dmx.scrollTop;
-      }, { passive: true });
-      const observer = new MutationObserver(() => {
-        if (dmx.scrollTop < lastScrollTop - 2 && dmx.scrollTop > 10) {
-          dmx.scrollTop = lastScrollTop;
-        }
-      });
-      observer.observe(dmx, { childList: true, subtree: true });
-    });
-    const sz = store.get("t7size");
-    if (SIZES[sz]) S.size = sz;
-    S.nick = store.get("t7nick:" + pageChan) || pageChan;
-    const p = store.get("t7pos");
-    if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) st.pos = p;
-    const w = store.get("t7win");
-    if (w && Number.isFinite(w.w) && Number.isFinite(w.h)) st.win = w;
+    const size = store.get(STORE.emoteSize);
+    if (SIZES[size]) S.size = size;
+    S.nick = store.get(STORE.channelNickPrefix + pageChan) || pageChan;
+    const position = store.get(STORE.popupPosition);
+    if (position && Number.isFinite(position.x) && Number.isFinite(position.y)) st.pos = position;
+    const windowSize = store.get(STORE.popupSize);
+    if (windowSize && Number.isFinite(windowSize.w) && Number.isFinite(windowSize.h)) st.win = windowSize;
+    if (store.get(STORE.emotesEnabled) === false) S.on = false;
     applySize();
-    if (store.get("t7on") === false) S.on = false;
     st.hooks.status = updateSetStatus;
     st.hooks.place = place;
     st.hooks.emotes = () => {
       rescanAll();
       renderGrid();
     };
-    st.hooks.emotes = () => {
-      rescanAll();
-      renderGrid();
-    };
-    let queued = false;
-    let needsButtons = false;
-    let needsScan = false;
-    const contains = (node, selector) => node.nodeType === 1 && (node.matches(selector) || node.querySelector(selector));
-    const schedule = (records) => {
-      for (const record of records) {
-        if (record.type !== "childList") continue;
-        const target = record.target.nodeType === 1 ? record.target : record.target.parentElement;
-        const form = target && target.closest("form.cy-chat-f, form.dm-f");
-        if (form && form.querySelector("input[type=text]") && (!form.dataset.t7RecentBound || !form.querySelector(".t7-btn"))) needsButtons = true;
-        if (target && target.closest(".cy-chat")) {
-          needsScan = true;
-        }
-        for (const node of record.addedNodes) {
-          if (contains(node, "form.cy-chat-f, form.dm-f")) needsButtons = true;
-          if (contains(node, ".cy-chat-l li") || contains(node, ".cy-chat-dmx")) needsScan = true;
-        }
-      }
-      if (!needsButtons && !needsScan || queued) return;
-      queued = true;
-      requestAnimationFrame(() => {
-        queued = false;
-        const addButtons = needsButtons;
-        const scanMessages = needsScan;
-        needsButtons = false;
-        needsScan = false;
-        if (addButtons) ensureButtons();
-        if (scanMessages) scan();
-      });
-    };
-    new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+    startChatObservers();
     ensureButtons();
     scan();
     reload(false);
   }
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init, { once: true });
-  else init();
+  function startApp() {
+    if (started) return;
+    started = true;
+    if (document.readyState === "loading")
+      document.addEventListener("DOMContentLoaded", initialize, { once: true });
+    else
+      initialize();
+  }
+  startApp();
 })();

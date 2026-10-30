@@ -1,7 +1,8 @@
-import { CACHE_TTL, EXTRA_EMOTES, EXTRA_SETS } from './config.js';
-import { S, EM, st } from './state.js';
-import { store } from './store.js';
-import { getJson } from './net.js';
+import { CACHE_TTL, EXTRA_EMOTES, EXTRA_SETS } from '../core/config.js';
+import { S, EM, st } from '../core/state.js';
+import { store } from '../core/store.js';
+import { getJson } from '../network/net.js';
+import { STORE } from '../core/consts.js';
 
 function mk(host, flags, isGlobal, isExtra) {
     const files = (host.files || []).filter((f) => f.format === 'WEBP').map((f) => f.name);
@@ -74,7 +75,7 @@ export function urlFor(em, n) {
 }
 
 async function loadEmotes(nick, force) {
-    const key = 't7c2:' + nick + ':' + xsig();
+    const key = STORE.emoteCachePrefix + nick + ':' + xsig();
     if (!force) {
         const c = store.get(key);
         if (c) return { map: c.map, msg: c.msg, stale: Date.now() - c.at >= CACHE_TTL };
