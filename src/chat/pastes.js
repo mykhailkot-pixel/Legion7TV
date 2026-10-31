@@ -99,6 +99,7 @@ export function openPastes(input) {
     editor.append(nameLabel, textLabel, editorActions);
     dialog.append(header, list, addButton, editor);
     overlay.appendChild(dialog);
+    let editingIndex = null;
 
     const onKeyDown = (event) => {
         if (event.key === 'Escape') closeDialog();
@@ -113,6 +114,7 @@ export function openPastes(input) {
     const renderList = () => {
         const pastes = readPastes();
         list.replaceChildren();
+        list.hidden = !editor.hidden;
         if (!pastes.length) {
             const empty = document.createElement('div');
             empty.className = 't7-paste-empty';
@@ -132,6 +134,21 @@ export function openPastes(input) {
                 insertPaste(input, paste.text);
                 closeDialog();
             });
+            const editButton = document.createElement('button');
+            editButton.type = 'button';
+            editButton.className = 't7-paste-edit';
+            editButton.textContent = '✎';
+            editButton.title = `Редактировать пасту «${paste.name}»`;
+            editButton.setAttribute('aria-label', editButton.title);
+            editButton.addEventListener('click', () => {
+                editingIndex = index;
+                nameInput.value = paste.name;
+                textInput.value = paste.text;
+                editor.hidden = false;
+                addButton.hidden = true;
+                renderList();
+                nameInput.focus();
+            });
             const deleteButton = document.createElement('button');
             deleteButton.type = 'button';
             deleteButton.className = 't7-paste-delete';
@@ -144,7 +161,7 @@ export function openPastes(input) {
                 store.set(PASTES_KEY, next);
                 renderList();
             });
-            row.append(insertButton, deleteButton);
+            row.append(insertButton, editButton, deleteButton);
             list.appendChild(row);
         });
     };
@@ -154,21 +171,40 @@ export function openPastes(input) {
         if (event.target === overlay) closeDialog();
     });
     addButton.addEventListener('click', () => {
+        editingIndex = null;
+        editor.reset();
         editor.hidden = false;
         addButton.hidden = true;
+        renderList();
         nameInput.focus();
     });
     cancelButton.addEventListener('click', () => {
+        editingIndex = null;
         editor.reset();
         editor.hidden = true;
         addButton.hidden = false;
+        renderList();
     });
     editor.addEventListener('submit', (event) => {
         event.preventDefault();
         const name = nameInput.value.trim();
         const text = textInput.value;
         if (!name || !text.trim()) return;
-        store.set(PASTES_KEY, [...readPastes(), { name, text }]);
+        const pastes = readPastes();
+        if (editingIndex === null) {
+            pastes.push({ name, text });
+        } else if (pastes[editingIndex]) {
+            pastes[editingIndex] = { name, text };
+        } else {
+            editingIndex = null;
+            editor.reset();
+            editor.hidden = true;
+            addButton.hidden = false;
+            renderList();
+            return;
+        }
+        store.set(PASTES_KEY, pastes);
+        editingIndex = null;
         editor.reset();
         editor.hidden = true;
         addButton.hidden = false;

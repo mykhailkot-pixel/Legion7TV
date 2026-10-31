@@ -10,8 +10,8 @@ import { getChatFont, getChatFontSize, getCustomChatFont, setChatFont, setChatFo
 import { getRecentLimit, setRecentLimit } from '../chat/prefs.js';
 import { isLinkEncodingEnabled, setLinkEncodingEnabled } from '../chat/links.js';
 import { CHAT_TABS, getChatTabPrefs, setChatTabPrefs } from '../chat/prefs.js';
-import { arePastesEnabled, setPastesEnabled } from '../chat/pastes.js';
 import { STORE } from '../core/consts.js';
+import { arePastesEnabled, setPastesEnabled } from '../chat/pastes.js';
 
 // смещение окна настроек от центра экрана
 let SOFF = (() => {
@@ -189,6 +189,10 @@ export function openSettings() {
         rescanAll();
     });
 
+    const pastesEnabled = el.querySelector('.t7-pastes-enabled');
+    pastesEnabled.checked = arePastesEnabled();
+    pastesEnabled.addEventListener('change', () => setPastesEnabled(pastesEnabled.checked));
+
     const nickInp = el.querySelector('.t7-nick');
     nickInp.value = S.nick;
     nickInp.placeholder = pageChan || 'например, zakvielchannel';
@@ -216,9 +220,6 @@ export function openSettings() {
     const tabCompletion = el.querySelector('.t7-tab-completion');
     tabCompletion.checked = pingSystem.config.tabCompletion;
     tabCompletion.addEventListener('change', () => pingSystem.setTabCompletion(tabCompletion.checked));
-    const pastesEnabled = el.querySelector('.t7-pastes-enabled');
-    pastesEnabled.checked = arePastesEnabled();
-    pastesEnabled.addEventListener('change', () => setPastesEnabled(pastesEnabled.checked));
     const pingColor = el.querySelector('.t7-ping-color');
     pingColor.value = pingSystem.config.pingColor;
     pingColor.addEventListener('input', () => pingSystem.setPingColor(pingColor.value));

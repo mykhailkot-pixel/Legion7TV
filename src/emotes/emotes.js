@@ -4,13 +4,17 @@ import { store } from '../core/store.js';
 import { getJson } from '../network/net.js';
 import { STORE } from '../core/consts.js';
 
-function mk(host, flags, isGlobal, isExtra) {
+function mk(host, flags, isGlobal, isExtra, meta = {}) {
     const files = (host.files || []).filter((f) => f.format === 'WEBP').map((f) => f.name);
+    const owner = meta.owner || {};
     return {
         base: 'https:' + host.url,
         f: files.length ? files : ['1x.webp', '2x.webp'],
         zw: !!(flags & 256),   // zero-width эмоут
         g: isGlobal,
+        id: String(meta.id || ''),
+        owner: String(owner.display_name || owner.username || ''),
+        animated: typeof meta.animated === 'boolean' ? meta.animated : null,
         ...(isExtra ? { x: true } : {})
     };
 }
@@ -19,7 +23,11 @@ function addSet(map, set, isGlobal, isExtra) {
     for (const e of (set && set.emotes) || []) {
         const host = e.data && e.data.host;
         if (!host || !host.url || e.name === '__proto__') continue;
-        map[e.name] = mk(host, e.data.flags, isGlobal, isExtra);
+        map[e.name] = mk(host, e.data.flags, isGlobal, isExtra, {
+            id: e.id || e.data.id,
+            owner: e.data.owner,
+            animated: e.data.animated
+        });
     }
 }
 
@@ -28,7 +36,11 @@ function addOne(map, em, alias) {
     const host = em && em.host;
     const name = String(alias || (em && em.name) || '');
     if (!host || !host.url || !name || /\s/.test(name) || name === '__proto__') return false;
-    map[name] = mk(host, em.flags, true, true);
+    map[name] = mk(host, em.flags, true, true, {
+        id: em.id,
+        owner: em.owner,
+        animated: em.animated
+    });
     return true;
 }
 

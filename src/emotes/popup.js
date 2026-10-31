@@ -7,6 +7,7 @@ import { reusableUrlsFor, urlFor } from './emotes.js';
 import { openSettings } from '../settings/settings.js';
 import { getRecentLimit } from '../chat/prefs.js';
 import { EV, STORE, on } from '../core/consts.js';
+import { setEmoteTooltipData } from './tooltip.js';
 
 const FAVORITES_KEY = STORE.favorites;
 const RECENT_KEY = STORE.recentEmotes;
@@ -145,7 +146,7 @@ export function renderGrid() {
             b.type = 'button';
             b.className = 't7-it';
             b.dataset.name = n;
-            b.title = n;
+            setEmoteTooltipData(b, n, emoteFor(n));
             b.setAttribute('aria-label', n);
             const im = document.createElement('img');
             im.alt = '';

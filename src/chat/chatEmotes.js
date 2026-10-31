@@ -3,12 +3,13 @@ import { S, EM } from '../core/state.js';
 import { has } from '../core/util.js';
 import { fetchImg } from '../emotes/imgcache.js';
 import { reusableUrlsFor, urlFor } from '../emotes/emotes.js';
+import { setEmoteTooltipData } from '../emotes/tooltip.js';
 
 function makeImg(name, em, cls, stickFrom) {
     const img = document.createElement('img');
     img.className = cls;
     img.alt = name;
-    img.title = name;
+    if (cls === 't7-e') setEmoteTooltipData(img, name, em);
     img.addEventListener('load', () => stickFrom(img));
     const resolution = SIZES[S.size].n;
     fetchImg(urlFor(em, resolution), true, reusableUrlsFor(em, resolution)).then(

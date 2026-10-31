@@ -259,6 +259,7 @@ export function ensureButtons() {
             bindings.set(form, form.matches(SEL.chatForm) ? bindChatForm(form, input) : () => {});
         }
 
+        const submit = form.querySelector(SEL.submitButton);
         let button = form.querySelector('.t7-btn');
         if (!button) {
             button = document.createElement('button');
@@ -273,13 +274,10 @@ export function ensureButtons() {
                 event.stopPropagation();
                 togglePop(button);
             });
-
-            const submit = form.querySelector(SEL.submitButton);
-            if (submit) submit.after(button);
+            if (submit) submit.before(button);
             else form.appendChild(button);
         }
 
-        if (!input) return;
         let pastesButton = form.querySelector('.t7-pastes-btn');
         if (!pastesButton) {
             pastesButton = document.createElement('button');
@@ -287,14 +285,16 @@ export function ensureButtons() {
             pastesButton.className = 't7-btn t7-pastes-btn';
             pastesButton.textContent = 'Пасты';
             pastesButton.title = 'Сохранённые пасты';
+            pastesButton.setAttribute('aria-label', 'Сохранённые пасты');
+            pastesButton.hidden = !arePastesEnabled();
             pastesButton.addEventListener('click', (event) => {
                 event.preventDefault();
                 event.stopPropagation();
                 openPastes(input);
             });
-            button.after(pastesButton);
+            if (submit) submit.before(pastesButton);
+            else form.appendChild(pastesButton);
         }
-        pastesButton.hidden = !arePastesEnabled();
     });
 
     if (st.pop && st.anchor && !st.anchor.isConnected) closePop();

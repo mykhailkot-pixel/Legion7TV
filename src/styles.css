@@ -12,6 +12,18 @@
 .t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}
 .t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}
 
+.t7-tip{position:fixed;z-index:2147483200;display:flex;flex-direction:column;align-items:center;width:min(210px,calc(100vw - 16px));overflow:hidden;border-radius:4px;background:#e8e7e8;color:#171719;box-shadow:0 5px 20px rgba(0,0,0,.35);font:14px/1.3 Arial,sans-serif;text-align:center;pointer-events:none}
+.t7-tip[hidden]{display:none!important}
+.t7-tip-preview{display:grid;place-items:center;width:100%;height:132px;background:linear-gradient(135deg,#f3f1e7,#b9b8ba)}
+.t7-tip-preview img{max-width:100%;max-height:100%;object-fit:contain}
+.t7-tip-preview img.t7-tip-loading{visibility:hidden}
+.t7-tip-info{display:flex;flex-direction:column;align-items:center;gap:7px;width:100%;padding:10px 8px 8px;overflow-wrap:anywhere}
+.t7-tip-name{display:flex;align-items:center;justify-content:center;gap:6px;font-size:17px;font-weight:700}
+.t7-tip-logo{display:inline-grid;place-items:center;width:25px;height:20px;border-radius:3px;background:#111;color:#fff;font:bold 10px/1 Arial,sans-serif}
+.t7-tip-author{font-size:16px}
+.t7-tip-author span{color:#e89a00}
+.t7-tip-type{font-size:16px;font-weight:700}
+
 /* ========== Кнопка 7TV в форме чата ========== */
 form.cy-chat-f .t7-btn{
     flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;
@@ -20,6 +32,8 @@ form.cy-chat-f .t7-btn{
     font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;
     white-space:nowrap;vertical-align:middle;cursor:pointer}
 form.cy-chat-f .t7-btn:hover{background:rgb(165,100,255)}
+form.dm-f .t7-pastes-btn{flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;font:700 11px/1 system-ui,sans-serif;white-space:nowrap;cursor:pointer}
+form.dm-f .t7-pastes-btn:hover{background:rgb(165,100,255)}
 form.cy-chat-f .t7-pastes-btn[hidden],form.dm-f .t7-pastes-btn[hidden]{display:none!important}
 form.cy-chat-f{position:relative}
 form.cy-chat-f>.t7-ping-menu{position:absolute;left:auto;right:0;bottom:calc(100% + 5px);z-index:20;display:flex;flex-direction:column;width:min(210px,calc(100vw - 24px));max-height:132px;overflow-y:auto;padding:3px;border:1px solid rgba(255,255,255,.16);border-radius:6px;background:rgba(24,24,32,.88);box-shadow:0 5px 14px rgba(0,0,0,.28);backdrop-filter:blur(5px)}
@@ -33,15 +47,17 @@ form.cy-chat-f>.t7-banword-warning[hidden]{display:none}
 .t7-paste-header,.t7-paste-row,.t7-paste-actions{display:flex;align-items:center;gap:6px}
 .t7-paste-header{justify-content:space-between;font-size:15px}
 .t7-paste-list{display:flex;flex-direction:column;gap:4px;min-height:36px;overflow-y:auto}
-.t7-paste-item,.t7-paste-delete,.t7-paste-close,.t7-paste-primary,.t7-paste-secondary{border:1px solid rgba(255,255,255,.18);border-radius:4px;background:#101018;color:#eee;cursor:pointer}
+.t7-paste-item,.t7-paste-edit,.t7-paste-delete,.t7-paste-close,.t7-paste-primary,.t7-paste-secondary{border:1px solid rgba(255,255,255,.18);border-radius:4px;background:#101018;color:#eee;cursor:pointer}
 .t7-paste-item{flex:1;min-width:0;padding:7px 9px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.t7-paste-item:hover,.t7-paste-delete:hover,.t7-paste-close:hover,.t7-paste-secondary:hover{background:#292936}
-.t7-paste-delete,.t7-paste-close{display:grid;place-items:center;flex:none;width:30px;height:30px;padding:0;font-size:20px}
+.t7-paste-item:hover,.t7-paste-edit:hover,.t7-paste-delete:hover,.t7-paste-close:hover,.t7-paste-secondary:hover{background:#292936}
+.t7-paste-edit,.t7-paste-delete,.t7-paste-close{display:grid;place-items:center;flex:none;width:30px;height:30px;padding:0}
+.t7-paste-edit{font-size:16px}
+.t7-paste-delete,.t7-paste-close{font-size:20px}
 .t7-paste-add,.t7-paste-primary,.t7-paste-secondary{padding:7px 10px}
 .t7-paste-primary{border-color:#7650c9;background:#6844b5;color:#fff}
 .t7-paste-primary:hover{background:#7954c5}
 .t7-paste-editor{display:flex;flex-direction:column;gap:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.12)}
-.t7-paste-editor[hidden],.t7-paste-add[hidden]{display:none}
+.t7-paste-editor[hidden],.t7-paste-add[hidden],.t7-paste-list[hidden]{display:none}
 .t7-paste-field{display:flex;flex-direction:column;gap:4px;color:#bbb;font-size:12px}
 .t7-paste-field input,.t7-paste-field textarea{box-sizing:border-box;width:100%;padding:7px 8px;border:1px solid rgba(255,255,255,.2);border-radius:4px;background:#101018;color:#fff;font:13px/1.35 system-ui,sans-serif}
 .t7-paste-field textarea{min-height:100px;resize:vertical}

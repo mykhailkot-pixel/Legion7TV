@@ -5,7 +5,7 @@ export const STORE = Object.freeze({
     popupSize: 't7win',
     settingsPosition: 't7spos',
     emotesEnabled: 't7on',
-    emoteCachePrefix: 't7c2:',
+    emoteCachePrefix: 't7c3:',
     favorites: 't7favorites',
     recentEmotes: 't7recent',
     recentEmoteLimit: 't7recentLimit',

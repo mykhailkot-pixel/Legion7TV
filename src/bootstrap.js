@@ -11,6 +11,7 @@ import { ensureButtons } from './chat/chatInput.js';
 import { startChatObservers } from './chat/chatObservers.js';
 import { applyChatFont } from './chat/chatFonts.js';
 import { pingSystem } from './chat/pingSystem.js';
+import { initEmoteTooltip } from './emotes/tooltip.js';
 import './chat/minetabs.js';
 
 let started = false;
@@ -35,6 +36,7 @@ function initialize() {
     st.hooks.emotes = () => { rescanAll(); renderGrid(); };
     pingSystem.applyPingColor();
     applyChatFont();
+    initEmoteTooltip();
 
     startChatObservers();
     ensureButtons();
