@@ -2,7 +2,7 @@
 // @author       ProCto_Fliy
 // @name         Legion chat extentions (7TV, более удобный чат и тд)
 // @namespace    https://play.multidonate.ru/
-// @version      4.9.0
+// @version      5.0.0
 // @description  Эмоуты 7TV в чате: кнопка 7TV, ник стримера, размер, список эмоутов, быстрый кеш
 // @match        https://play.multidonate.ru/*
 // @icon         https://cdn.7tv.app/emote/01F71VQYHR000D3ZZ6Q11NR7TV/2x.webp
@@ -1689,7 +1689,7 @@
       put();
     }
     hd.addEventListener("pointerdown", (e) => {
-      if (e.target.closest("button") || e.button > 0) return;
+      if (e.target.closest("button") || e.button !== 0 || !e.isPrimary) return;
       const r = win.getBoundingClientRect();
       const sx = e.clientX, sy = e.clientY, pid = e.pointerId, ox = SOFF.x, oy = SOFF.y;
       let started2 = false, nx = ox, ny = oy, raf = 0;
@@ -1699,6 +1699,11 @@
         put();
       };
       const move = (ev) => {
+        if (ev.pointerId !== pid) return;
+        if (ev.pointerType === "mouse" && !(ev.buttons & 1)) {
+          up();
+          return;
+        }
         if (!started2) {
           if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 4) return;
           started2 = true;
@@ -1713,9 +1718,10 @@
         if (!raf) raf = requestAnimationFrame(apply);
       };
       const up = () => {
-        hd.removeEventListener("pointermove", move);
-        hd.removeEventListener("pointerup", up);
-        hd.removeEventListener("pointercancel", up);
+        removeEventListener("pointermove", move);
+        removeEventListener("pointerup", up);
+        removeEventListener("pointercancel", up);
+        removeEventListener("blur", up);
         if (raf) cancelAnimationFrame(raf);
         if (!started2) return;
         win.classList.remove("t7-drag");
@@ -1723,9 +1729,10 @@
         put();
         store.set(STORE.settingsPosition, SOFF);
       };
-      hd.addEventListener("pointermove", move);
-      hd.addEventListener("pointerup", up);
-      hd.addEventListener("pointercancel", up);
+      addEventListener("pointermove", move);
+      addEventListener("pointerup", up);
+      addEventListener("pointercancel", up);
+      addEventListener("blur", up);
     });
     hd.addEventListener("dblclick", (e) => {
       if (e.target.closest("button")) return;
@@ -2260,7 +2267,7 @@
   function setupDrag2(pop) {
     const hd = pop.querySelector(".t7-h");
     hd.addEventListener("pointerdown", (e) => {
-      if (e.target.closest("button") || e.button > 0) return;
+      if (e.target.closest("button") || e.button !== 0 || !e.isPrimary) return;
       const r = pop.getBoundingClientRect();
       const sx = e.clientX, sy = e.clientY, pid = e.pointerId;
       let started2 = false, nx = r.left, ny = r.top, raf = 0;
@@ -2281,6 +2288,11 @@
         }
       };
       const move = (ev) => {
+        if (ev.pointerId !== pid) return;
+        if (ev.pointerType === "mouse" && !(ev.buttons & 1)) {
+          up();
+          return;
+        }
         if (!started2) {
           if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 4) return;
           start();
@@ -2290,9 +2302,10 @@
         if (!raf) raf = requestAnimationFrame(apply);
       };
       const up = () => {
-        hd.removeEventListener("pointermove", move);
-        hd.removeEventListener("pointerup", up);
-        hd.removeEventListener("pointercancel", up);
+        removeEventListener("pointermove", move);
+        removeEventListener("pointerup", up);
+        removeEventListener("pointercancel", up);
+        removeEventListener("blur", up);
         if (raf) cancelAnimationFrame(raf);
         if (!started2 || st.pop !== pop) return;
         pop.classList.remove("t7-drag");
@@ -2300,9 +2313,10 @@
         store.set(STORE.popupPosition, st.pos);
         place();
       };
-      hd.addEventListener("pointermove", move);
-      hd.addEventListener("pointerup", up);
-      hd.addEventListener("pointercancel", up);
+      addEventListener("pointermove", move);
+      addEventListener("pointerup", up);
+      addEventListener("pointercancel", up);
+      addEventListener("blur", up);
     });
     hd.addEventListener("dblclick", (e) => {
       if (e.target.closest("button")) return;
@@ -2316,7 +2330,7 @@
   function setupResize(pop) {
     const rs = pop.querySelector(".t7-rs");
     rs.addEventListener("pointerdown", (e) => {
-      if (e.button > 0) return;
+      if (e.button !== 0 || !e.isPrimary) return;
       e.preventDefault();
       e.stopPropagation();
       const r = pop.getBoundingClientRect();
@@ -2339,14 +2353,20 @@
         pop.style.height = h + "px";
       };
       const move = (ev) => {
+        if (ev.pointerId !== e.pointerId) return;
+        if (ev.pointerType === "mouse" && !(ev.buttons & 1)) {
+          up();
+          return;
+        }
         w = clamp(r.width + ev.clientX - sx, 240, Math.max(240, innerWidth - r.left - 8));
         h = clamp(r.height + ev.clientY - sy, mh, Math.max(mh, innerHeight - r.top - 8));
         if (!raf) raf = requestAnimationFrame(apply);
       };
       const up = () => {
-        rs.removeEventListener("pointermove", move);
-        rs.removeEventListener("pointerup", up);
-        rs.removeEventListener("pointercancel", up);
+        removeEventListener("pointermove", move);
+        removeEventListener("pointerup", up);
+        removeEventListener("pointercancel", up);
+        removeEventListener("blur", up);
         if (raf) cancelAnimationFrame(raf);
         if (st.pop !== pop) return;
         pop.classList.remove("t7-drag");
@@ -2356,9 +2376,10 @@
         store.set(STORE.popupPosition, st.pos);
         place();
       };
-      rs.addEventListener("pointermove", move);
-      rs.addEventListener("pointerup", up);
-      rs.addEventListener("pointercancel", up);
+      addEventListener("pointermove", move);
+      addEventListener("pointerup", up);
+      addEventListener("pointercancel", up);
+      addEventListener("blur", up);
     });
   }
   function openPop(btn) {

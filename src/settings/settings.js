@@ -34,12 +34,14 @@ function setupDrag(el) {
     if (fx || fy) { SOFF = { x: SOFF.x + fx, y: SOFF.y + fy }; put(); }
 
     hd.addEventListener('pointerdown', (e) => {
-        if (e.target.closest('button') || e.button > 0) return;   // кнопка × остаётся кнопкой
+        if (e.target.closest('button') || e.button !== 0 || !e.isPrimary) return;   // кнопка × остаётся кнопкой
         const r = win.getBoundingClientRect();
         const sx = e.clientX, sy = e.clientY, pid = e.pointerId, ox = SOFF.x, oy = SOFF.y;
         let started = false, nx = ox, ny = oy, raf = 0;
         const apply = () => { raf = 0; SOFF = { x: nx, y: ny }; put(); };
         const move = (ev) => {
+            if (ev.pointerId !== pid) return;
+            if (ev.pointerType === 'mouse' && !(ev.buttons & 1)) { up(); return; }
             if (!started) {
                 if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 4) return;
                 started = true;
@@ -51,9 +53,10 @@ function setupDrag(el) {
             if (!raf) raf = requestAnimationFrame(apply);
         };
         const up = () => {
-            hd.removeEventListener('pointermove', move);
-            hd.removeEventListener('pointerup', up);
-            hd.removeEventListener('pointercancel', up);
+            removeEventListener('pointermove', move);
+            removeEventListener('pointerup', up);
+            removeEventListener('pointercancel', up);
+            removeEventListener('blur', up);
             if (raf) cancelAnimationFrame(raf);
             if (!started) return;
             win.classList.remove('t7-drag');
@@ -61,9 +64,10 @@ function setupDrag(el) {
             put();
             store.set(STORE.settingsPosition, SOFF);
         };
-        hd.addEventListener('pointermove', move);
-        hd.addEventListener('pointerup', up);
-        hd.addEventListener('pointercancel', up);
+        addEventListener('pointermove', move);
+        addEventListener('pointerup', up);
+        addEventListener('pointercancel', up);
+        addEventListener('blur', up);
     });
 
     hd.addEventListener('dblclick', (e) => {
