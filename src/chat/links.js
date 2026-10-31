@@ -3,6 +3,7 @@ import { store } from '../core/store.js';
 import { STORE } from '../core/consts.js';
 import { fetchImg } from '../emotes/imgcache.js';
 import { resolveImageUrl, supportsImageUrl } from './imageProviders.js';
+import { rememberSentImages } from './imagePicker.js';
 
 export const SAY_RE = /^\/api\/(?:chat\/say|city\/say|mine\/chat\/say|dm\/say)(?:\?|$)/;
 const LINK_ENCODING_KEY = STORE.linkEncoding;
@@ -171,9 +172,10 @@ export function processLinks({ content, stickFrom }) {
 
 // call(path, body) - исходный api сайта
 export async function sendWithLinks(call, path, body) {
-    if (!isLinkEncodingEnabled()) return call(path, body);
     const text = body && body.text;
     if (typeof text !== 'string') return call(path, body);
+    rememberSentImages(text);
+    if (!isLinkEncodingEnabled()) return call(path, body);
     if (HTTP_RE.test(text)) return { ok: false, error: 'ссылки http:// не отправляются - используй https://' };
     const encoded = encodeLinks(text);
     return call(path, encoded === text ? body : { ...body, text: encoded });

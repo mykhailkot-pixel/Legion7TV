@@ -13,6 +13,7 @@ import { CHAT_TABS, getChatTabPrefs, setChatTabPrefs } from '../chat/prefs.js';
 import { STORE } from '../core/consts.js';
 import { arePastesEnabled, setPastesEnabled } from '../chat/pastes.js';
 import { clearResolvedImageCache } from '../chat/imageProviders.js';
+import { isImagePickerButtonEnabled, setImagePickerButtonEnabled } from '../chat/imagePicker.js';
 
 // смещение окна настроек от центра экрана
 let SOFF = (() => {
@@ -146,8 +147,9 @@ export function openSettings() {
                 </details>
 
                 <details class="t7-sec" open>
-                    <summary>Пасты</summary>
+                    <summary>Кнопки в чате</summary>
                     <label class="t7-chk"><input type="checkbox" class="t7-pastes-enabled"> Показывать кнопку паст в чате</label>
+                    <label class="t7-chk"><input type="checkbox" class="t7-image-picker-enabled"> Показывать кнопку imgBB в чате</label>
                 </details>
 
                 <details class="t7-sec" open>
@@ -200,7 +202,7 @@ export function openSettings() {
     ['keydown', 'keyup', 'keypress'].forEach((t) => el.addEventListener(t, (e) => e.stopPropagation()));
     el.addEventListener('pointerdown', (e) => { if (e.target === el) closeSettings(); });
 
-    el.querySelector('.t7-x').onclick = closeSettings;
+    el.querySelector('.t7-x').addEventListener('click', closeSettings);
 
     const settingsTabs = el.querySelector('.t7-settings-tabs');
     const activateSettingsTab = (tab) => {
@@ -241,6 +243,12 @@ export function openSettings() {
     const pastesEnabled = el.querySelector('.t7-pastes-enabled');
     pastesEnabled.checked = arePastesEnabled();
     pastesEnabled.addEventListener('change', () => setPastesEnabled(pastesEnabled.checked));
+
+    const imagePickerEnabled = el.querySelector('.t7-image-picker-enabled');
+    imagePickerEnabled.checked = isImagePickerButtonEnabled();
+    imagePickerEnabled.addEventListener('change', () => {
+        setImagePickerButtonEnabled(imagePickerEnabled.checked);
+    });
 
     const nickInp = el.querySelector('.t7-nick');
     nickInp.value = S.nick;

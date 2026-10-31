@@ -4,6 +4,7 @@ import { EV, SEL, on } from '../core/consts.js';
 import { togglePop, closePop, recordRecentFromMessage } from '../emotes/popup.js';
 import { pingSystem } from './pingSystem.js';
 import { arePastesEnabled, openPastes } from './pastes.js';
+import { disposeImagePicker, isImagePickerButtonEnabled, openImagePicker } from './imagePicker.js';
 
 const bindings = new WeakMap();
 function normalizeBanword(value) {
@@ -242,6 +243,7 @@ function disposeForm(form) {
     const dispose = bindings.get(form);
     if (!dispose) return;
     if (st.anchor && form.contains(st.anchor)) closePop();
+    disposeImagePicker(form);
     dispose();
     bindings.delete(form);
 }
@@ -277,6 +279,26 @@ export function ensureButtons() {
             if (submit) submit.before(button);
             else form.appendChild(button);
         }
+
+        let imagesButton = form.querySelector('.t7-images-btn');
+        if (input && !imagesButton) {
+            imagesButton = document.createElement('button');
+            imagesButton.type = 'button';
+            imagesButton.className = 't7-btn t7-images-btn';
+            imagesButton.textContent = 'imgBB';
+            imagesButton.hidden = !isImagePickerButtonEnabled();
+            imagesButton.title = 'Картинки imgBB';
+            imagesButton.setAttribute('aria-label', 'Картинки imgBB');
+            imagesButton.setAttribute('aria-haspopup', 'dialog');
+            imagesButton.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                openImagePicker(input);
+            });
+            if (submit) submit.before(imagesButton);
+            else form.appendChild(imagesButton);
+        }
+        if (imagesButton) imagesButton.hidden = !isImagePickerButtonEnabled();
 
         let pastesButton = form.querySelector('.t7-pastes-btn');
         if (!pastesButton) {

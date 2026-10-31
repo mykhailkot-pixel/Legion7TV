@@ -18,6 +18,9 @@ export const STORE = Object.freeze({
     linkEncoding: 't7LinkEncoding',
     imagePreviews: 't7ImagePreviews',
     imageResolveCache: 't7ImageResolveCache',
+    imagePickerButton: 't7ImagePickerButton',
+    imageRecent: 't7Images:recent',
+    imageFavorites: 't7Images:favorites',
     networkProxy: 't7proxy',
     pastes: 't7Pastes',
     pastesEnabled: 't7PastesEnabled'

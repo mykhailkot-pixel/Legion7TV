@@ -38,7 +38,7 @@ form.cy-chat-f .t7-btn{
 form.cy-chat-f .t7-btn:hover{background:rgb(165,100,255)}
 form.dm-f .t7-pastes-btn{flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;font:700 11px/1 system-ui,sans-serif;white-space:nowrap;cursor:pointer}
 form.dm-f .t7-pastes-btn:hover{background:rgb(165,100,255)}
-form.cy-chat-f .t7-pastes-btn[hidden],form.dm-f .t7-pastes-btn[hidden]{display:none!important}
+form.cy-chat-f .t7-pastes-btn[hidden],form.dm-f .t7-pastes-btn[hidden],form.cy-chat-f .t7-images-btn[hidden],form.dm-f .t7-images-btn[hidden]{display:none!important}
 form.cy-chat-f{position:relative}
 form.cy-chat-f>.t7-ping-menu{position:absolute;left:auto;right:0;bottom:calc(100% + 5px);z-index:20;display:flex;flex-direction:column;width:min(210px,calc(100vw - 24px));max-height:132px;overflow-y:auto;padding:3px;border:1px solid rgba(255,255,255,.16);border-radius:6px;background:rgba(24,24,32,.88);box-shadow:0 5px 14px rgba(0,0,0,.28);backdrop-filter:blur(5px)}
 form.cy-chat-f>.t7-ping-menu[hidden]{display:none}
@@ -67,6 +67,25 @@ form.cy-chat-f>.t7-banword-warning[hidden]{display:none}
 .t7-paste-field textarea{min-height:100px;resize:vertical}
 .t7-paste-actions{justify-content:flex-end}
 .t7-paste-empty{padding:10px 4px;color:#aaa;text-align:center}
+.t7-image-picker{width:min(440px,100%);max-height:min(680px,92vh)}
+.t7-image-picker-url{display:flex;align-items:center;gap:6px}
+.t7-image-picker-url>a{display:grid;place-items:center;flex:none;width:34px;height:34px;border:1px solid rgba(255,255,255,.18);border-radius:5px;background:#101018;color:#eee;font-size:18px;text-decoration:none}
+.t7-image-picker-url>a:hover{background:#292936}
+.t7-image-picker-input{box-sizing:border-box;flex:1;min-width:0;padding:8px;border:1px solid rgba(255,255,255,.2);border-radius:5px;background:#101018;color:#fff;font:13px system-ui,sans-serif}
+.t7-image-picker-preview{display:grid;place-items:center;min-height:110px;max-height:180px;overflow:hidden;padding:8px;border:1px solid rgba(255,255,255,.1);border-radius:5px;background:#15141e;color:#aaa;font-size:12px;text-align:center}
+.t7-image-picker-preview img{display:block;max-width:100%;max-height:160px;object-fit:contain}
+.t7-image-picker-preview.t7-image-picker-error{color:#ffaaa5}
+.t7-image-picker-actions{display:flex;justify-content:flex-end;gap:6px}
+.t7-image-picker-tabs button{flex:1;padding:6px 8px;border:0;border-radius:4px;background:transparent;color:#aaa;font:12px system-ui,sans-serif;cursor:pointer}
+.t7-image-picker-tabs button[aria-selected=true]{background:rgba(255,255,255,.14);color:#eee}
+.t7-image-library{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px;min-height:52px;max-height:190px;overflow-y:auto;overscroll-behavior:contain}
+.t7-image-library-item{position:relative;min-width:0}
+.t7-image-library-choose{display:flex;flex-direction:column;align-items:stretch;gap:4px;width:100%;height:100%;min-height:82px;padding:5px;border:1px solid rgba(255,255,255,.12);border-radius:5px;background:#101018;color:#ddd;text-align:center;cursor:pointer}
+.t7-image-library-choose:hover,.t7-image-library-choose:focus-visible{background:#292936}
+.t7-image-library-choose img{display:block;width:100%;height:54px;object-fit:contain}
+.t7-image-library-choose span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
+.t7-image-library-favorite{position:absolute;top:3px;right:3px;display:grid;place-items:center;width:24px;height:24px;padding:0;border:1px solid rgba(255,255,255,.18);border-radius:4px;background:rgba(15,15,21,.88);color:#e5c76b;font:16px/1 system-ui,sans-serif;cursor:pointer}
+.t7-image-picker-empty{grid-column:1/-1;padding:16px 6px;color:#aaa;text-align:center;font-size:12px}
 
 /* ========== Общая палитра окон (список эмоутов и настройки) ========== */
 .t7-pop,.t7-set{
@@ -234,7 +253,7 @@ form.cy-chat-f>.t7-banword-warning[hidden]{display:none}
 .cy-chat-l>li.t7-filtered{font-style:italic}
 .cy-chat-l>li>.t7-filter-label{display:inline-block;margin-right:5px;padding:2px 6px;border-radius:4px;background:rgba(255,201,77,.14);color:#ffca66;font-size:13px;font-weight:700;white-space:nowrap}
 .cy-chat-l>li.t7-filtered>:not(.t7-filter-label){display:none!important}
-.cy-chat-l,.cy-chat-l li,.cy-chat-l li span,.cy-chat-l li a{-webkit-user-select:text!important;user-select:text!important}
+.cy-chat-l,.cy-chat-l li,.cy-chat-l li span,.cy-chat-l li a,.dm-l,.dm-l li,.dm-l li span,.dm-l li a{-webkit-user-select:text!important;user-select:text!important}
 .cy-chat-l a.t7-link{color:#8edbff;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .cy-chat-tabs>button[data-tab][hidden]{display:none!important}
 /* Фиксация якоря прокрутки для контейнера личных сообщений и чата */

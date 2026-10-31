@@ -388,12 +388,12 @@ function openPop(btn) {
     setupDrag(pop);
     setupResize(pop);
 
-    pop.querySelector('.t7-x').onclick = () => {
+    pop.querySelector('.t7-x').addEventListener('click', () => {
         const a = st.anchor;
         closePop();
         if (a) a.focus({ preventScroll: true });
-    };
-    pop.querySelector('.t7-g').onclick = openSettings;
+    });
+    pop.querySelector('.t7-g').addEventListener('click', openSettings);
     pop.querySelector('.t7-q').addEventListener('input', filterGrid);
     gridMode = 'all';
     pop.querySelector('.t7-views').addEventListener('click', (e) => {
