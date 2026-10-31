@@ -148,12 +148,16 @@ async function addImagePreview(anchor) {
         image.src = imageSrc;
         await image.decode();
         if (!anchor.isConnected) return;
-        mutatePreservingScroll(anchor, () => {
+        const isDmMessage = !!anchor.closest('.dm-l, .cy-chat-dmx')
+            && !anchor.closest('.cy-chat-l');
+        const insertPreview = () => {
             anchor.replaceChildren(image);
             anchor.classList.remove('t7-image-pending');
             anchor.classList.add('t7-image-link');
             anchor.dataset.t7ImagePreview = 'done';
-        });
+        };
+        if (isDmMessage) insertPreview();
+        else mutatePreservingScroll(anchor, insertPreview);
     } catch (error) {
         if (anchor.isConnected) {
             anchor.classList.remove('t7-image-pending');

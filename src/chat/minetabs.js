@@ -1,6 +1,6 @@
 // Единые настройки вкладок для отдельных чатов города и шахты.
 import { pingSystem } from './pingSystem.js';
-import { resetDmNotificationBaseline } from './chat.js';
+import { rememberOwnDmMessage, resetDmNotificationBaseline } from './chat.js';
 import { mutatePreservingScroll } from './scrollState.js';
 import { store } from '../core/store.js';
 import { SAY_RE, sendWithLinks } from './links.js';
@@ -617,7 +617,7 @@ function wrapDm(v) {
                 context = `${user}|${String(ctx && ctx.ch || '').toLowerCase()}`;
                 pingSystem.setDmUser(user);
             } catch (e) {}
-            resetDmNotificationBaseline();
+            resetDmNotificationBaseline(context);
             const list = context && context === lastContext ? document.querySelector('.dm-l') : null;
             let dmContext = ctx;
             if (ctx && typeof ctx.api === 'function') {
@@ -625,9 +625,15 @@ function wrapDm(v) {
                 dmContext = new Proxy(ctx, {
                     get(target, key) {
                         if (key === 'api') {
-                            return (path, body) => SAY_RE.test(path)
-                                ? sendWithLinks(api, path, body)
-                                : api(path, body);
+                            return (path, body) => {
+                                if (!SAY_RE.test(path)) return api(path, body);
+                                const result = sendWithLinks(api, path, body);
+                                if (!path.startsWith('/api/dm/say') || !body || typeof body.text !== 'string') return result;
+                                return result.then((response) => {
+                                    if (!response || response.ok !== false) rememberOwnDmMessage(body.text);
+                                    return response;
+                                });
+                            };
                         }
                         const value = Reflect.get(target, key, target);
                         return typeof value === 'function' ? value.bind(target) : value;

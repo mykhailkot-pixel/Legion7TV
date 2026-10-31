@@ -9,13 +9,15 @@ export function getScrollContainer(element) {
         if (!node.matches(scrollListSelector)) continue;
         fallback ||= node;
         const overflowY = getComputedStyle(node).overflowY;
-        if (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') return node;
+        if ((overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay')
+            && node.clientHeight > 0 && node.scrollHeight > node.clientHeight + 1) return node;
     }
     return fallback;
 }
 
 export function isAtEnd(list) {
-    return list.scrollHeight - list.scrollTop - list.clientHeight < 40;
+    const tolerance = list.matches('.dm-l, .cy-chat-dmx') ? 2 : 40;
+    return list.scrollHeight - list.scrollTop - list.clientHeight < tolerance;
 }
 
 export function scrollToEnd(list) {
@@ -40,8 +42,10 @@ export function mutatePreservingScroll(element, mutate) {
 
     const wasAtEnd = isAtEnd(list);
     const listRect = list.getBoundingClientRect();
-    const rows = list.querySelectorAll('li');
-    const candidates = rows.length ? rows : list.children;
+    const rowList = element.matches && element.matches(scrollListSelector)
+        ? element
+        : element.closest && element.closest(scrollListSelector);
+    const candidates = rowList && rowList.children.length ? rowList.children : list.children;
     const anchor = [...candidates].find((child) => {
         const rect = child.getBoundingClientRect();
         return rect.bottom > listRect.top && rect.top < listRect.bottom;

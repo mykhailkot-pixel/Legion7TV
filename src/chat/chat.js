@@ -20,17 +20,41 @@ registerChatProcessor(processMentions);
 const scrollListSelector = `${SEL.chatList}, .cy-chat-dmx, .dm-l`;
 let initializedDmLists = new WeakSet();
 const seenDmMessages = new Set();
+const ownDmMessages = new Map();
+let activeDmContext = '';
+let dmContextChangedAt = 0;
+let dmNotificationsMutedUntil = 0;
+
+function getDmSender(message) {
+    const nickElement = message.querySelector('[data-nick], [data-login], b');
+    return nickElement && (nickElement.dataset.nick || nickElement.dataset.login || nickElement.textContent).trim();
+}
+
+function getDmText(message) {
+    const spans = message.querySelectorAll(SEL.messageContent);
+    return (spans[spans.length - 1] || message).textContent.trim().replace(/\s+/g, ' ');
+}
 
 function dmMessageKey(message) {
-    const sender = message.querySelector('[data-nick], [data-login], b')?.dataset.nick
-        || message.querySelector('[data-login]')?.dataset.login
-        || message.querySelector('b')?.textContent.trim().toLowerCase()
-        || '';
+    const sender = String(getDmSender(message) || '').toLowerCase();
     const time = message.querySelector('time[datetime]')?.dateTime
         || message.querySelector('[data-time]')?.dataset.time
         || '';
     const id = message.dataset.id || message.getAttribute('data-id') || '';
     return id ? `id:${id}` : `${sender}|${time}|${message.textContent.trim()}`;
+}
+
+function getDmTimestamp(message) {
+    const datetime = message.querySelector('time[datetime]')?.dateTime;
+    if (datetime) {
+        const parsed = Date.parse(datetime);
+        if (Number.isFinite(parsed)) return parsed;
+    }
+
+    const raw = message.querySelector('[data-time]')?.dataset.time;
+    if (!raw || !/^\d{10,13}$/.test(raw)) return 0;
+    const value = Number(raw);
+    return raw.length === 10 ? value * 1000 : value;
 }
 
 function rememberDmMessage(key) {
@@ -40,14 +64,42 @@ function rememberDmMessage(key) {
     return true;
 }
 
+export function rememberOwnDmMessage(text) {
+    const normalized = String(text || '').trim().replace(/\s+/g, ' ');
+    if (!normalized) return;
+    const previous = ownDmMessages.get(normalized);
+    ownDmMessages.set(normalized, {
+        count: (previous && previous.count || 0) + 1,
+        expiresAt: Date.now() + 10000
+    });
+}
+
+function isOwnDmMessage(message) {
+    const text = getDmText(message);
+    const pending = ownDmMessages.get(text);
+    if (!pending) return false;
+    if (pending.expiresAt < Date.now()) {
+        ownDmMessages.delete(text);
+        return false;
+    }
+    if (pending.count > 1) pending.count--;
+    else ownDmMessages.delete(text);
+    return true;
+}
+
 function processDmMessage(message, isInitial) {
     const key = dmMessageKey(message);
     const isNew = rememberDmMessage(key);
+    const isOwn = isOwnDmMessage(message);
     processMessage(message, 'dm');
-    if (isInitial || !isNew || message.matches(SEL.emptyMessage)) return;
+    if (!isNew || message.matches(SEL.emptyMessage)) return;
+    if (isInitial || Date.now() < dmNotificationsMutedUntil) return;
 
-    const nickElement = message.querySelector('[data-nick], [data-login], b');
-    const sender = nickElement && (nickElement.dataset.nick || nickElement.dataset.login || nickElement.textContent);
+    const timestamp = getDmTimestamp(message);
+    if (timestamp && timestamp < dmContextChangedAt) return;
+
+    const sender = getDmSender(message);
+    if (isOwn) return;
     if (pingSystem.shouldNotifyDm(sender)) {
         pingSystem.playDm().catch((error) => console.warn('[7TV] не удалось воспроизвести звук ЛС', error));
     }
@@ -107,17 +159,23 @@ export function scan() {
     dmScrollLists.forEach(getScrollState);
     for (const list of dmLists) {
         const isInitial = !initializedDmLists.has(list);
-        initializedDmLists.add(list);
-        dmFresh.forEach((message) => {
-            const messageList = message.closest('.dm-l') || message.closest('.cy-chat-dmx');
-            if (messageList === list) processDmMessage(message, isInitial);
-        });
+        const messages = [...dmFresh].filter((message) =>
+            (message.closest('.dm-l') || message.closest('.cy-chat-dmx')) === list);
+        if (!isInitial || messages.some((message) => !message.matches(SEL.emptyMessage))) {
+            initializedDmLists.add(list);
+        }
+        messages.forEach((message) => processDmMessage(message, isInitial));
     }
     if (dmScrollLists.size) stickEnds(dmScrollLists);
 }
 
-export function resetDmNotificationBaseline() {
+export function resetDmNotificationBaseline(context) {
+    const nextContext = String(context || '');
+    if (nextContext === activeDmContext) return;
+    activeDmContext = nextContext;
     initializedDmLists = new WeakSet();
+    dmContextChangedAt = Date.now();
+    dmNotificationsMutedUntil = dmContextChangedAt + 1500;
 }
 
 export function rescanAll() {
