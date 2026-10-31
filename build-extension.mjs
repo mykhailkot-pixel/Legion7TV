@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { access, cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import sharp from 'sharp';
 
@@ -28,6 +28,16 @@ async function writeIcons() {
     const directory = resolve(output, 'icons');
     await mkdir(directory, { recursive: true });
     const sourceIcon = resolve(source, 'icons/legion7.svg');
+
+    try {
+        await access(sourceIcon);
+    } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+        await Promise.all([16, 32, 48, 128].map((size) =>
+            cp(resolve(source, `icons/icon${size}.png`), resolve(directory, `icon${size}.png`))));
+        return;
+    }
+
     await cp(sourceIcon, resolve(directory, 'legion7.svg'));
     await Promise.all([16, 32, 48, 128].map((size) =>
         sharp(sourceIcon).resize(size, size).png().toFile(resolve(directory, `icon${size}.png`))));
