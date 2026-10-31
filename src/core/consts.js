@@ -34,9 +34,10 @@ export const SEL = Object.freeze({
     chatRows: '.cy-chat-l li',
     freshChatRows: '.cy-chat-l li:not([data-l7tv-processed])',
     processedChatRows: '.cy-chat-l li[data-l7tv-processed]',
-    dmRoot: '.cy-chat-dmx',
-    freshDmRows: '.cy-chat-dmx li:not([data-l7tv-processed])',
-    processedDmRows: '.cy-chat-dmx li[data-l7tv-processed]',
+    dmRoot: '.cy-chat-dmx, .dm-l',
+    dmRows: '.cy-chat-dmx li, .dm-l > li',
+    freshDmRows: '.cy-chat-dmx li:not([data-l7tv-processed]), .dm-l > li:not([data-l7tv-processed])',
+    processedDmRows: '.cy-chat-dmx li[data-l7tv-processed], .dm-l > li[data-l7tv-processed]',
     messageContent: ':scope > span:not([class])',
     nonEmptyChatRows: ':scope > li:not(.cy-chat-0)',
     chatForm: 'form.cy-chat-f',
@@ -51,7 +52,7 @@ export const SEL = Object.freeze({
     chatHeader: '.cy-chat-h',
     chatCloseButton: '.cy-chat-x',
     chatToggleButton: '.cy-chat-t',
-    emptyMessage: '.cy-chat-0',
+    emptyMessage: '.cy-chat-0, .dm-0, .dm-old',
     systemMessage: '.cy-chat-sys',
     eventMessage: '.cy-chat-ev'
 });

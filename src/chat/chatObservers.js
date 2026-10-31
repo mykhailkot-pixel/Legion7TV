@@ -23,7 +23,7 @@ export function startChatObservers() {
 
             for (const node of record.addedNodes) {
                 if (contains(node, SEL.chatForms)) needsButtons = true;
-                if (contains(node, SEL.chatRows) || contains(node, SEL.dmRoot)) needsScan = true;
+                if (contains(node, SEL.chatRows) || contains(node, SEL.dmRows) || contains(node, SEL.dmRoot)) needsScan = true;
             }
         }
 

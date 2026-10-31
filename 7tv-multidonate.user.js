@@ -2,7 +2,7 @@
 // @author       ProCto_Fliy
 // @name         Legion chat extentions (7TV, более удобный чат и тд)
 // @namespace    https://play.multidonate.ru/
-// @version      4.8.1
+// @version      4.8.2
 // @description  Эмоуты 7TV в чате: кнопка 7TV, ник стримера, размер, список эмоутов, быстрый кеш
 // @match        https://play.multidonate.ru/*
 // @icon         https://cdn.7tv.app/emote/01F71VQYHR000D3ZZ6Q11NR7TV/2x.webp
@@ -103,9 +103,10 @@
     chatRows: ".cy-chat-l li",
     freshChatRows: ".cy-chat-l li:not([data-l7tv-processed])",
     processedChatRows: ".cy-chat-l li[data-l7tv-processed]",
-    dmRoot: ".cy-chat-dmx",
-    freshDmRows: ".cy-chat-dmx li:not([data-l7tv-processed])",
-    processedDmRows: ".cy-chat-dmx li[data-l7tv-processed]",
+    dmRoot: ".cy-chat-dmx, .dm-l",
+    dmRows: ".cy-chat-dmx li, .dm-l > li",
+    freshDmRows: ".cy-chat-dmx li:not([data-l7tv-processed]), .dm-l > li:not([data-l7tv-processed])",
+    processedDmRows: ".cy-chat-dmx li[data-l7tv-processed], .dm-l > li[data-l7tv-processed]",
     messageContent: ":scope > span:not([class])",
     nonEmptyChatRows: ":scope > li:not(.cy-chat-0)",
     chatForm: "form.cy-chat-f",
@@ -120,7 +121,7 @@
     chatHeader: ".cy-chat-h",
     chatCloseButton: ".cy-chat-x",
     chatToggleButton: ".cy-chat-t",
-    emptyMessage: ".cy-chat-0",
+    emptyMessage: ".cy-chat-0, .dm-0, .dm-old",
     systemMessage: ".cy-chat-sys",
     eventMessage: ".cy-chat-ev"
   });
@@ -494,7 +495,7 @@
     }
     content.replaceChildren(fragment);
   }
-  var SAY_RE = /^\/api\/(?:city\/say|mine\/chat\/say)(?:\?|$)/;
+  var SAY_RE = /^\/api\/(?:chat\/say|city\/say|mine\/chat\/say|dm\/say)(?:\?|$)/;
   var LINK_ENCODING_KEY = STORE.linkEncoding;
   var isLinkEncodingEnabled = () => store.get(LINK_ENCODING_KEY) === true;
   var setLinkEncodingEnabled = (enabled) => store.set(LINK_ENCODING_KEY, !!enabled);
@@ -2279,7 +2280,7 @@
         if (target && target.closest(SEL.chatRoot)) needsScan = true;
         for (const node of record.addedNodes) {
           if (contains(node, SEL.chatForms)) needsButtons = true;
-          if (contains(node, SEL.chatRows) || contains(node, SEL.dmRoot)) needsScan = true;
+          if (contains(node, SEL.chatRows) || contains(node, SEL.dmRows) || contains(node, SEL.dmRoot)) needsScan = true;
         }
       }
       if (!needsButtons && !needsScan || queued) return;
@@ -2889,7 +2890,22 @@
         const list = context && context === lastContext ? document.querySelector(".dm-l") : null;
         const scrollTop = list ? list.scrollTop : 0;
         const atEnd = list && list.scrollHeight - list.scrollTop - list.clientHeight < 40;
-        const result = init.apply(this, arguments);
+        let dmContext = ctx;
+        if (ctx && typeof ctx.api === "function") {
+          const api = ctx.api.bind(ctx);
+          dmContext = new Proxy(ctx, {
+            get(target, key) {
+              if (key === "api") {
+                return (path, body) => SAY_RE.test(path) ? sendWithLinks(api, path, body) : api(path, body);
+              }
+              const value = Reflect.get(target, key, target);
+              return typeof value === "function" ? value.bind(target) : value;
+            }
+          });
+        }
+        const args = [...arguments];
+        args[0] = dmContext;
+        const result = init.apply(this, args);
         if (list && list.isConnected) list.scrollTop = atEnd ? list.scrollHeight : scrollTop;
         lastContext = context;
         return result;

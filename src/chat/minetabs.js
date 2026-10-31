@@ -614,7 +614,24 @@ function wrapDm(v) {
             const list = context && context === lastContext ? document.querySelector('.dm-l') : null;
             const scrollTop = list ? list.scrollTop : 0;
             const atEnd = list && list.scrollHeight - list.scrollTop - list.clientHeight < 40;
-            const result = init.apply(this, arguments);
+            let dmContext = ctx;
+            if (ctx && typeof ctx.api === 'function') {
+                const api = ctx.api.bind(ctx);
+                dmContext = new Proxy(ctx, {
+                    get(target, key) {
+                        if (key === 'api') {
+                            return (path, body) => SAY_RE.test(path)
+                                ? sendWithLinks(api, path, body)
+                                : api(path, body);
+                        }
+                        const value = Reflect.get(target, key, target);
+                        return typeof value === 'function' ? value.bind(target) : value;
+                    }
+                });
+            }
+            const args = [...arguments];
+            args[0] = dmContext;
+            const result = init.apply(this, args);
             if (list && list.isConnected) list.scrollTop = atEnd ? list.scrollHeight : scrollTop;
             lastContext = context;
             return result;

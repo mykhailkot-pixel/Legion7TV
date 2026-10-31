@@ -2,7 +2,7 @@
 import { store } from '../core/store.js';
 import { STORE } from '../core/consts.js';
 
-export const SAY_RE = /^\/api\/(?:city\/say|mine\/chat\/say)(?:\?|$)/;
+export const SAY_RE = /^\/api\/(?:chat\/say|city\/say|mine\/chat\/say|dm\/say)(?:\?|$)/;
 const LINK_ENCODING_KEY = STORE.linkEncoding;
 
 export const isLinkEncodingEnabled = () => store.get(LINK_ENCODING_KEY) === true;
