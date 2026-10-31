@@ -106,86 +106,129 @@ export function openSettings() {
         <div class="t7-sw" role="dialog" aria-modal="true" aria-label="Настройки 7TV">
             <div class="t7-sth"><b>Настройки 7TV</b><button type="button" class="t7-x" aria-label="Закрыть">×</button></div>
 
-            <details class="t7-sec">
-                <summary>Эмоуты</summary>
-                <label class="t7-chk"><input type="checkbox" class="t7-on"> Показывать эмоуты 7TV в чате</label>
-            </details>
+            <div class="t7-settings-tabs" role="tablist" aria-label="Разделы настроек">
+                <button type="button" id="t7-settings-tab-emotes" role="tab" aria-selected="true" aria-controls="t7-settings-panel-emotes" tabindex="0">Эмоуты</button>
+                <button type="button" id="t7-settings-tab-chat" role="tab" aria-selected="false" aria-controls="t7-settings-panel-chat" tabindex="-1">Чат</button>
+                <button type="button" id="t7-settings-tab-pings" role="tab" aria-selected="false" aria-controls="t7-settings-panel-pings" tabindex="-1">Пинги</button>
+                <button type="button" id="t7-settings-tab-data" role="tab" aria-selected="false" aria-controls="t7-settings-panel-data" tabindex="-1">Данные</button>
+            </div>
 
-            <details class="t7-sec">
-                <summary>Канал</summary>
-                <form class="t7-row">
-                    <label class="t7-fl">Ник стримера на Twitch<input type="text" class="t7-nick" maxlength="80" autocomplete="off" spellcheck="false"></label>
-                    <button type="submit" class="t7-b p">Загрузить</button>
-                </form>
-                <div class="t7-sst" role="status"></div>
-            </details>
+            <div class="t7-setting-panel" id="t7-settings-panel-emotes" role="tabpanel" aria-labelledby="t7-settings-tab-emotes" tabindex="0">
+                <details class="t7-sec" open>
+                    <summary>Отображение</summary>
+                    <label class="t7-chk"><input type="checkbox" class="t7-on"> Показывать эмоуты 7TV в чате</label>
+                </details>
 
-            <details class="t7-sec">
-                <summary>Размер эмоутов в чате</summary>
-                <div class="t7-szb">${Object.keys(SIZES).map((k) => `<button type="button" data-sz="${k}" aria-pressed="false">${SIZES[k].label}</button>`).join('')}</div>
-            </details>
+                <details class="t7-sec" open>
+                    <summary>Канал</summary>
+                    <form class="t7-row">
+                        <label class="t7-fl">Ник стримера на Twitch<input type="text" class="t7-nick" maxlength="80" autocomplete="off" spellcheck="false"></label>
+                        <button type="submit" class="t7-b p">Загрузить</button>
+                    </form>
+                    <div class="t7-sst" role="status"></div>
+                </details>
 
-            <details class="t7-sec">
-                <summary>Вкладки чата</summary>
-                <div class="t7-chat-tab-list"></div>
-            </details>
+                <details class="t7-sec" open>
+                    <summary>Размер в чате</summary>
+                    <div class="t7-szb">${Object.keys(SIZES).map((k) => `<button type="button" data-sz="${k}" aria-pressed="false">${SIZES[k].label}</button>`).join('')}</div>
+                </details>
 
-            <details class="t7-sec">
-                <summary>Пасты</summary>
-                <label class="t7-chk"><input type="checkbox" class="t7-pastes-enabled"> Показывать кнопку паст в чате</label>
-            </details>
+                <details class="t7-sec" open>
+                    <summary>Недавние эмоуты</summary>
+                    <label class="t7-fl">Количество эмоутов в списке<input class="t7-recent-limit" type="number" min="1" max="100" step="1" inputmode="numeric"></label>
+                </details>
+            </div>
 
-            <details class="t7-sec">
-                <summary>Недавно использованные</summary>
-                <label class="t7-fl">Количество эмоутов в списке "Недавние"<input class="t7-recent-limit" type="number" min="1" max="100" step="1" inputmode="numeric"></label>
-            </details>
+            <div class="t7-setting-panel" id="t7-settings-panel-chat" role="tabpanel" aria-labelledby="t7-settings-tab-chat" tabindex="0" hidden>
+                <details class="t7-sec" open>
+                    <summary>Вкладки чата</summary>
+                    <div class="t7-chat-tab-list"></div>
+                </details>
 
-            <details class="t7-sec">
-                <summary>Ссылки в чате</summary>
-                <label class="t7-chk"><input type="checkbox" class="t7-link-encoding"> Обрабатывать ссылки при отправке и отображении</label>
-                <label class="t7-chk"><input type="checkbox" class="t7-image-previews"> Показывать изображения по ссылкам (imgbb)</label>
-                <div class="t7-note" role="note"><span class="t7-note-icon" aria-hidden="true">!</span><span>Используйте на свой страх и риск.</span></div>
-            </details>
+                <details class="t7-sec" open>
+                    <summary>Пасты</summary>
+                    <label class="t7-chk"><input type="checkbox" class="t7-pastes-enabled"> Показывать кнопку паст в чате</label>
+                </details>
 
-            <details class="t7-sec">
-                <summary>Шрифт чата</summary>
-                <label class="t7-fl t7-chat-font-control">Гарнитура<select class="t7-chat-font"><option value="site">Как на сайте</option><option value="nunito">Nunito</option><option value="comfortaa">Comfortaa</option><option value="custom">Свой шрифт…</option></select></label>
-                <label class="t7-fl t7-chat-font-size-control">Размер текста<input type="range" class="t7-chat-font-size" min="11" max="22" step="1"><output class="t7-chat-font-size-value"></output></label>
-                <div class="t7-row t7-wrap t7-chat-font-actions"><button type="button" class="t7-b" data-act="chat-font">Загрузить файл шрифта</button><button type="button" class="t7-b" data-act="chat-font-reset">Удалить свой шрифт</button><input type="file" class="t7-chat-font-file" accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf" hidden></div>
-                <div class="t7-ping-status t7-chat-font-status" role="status"></div>
-            </details>
+                <details class="t7-sec" open>
+                    <summary>Ссылки</summary>
+                    <label class="t7-chk"><input type="checkbox" class="t7-link-encoding"> Обрабатывать ссылки при отправке и отображении</label>
+                    <label class="t7-chk"><input type="checkbox" class="t7-image-previews"> Показывать изображения по ссылкам (imgbb)</label>
+                    <div class="t7-note" role="note"><span class="t7-note-icon" aria-hidden="true">!</span><span>Используйте на свой страх и риск.</span></div>
+                </details>
 
-            <details class="t7-sec">
-                <summary>Пинги и фильтры</summary>
-                <label class="t7-chk"><input type="checkbox" class="t7-tab-completion"> Дополнять ник по Tab</label>
-                <label class="t7-fl">Ники и варианты для пинга<textarea class="t7-ping-aliases" rows="2" placeholder="ник, nick, @ник"></textarea></label>
-                <label class="t7-fl t7-ping-color-control">Цвет упоминаний (@ник)<input type="color" class="t7-ping-color"></label>
-                <label class="t7-fl">Черный список ников<textarea class="t7-ping-blacklist" rows="2" placeholder="по одному нику на строку"></textarea></label>
-                <label class="t7-fl">Игнорировать сообщения со словами или фразами<textarea class="t7-ping-stopwords" rows="2" placeholder="по одному слову или фразе на строку"></textarea></label>
-                <label class="t7-fl">Звук пинга<select class="t7-ping-preset"><option value="bell">Колокольчик</option><option value="chime">Звон</option><option value="pop">Короткий сигнал</option><option value="custom">Свой звук</option></select></label>
-                <label class="t7-fl t7-volume">Громкость<input class="t7-ping-volume" type="range" min="0" max="1" step="0.05"><output class="t7-volume-value"></output></label>
-                <div class="t7-row t7-wrap">
-                    <button type="button" class="t7-b" data-act="custom-sound">Загрузить свой звук</button>
-                    <button type="button" class="t7-b" data-act="test-ping">Проверить звук</button>
-                    <input type="file" class="t7-ping-file" accept="audio/*" hidden>
-                </div>
-                <div class="t7-ping-status" role="status"></div>
-            </details>
+                <details class="t7-sec" open>
+                    <summary>Шрифт</summary>
+                    <label class="t7-fl t7-chat-font-control">Гарнитура<select class="t7-chat-font"><option value="site">Как на сайте</option><option value="nunito">Nunito</option><option value="comfortaa">Comfortaa</option><option value="custom">Свой шрифт…</option></select></label>
+                    <label class="t7-fl t7-chat-font-size-control">Размер текста<input type="range" class="t7-chat-font-size" min="11" max="22" step="1"><output class="t7-chat-font-size-value"></output></label>
+                    <div class="t7-row t7-wrap t7-chat-font-actions"><button type="button" class="t7-b" data-act="chat-font">Загрузить файл шрифта</button><button type="button" class="t7-b" data-act="chat-font-reset">Удалить свой шрифт</button><input type="file" class="t7-chat-font-file" accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf" hidden></div>
+                    <div class="t7-ping-status t7-chat-font-status" role="status"></div>
+                </details>
+            </div>
 
-            <details class="t7-sec">
-                <summary>Данные</summary>
-                <div class="t7-row t7-wrap">
-                    <button type="button" class="t7-b" data-act="refresh">Обновить список</button>
-                    <button type="button" class="t7-b" data-act="cache">Очистить кеш картинок</button>
-                    <button type="button" class="t7-b" data-act="pos">Сбросить положение окошка</button>
-                </div>
-            </details>
+            <div class="t7-setting-panel" id="t7-settings-panel-pings" role="tabpanel" aria-labelledby="t7-settings-tab-pings" tabindex="0" hidden>
+                <details class="t7-sec" open>
+                    <summary>Упоминания и фильтры</summary>
+                    <label class="t7-chk"><input type="checkbox" class="t7-tab-completion"> Дополнять ник по Tab</label>
+                    <label class="t7-fl">Ники и варианты для пинга<textarea class="t7-ping-aliases" rows="2" placeholder="ник, nick, @ник"></textarea></label>
+                    <label class="t7-fl t7-ping-color-control">Цвет упоминаний (@ник)<input type="color" class="t7-ping-color"></label>
+                    <label class="t7-fl">Черный список ников<textarea class="t7-ping-blacklist" rows="2" placeholder="по одному нику на строку"></textarea></label>
+                    <label class="t7-fl">Игнорировать сообщения со словами или фразами<textarea class="t7-ping-stopwords" rows="2" placeholder="по одному слову или фразе на строку"></textarea></label>
+                    <label class="t7-fl">Звук пинга<select class="t7-ping-preset"><option value="bell">Колокольчик</option><option value="chime">Звон</option><option value="pop">Короткий сигнал</option><option value="custom">Свой звук</option></select></label>
+                    <label class="t7-fl t7-volume">Громкость<input class="t7-ping-volume" type="range" min="0" max="1" step="0.05"><output class="t7-volume-value"></output></label>
+                    <div class="t7-row t7-wrap">
+                        <button type="button" class="t7-b" data-act="custom-sound">Загрузить свой звук</button>
+                        <button type="button" class="t7-b" data-act="test-ping">Проверить звук</button>
+                        <input type="file" class="t7-ping-file" accept="audio/*" hidden>
+                    </div>
+                    <div class="t7-ping-status" role="status"></div>
+                </details>
+            </div>
+
+            <div class="t7-setting-panel" id="t7-settings-panel-data" role="tabpanel" aria-labelledby="t7-settings-tab-data" tabindex="0" hidden>
+                <details class="t7-sec" open>
+                    <summary>Управление данными</summary>
+                    <div class="t7-row t7-wrap">
+                        <button type="button" class="t7-b" data-act="refresh">Обновить список</button>
+                        <button type="button" class="t7-b" data-act="cache">Очистить кеш картинок</button>
+                        <button type="button" class="t7-b" data-act="pos">Сбросить положение окошка</button>
+                    </div>
+                </details>
+            </div>
         </div>`;
     // игра не должна ловить клавиши, пока печатаем в настройках
     ['keydown', 'keyup', 'keypress'].forEach((t) => el.addEventListener(t, (e) => e.stopPropagation()));
     el.addEventListener('pointerdown', (e) => { if (e.target === el) closeSettings(); });
 
     el.querySelector('.t7-x').onclick = closeSettings;
+
+    const settingsTabs = el.querySelector('.t7-settings-tabs');
+    const activateSettingsTab = (tab) => {
+        settingsTabs.querySelectorAll('[role="tab"]').forEach((item) => {
+            const selected = item === tab;
+            item.setAttribute('aria-selected', String(selected));
+            item.tabIndex = selected ? 0 : -1;
+            el.querySelector(`#${item.getAttribute('aria-controls')}`).hidden = !selected;
+        });
+    };
+    settingsTabs.addEventListener('click', (event) => {
+        const tab = event.target.closest('[role="tab"]');
+        if (tab) activateSettingsTab(tab);
+    });
+    settingsTabs.addEventListener('keydown', (event) => {
+        const tabs = [...settingsTabs.querySelectorAll('[role="tab"]')];
+        const index = tabs.indexOf(event.target);
+        if (index < 0) return;
+        const nextIndex = event.key === 'ArrowRight' ? (index + 1) % tabs.length
+            : event.key === 'ArrowLeft' ? (index - 1 + tabs.length) % tabs.length
+                : event.key === 'Home' ? 0
+                    : event.key === 'End' ? tabs.length - 1
+                        : -1;
+        if (nextIndex < 0) return;
+        event.preventDefault();
+        activateSettingsTab(tabs[nextIndex]);
+        tabs[nextIndex].focus();
+    });
 
     const on = el.querySelector('.t7-on');
     on.checked = S.on;
