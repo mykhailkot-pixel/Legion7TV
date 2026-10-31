@@ -62,8 +62,8 @@ function setupTabs(K) {
     const commonTab = tabs.querySelector(`[data-tab="${preferredTab}"]`)
         ? preferredTab
         : tabs.querySelector(`[data-tab="${otherCommonTab}"]`) ? otherCommonTab : preferredTab;
-    const alternateTab = commonTab === 'g' ? 'mn' : 'g';
-    const prefId = (id) => id === 'g' || id === 'mn' ? 'g' : id;
+    const alternateTab = K.one ? null : commonTab === 'g' ? 'mn' : 'g';
+    const prefId = (id) => !K.one && (id === 'g' || id === 'mn') ? 'g' : id;
     const siteId = (id) => id === 'g' ? commonTab : id;
     if (!K.one) {
         C[commonTab] = true;
@@ -80,21 +80,23 @@ function setupTabs(K) {
         tabs.appendChild(e);
     }
     tabs.querySelectorAll('[data-tab]').forEach((b) => {
-        if (b.dataset.tab === alternateTab) b.hidden = true;
+        if (alternateTab && b.dataset.tab === alternateTab) b.hidden = true;
         if (b._t7h) return;
         b._t7h = 1;
         // Библиотека сбрасывает hidden при рендере; восстанавливаем настройки и контекстную общую вкладку.
         new MutationObserver(() => {
             const hidden = getChatTabPrefs().hidden.has(prefId(b.dataset.tab));
-            if (hidden || b.dataset.tab === alternateTab) {
+            if (hidden || (alternateTab && b.dataset.tab === alternateTab)) {
                 if (!b.hidden) b.hidden = true;
             } else if (b.dataset.tab === commonTab && !K.one && b.hidden) b.hidden = false;
         }).observe(b, { attributes: true, attributeFilter: ['hidden'] });
     });
-    for (const id of ['g', 'mn']) {
-        const button = tabs.querySelector(`[data-tab="${id}"]`);
-        if (button && button.firstChild && button.firstChild.nodeType === 3) button.firstChild.nodeValue = 'Общий';
-        if (button) button.title = 'Общие сообщения';
+    if (!K.one) {
+        for (const id of ['g', 'mn']) {
+            const button = tabs.querySelector(`[data-tab="${id}"]`);
+            if (button && button.firstChild && button.firstChild.nodeType === 3) button.firstChild.nodeValue = 'Общий';
+            if (button) button.title = 'Общие сообщения';
+        }
     }
     if (prefs.hidden.has(prefId(C.tab))) {
         const fallback = prefs.order.find((id) => {
@@ -297,7 +299,6 @@ function markFilteredMessages(room) {
     const o = chatOf(room);
     const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
     if (!list || !o.C) return;
-    if (o.C.tab === 'lg') return;
     const visible = o.C.list.filter((m) => tabOfMsg(o.C, m) === o.C.tab && !(o.C.ign && o.C.ign.has(m.l)) && (o.C.tab !== 'dm' || !o.C.peer || m.sys || m.l === o.C.peer || m.to === o.C.peer));
     const rows = list.querySelectorAll(SEL.nonEmptyChatRows);
     const x = rooms[room].instance.K.X();
@@ -328,11 +329,6 @@ function applyPingOnly(room) {
     const o = chatOf(room);
     const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
     if (!list) return;
-    if (o.C.tab === 'lg') {
-        list.querySelectorAll(':scope > li.t7-ping-hidden').forEach((row) => row.classList.remove('t7-ping-hidden'));
-        list.dataset.t7NoPings = 'false';
-        return;
-    }
     const visible = o.C.list.filter((m) => tabOfMsg(o.C, m) === o.C.tab && !(o.C.ign && o.C.ign.has(m.l)) && (o.C.tab !== 'dm' || !o.C.peer || m.sys || m.l === o.C.peer || m.to === o.C.peer));
     const pageIds = new Set(archivePage(room, o.C).map((m) => String(m.id)));
     let messageIndex = 0;
