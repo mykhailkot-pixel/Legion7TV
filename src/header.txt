@@ -17,6 +17,11 @@
 // @connect      7tv.io
 // @connect      cdn.7tv.app
 // @connect      api.ivr.fi
+// @connect      ibb.co
+// @connect      www.ibb.co
+// @connect      imgbb.com
+// @connect      www.imgbb.com
+// @connect      i.ibb.co
 // @connect      workers.dev
 // @license      MIT
 // ==/UserScript==

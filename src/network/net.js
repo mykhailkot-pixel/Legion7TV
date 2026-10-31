@@ -1,7 +1,7 @@
 import { store } from '../core/store.js';
 import { STORE } from '../core/consts.js';
 
-const ALLOWED = ['7tv.io', 'cdn.7tv.app', 'api.ivr.fi'];
+const ALLOWED = ['7tv.io', 'cdn.7tv.app', 'api.ivr.fi', 'ibb.co', 'www.ibb.co', 'imgbb.com', 'www.imgbb.com', 'i.ibb.co'];
 const ROUTES = { '7tv.io': 'api', 'cdn.7tv.app': 'cdn', 'api.ivr.fi': 'ivr' };
 
 // Прокси по умолчанию для всех, кто не настроил свой. '' = напрямую.
@@ -45,7 +45,8 @@ const gmOnce = (url, responseType, timeout) => new Promise((resolve, reject) => 
 
 const gm = async (url, responseType) => {
     if (!urlOk(url)) throw new Error('url not allowed');
-    if (proxy && Date.now() > proxyDownUntil) {
+    const route = ROUTES[new URL(url).hostname];
+    if (proxy && route && Date.now() > proxyDownUntil) {
         try { return await gmOnce(viaProxy(url), responseType, 6000); }
         catch { proxyDownUntil = Date.now() + 120000; }   // 2 минуты идём напрямую
     }
@@ -63,6 +64,7 @@ export async function testProxy(v) {
 }
 
 export const getJson = async (url) => JSON.parse((await gm(url)).responseText);
+export const getText = async (url) => (await gm(url)).responseText;
 
 export const getBuf = async (url) => {
     const r = await gm(url, 'blob');

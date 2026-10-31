@@ -8,10 +8,11 @@ import { clearImgs } from '../emotes/imgcache.js';
 import { pingSystem } from '../chat/pingSystem.js';
 import { getChatFont, getChatFontSize, getCustomChatFont, setChatFont, setChatFontSize, uploadChatFont, removeCustomChatFont } from '../chat/chatFonts.js';
 import { getRecentLimit, setRecentLimit } from '../chat/prefs.js';
-import { isLinkEncodingEnabled, setLinkEncodingEnabled } from '../chat/links.js';
+import { areImagePreviewsEnabled, isLinkEncodingEnabled, setImagePreviewsEnabled, setLinkEncodingEnabled } from '../chat/links.js';
 import { CHAT_TABS, getChatTabPrefs, setChatTabPrefs } from '../chat/prefs.js';
 import { STORE } from '../core/consts.js';
 import { arePastesEnabled, setPastesEnabled } from '../chat/pastes.js';
+import { clearResolvedImageCache } from '../chat/imageProviders.js';
 
 // смещение окна настроек от центра экрана
 let SOFF = (() => {
@@ -138,6 +139,7 @@ export function openSettings() {
             <details class="t7-sec">
                 <summary>Ссылки в чате</summary>
                 <label class="t7-chk"><input type="checkbox" class="t7-link-encoding"> Обрабатывать ссылки при отправке и отображении</label>
+                <label class="t7-chk"><input type="checkbox" class="t7-image-previews"> Показывать изображения по ссылкам (imgbb)</label>
                 <div class="t7-note" role="note"><span class="t7-note-icon" aria-hidden="true">!</span><span>Используйте на свой страх и риск.</span></div>
             </details>
 
@@ -350,6 +352,12 @@ export function openSettings() {
         setLinkEncodingEnabled(linkEncoding.checked);
         rescanAll();
     });
+    const imagePreviews = el.querySelector('.t7-image-previews');
+    imagePreviews.checked = areImagePreviewsEnabled();
+    imagePreviews.addEventListener('change', () => {
+        setImagePreviewsEnabled(imagePreviews.checked);
+        rescanAll();
+    });
 
     el.addEventListener('click', async (e) => {
         const b = e.target.closest('[data-act]');
@@ -368,6 +376,7 @@ export function openSettings() {
         else if (b.dataset.act === 'test-ping') pingSystem.play();
         else if (b.dataset.act === 'refresh') reload(true);
         else if (b.dataset.act === 'cache') {
+            clearResolvedImageCache();
             await clearImgs();
             setStatus('Кеш картинок очищен');
             st.hooks.emotes();   // перерисовать чат и список (картинки скачаются заново)

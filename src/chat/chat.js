@@ -66,12 +66,26 @@ function stickEnds(lists) {
         else list.scrollTop = state.top;
     });
 }
-function stickFrom(el) {
+function stickFrom(el, mutate) {
     const list = el.closest && el.closest(scrollListSelector);
     if (!list) return;
     const state = getScrollState(list);
-    if (state.atEnd) list.scrollTop = list.scrollHeight;
-    else list.scrollTop = state.top;
+    const listRect = list.getBoundingClientRect();
+    const anchor = [...list.children].find((child) => {
+        const rect = child.getBoundingClientRect();
+        return rect.bottom > listRect.top && rect.top < listRect.bottom;
+    });
+    const anchorTop = anchor && anchor.getBoundingClientRect().top;
+    if (mutate) mutate();
+    if (state.atEnd) {
+        list.scrollTop = list.scrollHeight;
+    } else if (anchor && anchor.isConnected) {
+        list.scrollTop += anchor.getBoundingClientRect().top - anchorTop;
+    } else {
+        list.scrollTop = state.top;
+    }
+    state.top = list.scrollTop;
+    state.atEnd = isAtEnd(list);
 }
 
 function processMessage(message, room) {

@@ -1,12 +1,17 @@
 // Ссылки в чате: отправка через [ref]{...}, разбор на приёме
 import { store } from '../core/store.js';
 import { STORE } from '../core/consts.js';
+import { fetchImg } from '../emotes/imgcache.js';
+import { resolveImageUrl, supportsImageUrl } from './imageProviders.js';
 
 export const SAY_RE = /^\/api\/(?:chat\/say|city\/say|mine\/chat\/say|dm\/say)(?:\?|$)/;
 const LINK_ENCODING_KEY = STORE.linkEncoding;
+const IMAGE_PREVIEWS_KEY = STORE.imagePreviews;
 
 export const isLinkEncodingEnabled = () => store.get(LINK_ENCODING_KEY) === true;
 export const setLinkEncodingEnabled = (enabled) => store.set(LINK_ENCODING_KEY, !!enabled);
+export const areImagePreviewsEnabled = () => store.get(IMAGE_PREVIEWS_KEY) === true;
+export const setImagePreviewsEnabled = (enabled) => store.set(IMAGE_PREVIEWS_KEY, !!enabled);
 
 const HTTP_RE = /(?<![\p{L}\p{N}_])http:\/\/\S/iu;
 const URL_RE = /\[ref\]\{[^{}\s]+\}|https:\/\/[^\s<>"']+|www\.[^\s<>"']+/giu;
@@ -105,6 +110,10 @@ function linkifyText(root) {
                 anchor.target = '_blank';
                 anchor.rel = 'noopener noreferrer';
                 anchor.textContent = label;
+                if (areImagePreviewsEnabled() && supportsImageUrl(href)) {
+                    anchor.classList.add('t7-image-pending');
+                    anchor.dataset.t7ImagePreview = 'pending';
+                }
                 fragment.appendChild(anchor);
                 offset = start + url.length;
             } else {
@@ -117,9 +126,47 @@ function linkifyText(root) {
     }
 }
 
-export function processLinks({ content }) {
-    if (!isLinkEncodingEnabled()) return;
+async function addImagePreview(anchor, stickFrom) {
+    if (anchor.dataset.t7ImagePreview === 'done') return;
+    if (!supportsImageUrl(anchor.href)) return;
+    anchor.dataset.t7ImagePreview = 'pending';
+    try {
+        const imageUrl = await resolveImageUrl(anchor.href);
+        if (!imageUrl || !anchor.isConnected) {
+            anchor.classList.remove('t7-image-pending');
+            delete anchor.dataset.t7ImagePreview;
+            return;
+        }
+        const imageSrc = await fetchImg(imageUrl, true);
+        if (!anchor.isConnected) return;
+        const image = document.createElement('img');
+        image.className = 't7-image-preview';
+        image.alt = 'Изображение по ссылке';
+        image.decoding = 'async';
+        image.src = imageSrc;
+        await image.decode();
+        if (!anchor.isConnected) return;
+        stickFrom(anchor, () => {
+            anchor.replaceChildren(image);
+            anchor.classList.remove('t7-image-pending');
+            anchor.classList.add('t7-image-link');
+            anchor.dataset.t7ImagePreview = 'done';
+        });
+    } catch (error) {
+        if (anchor.isConnected) {
+            anchor.classList.remove('t7-image-pending');
+            delete anchor.dataset.t7ImagePreview;
+        }
+        console.warn('[Images] не удалось обработать ссылку', anchor.href, error);
+    }
+}
+
+export function processLinks({ content, stickFrom }) {
+    const parseLinks = isLinkEncodingEnabled();
+    const showImages = areImagePreviewsEnabled();
+    if (!parseLinks && !showImages) return;
     linkifyText(content);
+    if (showImages) content.querySelectorAll('a.t7-link').forEach((anchor) => { addImagePreview(anchor, stickFrom); });
 }
 
 // call(path, body) - исходный api сайта

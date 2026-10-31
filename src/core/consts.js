@@ -16,6 +16,8 @@ export const STORE = Object.freeze({
     pingArchive: 't7PingArchive',
     chatTabPrefs: 't7ChatTabPrefs',
     linkEncoding: 't7LinkEncoding',
+    imagePreviews: 't7ImagePreviews',
+    imageResolveCache: 't7ImageResolveCache',
     networkProxy: 't7proxy',
     pastes: 't7Pastes',
     pastesEnabled: 't7PastesEnabled'
