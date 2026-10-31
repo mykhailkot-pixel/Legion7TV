@@ -5,12 +5,15 @@
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
+    "build:chromium": "node build-extension.mjs",
+    "build:all": "npm run build && npm run build:chromium",
     "release": "npm version patch --no-git-tag-version && node build.mjs",
     "release:minor": "npm version minor --no-git-tag-version && node build.mjs"
   },
   "devDependencies": {
     "cssnano": "^9.9.0",
     "esbuild": "^0.21.5",
-    "postcss": "^8.5.32"
+    "postcss": "^8.5.32",
+    "sharp": "^0.34.5"
   }
 }

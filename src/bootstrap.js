@@ -17,9 +17,11 @@ import './chat/minetabs.js';
 let started = false;
 
 function initialize() {
-    const style = document.createElement('style');
-    style.textContent = css;
-    document.head.appendChild(style);
+    if (!globalThis.__L7TV_CSS_INJECTED__) {
+        const style = document.createElement('style');
+        style.textContent = css;
+        document.head.appendChild(style);
+    }
 
     const size = store.get(STORE.emoteSize);
     if (SIZES[size]) S.size = size;

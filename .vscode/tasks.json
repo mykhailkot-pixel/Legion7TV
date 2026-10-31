@@ -79,6 +79,85 @@
 			],
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Build Chromium extension",
+			"type": "shell",
+			"command": "cmd.exe",
+			"args": [
+				"/d",
+				"/c",
+				"npm run build:chromium && node --check dist/chromium/content-bridge.js && node --check dist/chromium/page-bridge.js && node --check dist/chromium/background.js && git diff --check"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Install SVG rasterizer",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"install"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Build userscript",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Verify extension assets",
+			"type": "shell",
+			"command": "node",
+			"args": [
+				"-e",
+				"const fs=require('node:fs');const sharp=require('sharp');const root='dist/chromium';Promise.all([16,32,48,128].map(async n=>{const p=root+'/icons/icon'+n+'.png';const m=await sharp(p).metadata();if(m.width!==n||m.height!==n)throw Error(p+': '+m.width+'x'+m.height);console.log(p+': '+m.width+'x'+m.height)})).then(()=>{const css=fs.statSync(root+'/styles.css').size;const js=fs.statSync(root+'/content-bridge.js').size;console.log('styles.css bytes:',css,'content-bridge.js bytes:',js,'manifest exists:',fs.existsSync(root+'/manifest.json'));if(css<1000||js<1000)throw Error('Missing/empty build output')}).catch(e=>{console.error(e);process.exit(1)})"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check working tree",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"status",
+				"--short"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check feedback template changes",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"diff",
+				"--check"
+			],
+			"isBackground": false,
+			"problemMatcher": []
+		},
+		{
+			"label": "Check storage fix diff",
+			"type": "shell",
+			"command": "git",
+			"args": [
+				"diff",
+				"--check",
+				"--",
+				"src/core/store.js"
+			],
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }

@@ -46,6 +46,12 @@ class PingSystem {
         this.customBufferPromise = null;
     }
 
+    reloadConfig() {
+        Object.assign(this.config, readConfig());
+        this.regexCache.clear();
+        this.notify();
+    }
+
     subscribe(listener) {
         if (typeof listener !== 'function') return () => {};
         this.listeners.add(listener);

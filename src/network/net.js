@@ -36,6 +36,29 @@ function viaProxy(url) {
 }
 
 const gmOnce = (url, responseType, timeout) => new Promise((resolve, reject) => {
+    if (typeof GM_xmlhttpRequest !== 'function') {
+        const api = globalThis.browser || globalThis.chrome;
+        if (!api || !api.runtime || typeof api.runtime.sendMessage !== 'function') {
+            reject(new Error('no supported cross-origin request API is available'));
+            return;
+        }
+        const request = api.runtime.sendMessage({ type: 'LEGION7TV_FETCH', url, responseType, timeout });
+        Promise.resolve(request).then((result) => {
+            if (!result || !result.ok) {
+                reject(new Error(result && result.error || 'extension request failed'));
+                return;
+            }
+            if (responseType === 'blob') {
+                const binary = atob(result.body);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                resolve({ status: result.status, response: new Blob([bytes], { type: result.contentType }) });
+            } else {
+                resolve({ status: result.status, responseText: result.body });
+            }
+        }, reject);
+        return;
+    }
     GM_xmlhttpRequest({
         method: 'GET', url, responseType, timeout,
         onload: (r) => (r.status >= 200 && r.status < 300) ? resolve(r) : reject(new Error(url + ' -> ' + r.status)),

@@ -5,7 +5,9 @@ import { SAY_RE, sendWithLinks } from './links.js';
 import { getChatTabPrefs } from './prefs.js';
 import { EV, SEL, STORE, on } from '../core/consts.js';
 
-const W = unsafeWindow;
+const W = globalThis.__L7TV_EXTENSION_PAGE__
+    ? window
+    : typeof unsafeWindow !== 'undefined' ? unsafeWindow : null;
 const CITY = '/api/city/chat', MINE = '/api/mine/chat';
 const PING_ONLY_KEY = STORE.pingOnly;
 const PING_ARCHIVE_KEY = STORE.pingArchive;
@@ -653,7 +655,9 @@ function hook(name, fn) {
     } catch (e) { console.warn('[mine-tabs] hook', name, e); }
 }
 
-hook('LGChat', wrapChat);
-hook('LGCity', wrapCity);
-hook('LGMine', wrapMine);
-hook('LGDm', wrapDm);
+if (W) {
+    hook('LGChat', wrapChat);
+    hook('LGCity', wrapCity);
+    hook('LGMine', wrapMine);
+    hook('LGDm', wrapDm);
+}

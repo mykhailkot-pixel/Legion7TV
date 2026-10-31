@@ -160,18 +160,51 @@
       }
     }
   };
+  var extensionValues = null;
+  var extensionWriter = null;
+  var extensionPersistenceUnavailable = false;
+  function logStorageError(operation, error) {
+    console.error(`[Legion7TV] storage ${operation} failed`, error);
+  }
+  function handleExtensionWriteError(error) {
+    if (error instanceof Error && /extension context invalidated/i.test(error.message)) {
+      extensionWriter = null;
+      extensionPersistenceUnavailable = true;
+      console.warn("[Legion7TV] The extension was reloaded; storage changes will not persist until this page is refreshed.", error);
+      return;
+    }
+    logStorageError("write", error);
+  }
   var store = {
-    get: (k) => {
+    get(key) {
+      if (extensionValues) return extensionValues[key];
       try {
-        return GM_getValue(k, void 0);
-      } catch {
+        return typeof GM_getValue === "function" ? GM_getValue(key, void 0) : void 0;
+      } catch (error) {
+        logStorageError("read", error);
         return void 0;
       }
     },
-    set: (k, v) => {
+    set(key, value) {
+      if (extensionValues) {
+        extensionValues[key] = value;
+        if (!extensionWriter) {
+          if (extensionPersistenceUnavailable) return;
+          logStorageError("write", new Error("extension storage writer is not configured"));
+          return;
+        }
+        try {
+          Promise.resolve(extensionWriter(key, value)).catch(handleExtensionWriteError);
+        } catch (error) {
+          handleExtensionWriteError(error);
+        }
+        return;
+      }
       try {
-        GM_setValue(k, v);
-      } catch {
+        if (typeof GM_setValue !== "function") throw new Error("GM_setValue is unavailable");
+        GM_setValue(key, value);
+      } catch (error) {
+        logStorageError("write", error);
       }
     }
   };
@@ -205,6 +238,29 @@
     return `${proxy}/${ROUTES[u.hostname]}${u.pathname}${u.search}`;
   }
   var gmOnce = (url, responseType, timeout) => new Promise((resolve, reject) => {
+    if (typeof GM_xmlhttpRequest !== "function") {
+      const api = globalThis.browser || globalThis.chrome;
+      if (!api || !api.runtime || typeof api.runtime.sendMessage !== "function") {
+        reject(new Error("no supported cross-origin request API is available"));
+        return;
+      }
+      const request = api.runtime.sendMessage({ type: "LEGION7TV_FETCH", url, responseType, timeout });
+      Promise.resolve(request).then((result) => {
+        if (!result || !result.ok) {
+          reject(new Error(result && result.error || "extension request failed"));
+          return;
+        }
+        if (responseType === "blob") {
+          const binary = atob(result.body);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          resolve({ status: result.status, response: new Blob([bytes], { type: result.contentType }) });
+        } else {
+          resolve({ status: result.status, responseText: result.body });
+        }
+      }, reject);
+      return;
+    }
     GM_xmlhttpRequest({
       method: "GET",
       url,
@@ -1117,6 +1173,11 @@
       this.audioContext = null;
       this.customBuffer = null;
       this.customBufferPromise = null;
+    }
+    reloadConfig() {
+      Object.assign(this.config, readConfig());
+      this.regexCache.clear();
+      this.notify();
     }
     subscribe(listener) {
       if (typeof listener !== "function") return () => {
@@ -2754,7 +2815,7 @@
       observer.disconnect();
     };
   }
-  var W = unsafeWindow;
+  var W = globalThis.__L7TV_EXTENSION_PAGE__ ? window : typeof unsafeWindow !== "undefined" ? unsafeWindow : null;
   var CITY = "/api/city/chat";
   var MINE = "/api/mine/chat";
   var PING_ONLY_KEY = STORE.pingOnly;
@@ -3383,15 +3444,19 @@
       console.warn("[mine-tabs] hook", name, e);
     }
   }
-  hook("LGChat", wrapChat);
-  hook("LGCity", wrapCity);
-  hook("LGMine", wrapMine);
-  hook("LGDm", wrapDm);
+  if (W) {
+    hook("LGChat", wrapChat);
+    hook("LGCity", wrapCity);
+    hook("LGMine", wrapMine);
+    hook("LGDm", wrapDm);
+  }
   var started = false;
   function initialize() {
-    const style = document.createElement("style");
-    style.textContent = styles_default;
-    document.head.appendChild(style);
+    if (!globalThis.__L7TV_CSS_INJECTED__) {
+      const style = document.createElement("style");
+      style.textContent = styles_default;
+      document.head.appendChild(style);
+    }
     const size = store.get(STORE.emoteSize);
     if (SIZES[size]) S.size = size;
     S.nick = pageChan;

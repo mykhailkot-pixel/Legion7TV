@@ -1,0 +1,31 @@
+name: Предложить улучшение
+description: Поделитесь идеей новой функции или изменения.
+title: "[Предложение]: "
+labels: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Расскажите, какую задачу решит это улучшение. Предложения можно обсуждать и уточнять прямо в комментариях.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Какую проблему или потребность решит предложение?
+      description: Опишите ситуацию, в которой вам не хватает текущих возможностей.
+      placeholder: Когда я ..., мне сложно ...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Какое решение вы предлагаете?
+      description: Опишите желаемое поведение или результат.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Какие альтернативы вы рассматривали?
+      description: Необязательно. Можно указать обходные пути или другие варианты реализации.
+    validations:
+      required: false
