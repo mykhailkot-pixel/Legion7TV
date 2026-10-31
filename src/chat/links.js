@@ -4,6 +4,7 @@ import { STORE } from '../core/consts.js';
 import { fetchImg } from '../emotes/imgcache.js';
 import { resolveImageUrl, supportsImageUrl } from './imageProviders.js';
 import { rememberSentImages } from './imagePicker.js';
+import { mutatePreservingScroll } from './scrollState.js';
 
 export const SAY_RE = /^\/api\/(?:chat\/say|city\/say|mine\/chat\/say|dm\/say)(?:\?|$)/;
 const LINK_ENCODING_KEY = STORE.linkEncoding;
@@ -127,7 +128,7 @@ function linkifyText(root) {
     }
 }
 
-async function addImagePreview(anchor, stickFrom) {
+async function addImagePreview(anchor) {
     if (anchor.dataset.t7ImagePreview === 'done') return;
     if (!supportsImageUrl(anchor.href)) return;
     anchor.dataset.t7ImagePreview = 'pending';
@@ -147,7 +148,7 @@ async function addImagePreview(anchor, stickFrom) {
         image.src = imageSrc;
         await image.decode();
         if (!anchor.isConnected) return;
-        stickFrom(anchor, () => {
+        mutatePreservingScroll(anchor, () => {
             anchor.replaceChildren(image);
             anchor.classList.remove('t7-image-pending');
             anchor.classList.add('t7-image-link');
@@ -162,12 +163,12 @@ async function addImagePreview(anchor, stickFrom) {
     }
 }
 
-export function processLinks({ content, stickFrom }) {
+export function processLinks({ content }) {
     const parseLinks = isLinkEncodingEnabled();
     const showImages = areImagePreviewsEnabled();
     if (!parseLinks && !showImages) return;
     linkifyText(content);
-    if (showImages) content.querySelectorAll('a.t7-link').forEach((anchor) => { addImagePreview(anchor, stickFrom); });
+    if (showImages) content.querySelectorAll('a.t7-link').forEach((anchor) => { addImagePreview(anchor); });
 }
 
 // call(path, body) - исходный api сайта

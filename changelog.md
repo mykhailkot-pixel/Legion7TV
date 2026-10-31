@@ -1,6 +1,6 @@
 # Changelog
 
-## CHROMIUM EXTENSION RELEASE
+## [5.1.0] CHROMIUM EXTENSION RELEASE
 
 ### Added
 - Поддержку картинок через imgbb

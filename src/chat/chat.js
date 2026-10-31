@@ -4,6 +4,7 @@ import { S } from '../core/state.js';
 import { processEmotes } from './chatEmotes.js';
 import { processLinks } from './links.js';
 import { processMentions } from './mentions.js';
+import { getScrollState, isAtEnd, scrollToEnd } from './scrollState.js';
 
 const processors = [];
 const SOURCE_KEY = 'l7tvEmoteSource';
@@ -15,77 +16,19 @@ registerChatProcessor(processLinks);
 registerChatProcessor(processMentions);
 
 /* ---------- сохраняем положение ленты при обновлении сообщений ---------- */
-const scrollStates = new WeakMap();
 const scrollListSelector = `${SEL.chatList}, .dm-l`;
 
-function isAtEnd(list) {
-    return list.scrollHeight - list.scrollTop - list.clientHeight < 40;
-}
-
-function getScrollState(list) {
-    let state = scrollStates.get(list);
-    if (!state) {
-        state = { top: list.scrollTop, atEnd: isAtEnd(list), userInput: false, timer: 0 };
-        scrollStates.set(list, state);
-    }
-    return state;
-}
-
-function markUserScroll(event) {
-    const target = event.target && (event.target.nodeType === 1 ? event.target : event.target.parentElement);
-    const list = target && target.closest(scrollListSelector);
-    if (!list) return;
-    const state = getScrollState(list);
-    state.userInput = true;
-    clearTimeout(state.timer);
-    state.timer = setTimeout(() => { state.userInput = false; }, 250);
-}
-
-document.addEventListener('wheel', markUserScroll, true);
-document.addEventListener('touchstart', markUserScroll, true);
-document.addEventListener('touchmove', markUserScroll, true);
-document.addEventListener('keydown', (event) => {
-    if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key))
-        markUserScroll(event);
-}, true);
 document.addEventListener('scroll', (event) => {
     const list = event.target;
     if (!list || !list.matches || !list.matches(scrollListSelector)) return;
-    const state = getScrollState(list);
-    if (!state.userInput) return;
-    state.top = list.scrollTop;
-    state.atEnd = isAtEnd(list);
-    clearTimeout(state.timer);
-    state.timer = setTimeout(() => { state.userInput = false; }, 250);
+    getScrollState(list).atEnd = isAtEnd(list);
 }, true);
 
 function stickEnds(lists) {
     lists.forEach((list) => {
         const state = getScrollState(list);
-        if (state.atEnd) list.scrollTop = list.scrollHeight;
-        else list.scrollTop = state.top;
+        if (state.atEnd) scrollToEnd(list);
     });
-}
-function stickFrom(el, mutate) {
-    const list = el.closest && el.closest(scrollListSelector);
-    if (!list) return;
-    const state = getScrollState(list);
-    const listRect = list.getBoundingClientRect();
-    const anchor = [...list.children].find((child) => {
-        const rect = child.getBoundingClientRect();
-        return rect.bottom > listRect.top && rect.top < listRect.bottom;
-    });
-    const anchorTop = anchor && anchor.getBoundingClientRect().top;
-    if (mutate) mutate();
-    if (state.atEnd) {
-        list.scrollTop = list.scrollHeight;
-    } else if (anchor && anchor.isConnected) {
-        list.scrollTop += anchor.getBoundingClientRect().top - anchorTop;
-    } else {
-        list.scrollTop = state.top;
-    }
-    state.top = list.scrollTop;
-    state.atEnd = isAtEnd(list);
 }
 
 function processMessage(message, room) {
@@ -111,7 +54,7 @@ function processMessage(message, room) {
     }
 
     message.dataset.l7tvProcessed = '1';
-    const context = { message, content, room, kind, source, stickFrom };
+    const context = { message, content, room, kind, source };
     for (const processor of processors) processor(context);
 }
 

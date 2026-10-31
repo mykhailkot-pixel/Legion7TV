@@ -23,10 +23,8 @@
 .t7-tip-author{font-size:16px}
 .t7-tip-author span{color:#e89a00}
 .t7-tip-type{font-size:16px;font-weight:700}
-.t7-image-pending{font-size:0!important;line-height:0!important}
 .t7-image-link{display:inline-flex;flex-direction:column;align-items:flex-start;gap:4px;max-width:100%;vertical-align:top;font-size:0;line-height:0;text-decoration:none}
 .t7-image-preview{display:block;width:auto;max-width:min(100%,400px);max-height:300px;object-fit:contain;border-radius:4px}
-.cy-chat-l,.dm-l{overflow-anchor:none}
 
 /* ========== Кнопка 7TV в форме чата ========== */
 form.cy-chat-f .t7-btn{
@@ -256,9 +254,9 @@ form.cy-chat-f>.t7-banword-warning[hidden]{display:none}
 .cy-chat-l,.cy-chat-l li,.cy-chat-l li span,.cy-chat-l li a,.dm-l,.dm-l li,.dm-l li span,.dm-l li a{-webkit-user-select:text!important;user-select:text!important}
 .cy-chat-l a.t7-link{color:#8edbff;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .cy-chat-tabs>button[data-tab][hidden]{display:none!important}
-/* Фиксация якоря прокрутки для контейнера личных сообщений и чата */
-.cy-chat-dmx, .cy-chat-l {
-  overflow-anchor: auto;
+/* Позицию ленты контролирует скрипт; нативный якорь конфликтует с превью изображений. */
+.cy-chat-dmx, .cy-chat-l, .dm-l {
+  overflow-anchor: none;
 }
 
 /* Запрещаем браузеру самовольно дергать размеры картинок при вставке */
