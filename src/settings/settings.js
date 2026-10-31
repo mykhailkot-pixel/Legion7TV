@@ -185,6 +185,21 @@ export function openSettings() {
                     </div>
                     <div class="t7-ping-status" role="status"></div>
                 </details>
+
+                <details class="t7-sec" open>
+                    <summary>Личные сообщения</summary>
+                    <label class="t7-chk"><input type="checkbox" class="t7-dm-sound-enabled"> Звук при новом сообщении в ЛС</label>
+                    <label class="t7-fl">Звук личных сообщений<select class="t7-dm-ping-preset"><option value="bell">Колокольчик</option><option value="chime">Звон</option><option value="pop">Короткий сигнал</option><option value="custom">Свой звук для ЛС</option></select></label>
+                    <label class="t7-fl">Ники для звуковых уведомлений<textarea class="t7-dm-nick-list" rows="2" placeholder="по одному нику на строку"></textarea></label>
+                    <label class="t7-chk"><input type="checkbox" class="t7-dm-nick-whitelist"> Белый список: сигналить только от указанных ников</label>
+                    <div class="t7-row t7-wrap">
+                        <button type="button" class="t7-b" data-act="custom-dm-sound">Загрузить звук для ЛС</button>
+                        <button type="button" class="t7-b" data-act="test-dm-ping">Проверить звук ЛС</button>
+                        <input type="file" class="t7-dm-ping-file" accept="audio/*" hidden>
+                    </div>
+                    <div class="t7-ping-status t7-dm-ping-status" role="status"></div>
+                    <div class="t7-note">Громкость уведомлений ЛС регулируется общей настройкой громкости выше. В чёрном режиме список исключает ники; в белом — разрешает сигналы только для них.</div>
+                </details>
             </div>
 
             <div class="t7-setting-panel" id="t7-settings-panel-data" role="tabpanel" aria-labelledby="t7-settings-tab-data" tabindex="0" hidden>
@@ -305,6 +320,38 @@ export function openSettings() {
         }
         pingFile.value = '';
     });
+    const dmSoundEnabled = el.querySelector('.t7-dm-sound-enabled');
+    dmSoundEnabled.checked = pingSystem.config.dmSoundEnabled;
+    dmSoundEnabled.addEventListener('change', () => pingSystem.setDmSoundEnabled(dmSoundEnabled.checked));
+    const dmPreset = el.querySelector('.t7-dm-ping-preset');
+    dmPreset.value = pingSystem.config.dmSelectedPreset;
+    const dmPingFile = el.querySelector('.t7-dm-ping-file');
+    const dmPingStatus = el.querySelector('.t7-dm-ping-status');
+    dmPreset.addEventListener('change', () => {
+        if (dmPreset.value === 'custom' && !pingSystem.config.dmCustomSound) {
+            dmPreset.value = pingSystem.config.dmSelectedPreset;
+            dmPingFile.click();
+            return;
+        }
+        pingSystem.setDmPreset(dmPreset.value);
+        dmPreset.value = pingSystem.config.dmSelectedPreset;
+    });
+    const dmNickList = el.querySelector('.t7-dm-nick-list');
+    dmNickList.value = pingSystem.config.dmNickList.join('\n');
+    dmNickList.addEventListener('change', () => pingSystem.setList('dmNickList', dmNickList.value));
+    const dmNickWhitelist = el.querySelector('.t7-dm-nick-whitelist');
+    dmNickWhitelist.checked = pingSystem.config.dmNickWhitelist;
+    dmNickWhitelist.addEventListener('change', () => pingSystem.setDmNickWhitelist(dmNickWhitelist.checked));
+    dmPingFile.addEventListener('change', async () => {
+        try {
+            await pingSystem.saveCustomDmSound(dmPingFile.files[0]);
+            dmPreset.value = pingSystem.config.dmSelectedPreset;
+            dmPingStatus.textContent = 'Свой звук для ЛС сохранён';
+        } catch (error) {
+            dmPingStatus.textContent = error.message;
+        }
+        dmPingFile.value = '';
+    });
 
     const chatFont = el.querySelector('.t7-chat-font');
     const chatFontFile = el.querySelector('.t7-chat-font-file');
@@ -421,6 +468,10 @@ export function openSettings() {
             pingSystem.unlockAudio();
             pingFile.click();
         }
+        else if (b.dataset.act === 'custom-dm-sound') {
+            pingSystem.unlockAudio();
+            dmPingFile.click();
+        }
         else if (b.dataset.act === 'chat-font') chatFontFile.click();
         else if (b.dataset.act === 'chat-font-reset') {
             await removeCustomChatFont();
@@ -429,6 +480,7 @@ export function openSettings() {
             chatFontStatus.textContent = 'Свой шрифт удалён';
         }
         else if (b.dataset.act === 'test-ping') pingSystem.play();
+        else if (b.dataset.act === 'test-dm-ping') pingSystem.playDm();
         else if (b.dataset.act === 'refresh') reload(true);
         else if (b.dataset.act === 'cache') {
             clearResolvedImageCache();

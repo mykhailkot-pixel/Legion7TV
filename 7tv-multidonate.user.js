@@ -22,7 +22,6 @@
 // @connect      imgbb.com
 // @connect      www.imgbb.com
 // @connect      i.ibb.co
-// @connect      workers.dev
 // @license      MIT
 // ==/UserScript==
 (() => {
@@ -1147,7 +1146,17 @@
     urlInput.focus();
   }
   var scrollStates = /* @__PURE__ */ new WeakMap();
-  var scrollListSelector = `${SEL.chatList}, .dm-l`;
+  var scrollListSelector = `${SEL.chatList}, .cy-chat-dmx, .dm-l`;
+  function getScrollContainer(element) {
+    let fallback = null;
+    for (let node = element; node && node.nodeType === 1; node = node.parentElement) {
+      if (!node.matches(scrollListSelector)) continue;
+      fallback ||= node;
+      const overflowY = getComputedStyle(node).overflowY;
+      if (overflowY === "auto" || overflowY === "scroll" || overflowY === "overlay") return node;
+    }
+    return fallback;
+  }
   function isAtEnd(list) {
     return list.scrollHeight - list.scrollTop - list.clientHeight < 40;
   }
@@ -1163,14 +1172,16 @@
     return state;
   }
   function mutatePreservingScroll(element, mutate) {
-    const list = element.closest && element.closest(scrollListSelector);
+    const list = getScrollContainer(element);
     if (!list) {
       mutate();
       return;
     }
     const wasAtEnd = isAtEnd(list);
     const listRect = list.getBoundingClientRect();
-    const anchor = [...list.children].find((child) => {
+    const rows = list.querySelectorAll("li");
+    const candidates = rows.length ? rows : list.children;
+    const anchor = [...candidates].find((child) => {
       const rect = child.getBoundingClientRect();
       return rect.bottom > listRect.top && rect.top < listRect.bottom;
     });
@@ -1370,72 +1381,17 @@
       node.replaceWith(fragment);
     }
   }
-  var processors = [];
-  var SOURCE_KEY = "l7tvEmoteSource";
-  function registerChatProcessor(processor) {
-    if (typeof processor === "function" && !processors.includes(processor)) processors.push(processor);
-  }
-  registerChatProcessor(processEmotes);
-  registerChatProcessor(processLinks);
-  registerChatProcessor(processMentions);
-  var scrollListSelector2 = `${SEL.chatList}, .dm-l`;
-  document.addEventListener("scroll", (event) => {
-    const list = event.target;
-    if (!list || !list.matches || !list.matches(scrollListSelector2)) return;
-    getScrollState(list).atEnd = isAtEnd(list);
-  }, true);
-  function stickEnds(lists) {
-    lists.forEach((list) => {
-      const state = getScrollState(list);
-      if (state.atEnd) scrollToEnd(list);
-    });
-  }
-  function processMessage(message, room) {
-    if (message.dataset.l7tvProcessed || message.matches(SEL.emptyMessage)) return;
-    const kind = message.matches(SEL.systemMessage) ? "system" : message.matches(SEL.eventMessage) ? "event" : "message";
-    let content = message;
-    if (kind === "message") {
-      const spans = message.querySelectorAll(SEL.messageContent);
-      content = spans[spans.length - 1];
-      if (!content) return;
-    }
-    const source = kind === "message" ? content.dataset[SOURCE_KEY] != null ? content.dataset[SOURCE_KEY] : content.dataset.t7o != null ? content.dataset.t7o : content.textContent : content.textContent;
-    if (kind === "message") {
-      content.dataset[SOURCE_KEY] = source;
-      content.replaceChildren(document.createTextNode(source));
-    }
-    message.dataset.l7tvProcessed = "1";
-    const context = { message, content, room, kind, source };
-    for (const processor of processors) processor(context);
-  }
-  function scan() {
-    const chatFresh = document.querySelectorAll(SEL.freshChatRows);
-    const chatLists = new Set([...chatFresh].map((message) => message.closest(SEL.chatList)).filter(Boolean));
-    chatLists.forEach(getScrollState);
-    chatFresh.forEach((message) => processMessage(message, "chat"));
-    if (chatLists.size) stickEnds(chatLists);
-    const dmFresh = document.querySelectorAll(SEL.freshDmRows);
-    const dmLists = new Set([...dmFresh].map((message) => message.closest(".dm-l")).filter(Boolean));
-    dmLists.forEach(getScrollState);
-    dmFresh.forEach((message) => processMessage(message, "dm"));
-    if (dmLists.size) stickEnds(dmLists);
-  }
-  function rescanAll() {
-    document.querySelectorAll(`${SEL.processedChatRows}, ${SEL.processedDmRows}`).forEach((message) => {
-      delete message.dataset.l7tvProcessed;
-    });
-    scan();
-  }
-  var applySize = () => {
-    document.documentElement.style.setProperty("--t7-h", SIZES[S.size].h);
-    document.documentElement.style.setProperty("--t7-tile", SIZES[S.size].p + "px");
-  };
   var CONFIG_KEY = STORE.pingConfig;
   var PRESETS = /* @__PURE__ */ new Set(["bell", "chime", "pop", "custom"]);
   var DEFAULTS = {
     volume: 0.5,
     selectedPreset: "bell",
     customSound: "",
+    dmSoundEnabled: true,
+    dmSelectedPreset: "chime",
+    dmCustomSound: "",
+    dmNickList: [],
+    dmNickWhitelist: false,
     pingColor: "#e89aa3",
     tabCompletion: true,
     aliases: [],
@@ -1450,10 +1406,17 @@
     const config = { ...DEFAULTS, ...saved && typeof saved === "object" ? saved : {} };
     config.volume = Number.isFinite(config.volume) ? Math.max(0, Math.min(1, config.volume)) : DEFAULTS.volume;
     config.selectedPreset = PRESETS.has(config.selectedPreset) ? config.selectedPreset : DEFAULTS.selectedPreset;
-    config.customSound = typeof config.customSound === "string" && config.customSound.startsWith("data:audio/") ? config.customSound : "";
+    for (const key of ["customSound", "dmCustomSound"])
+      config[key] = typeof config[key] === "string" && config[key].startsWith("data:audio/") ? config[key] : "";
+    config.dmSoundEnabled = config.dmSoundEnabled !== false;
+    config.dmSelectedPreset = PRESETS.has(config.dmSelectedPreset) ? config.dmSelectedPreset : DEFAULTS.dmSelectedPreset;
+    if (config.dmSelectedPreset === "custom" && !config.dmCustomSound) {
+      config.dmSelectedPreset = DEFAULTS.dmSelectedPreset;
+    }
+    config.dmNickWhitelist = config.dmNickWhitelist === true;
     config.pingColor = /^#[0-9a-f]{6}$/i.test(config.pingColor) ? config.pingColor : DEFAULTS.pingColor;
     config.tabCompletion = config.tabCompletion !== false;
-    for (const key of ["aliases", "blacklist", "stopWords"]) {
+    for (const key of ["aliases", "blacklist", "stopWords", "dmNickList"]) {
       config[key] = Array.isArray(config[key]) ? normalizeList(config[key].join("\n")) : [];
     }
     return config;
@@ -1469,6 +1432,9 @@
       this.audioContext = null;
       this.customBuffer = null;
       this.customBufferPromise = null;
+      this.dmCustomBuffer = null;
+      this.dmCustomBufferPromise = null;
+      this.dmUser = "";
     }
     reloadConfig() {
       Object.assign(this.config, readConfig());
@@ -1494,7 +1460,7 @@
       store.set(CONFIG_KEY, this.config);
     }
     setList(key, value) {
-      if (!["aliases", "blacklist", "stopWords"].includes(key)) return;
+      if (!["aliases", "blacklist", "stopWords", "dmNickList"].includes(key)) return;
       this.config[key] = normalizeList(value);
       if (key === "aliases") this.regexCache.clear();
       this.save();
@@ -1533,16 +1499,45 @@
       this.config.selectedPreset = value;
       this.save();
     }
-    saveCustomSound(file) {
+    setDmSoundEnabled(enabled) {
+      this.config.dmSoundEnabled = !!enabled;
+      this.save();
+    }
+    setDmPreset(value) {
+      if (!PRESETS.has(value) || value === "custom" && !this.config.dmCustomSound) return;
+      this.config.dmSelectedPreset = value;
+      this.save();
+    }
+    setDmNickWhitelist(enabled) {
+      this.config.dmNickWhitelist = !!enabled;
+      this.save();
+    }
+    setDmUser(login) {
+      this.dmUser = String(login || "").trim().toLowerCase();
+    }
+    shouldNotifyDm(sender) {
+      const user = String(sender || "").trim().toLowerCase();
+      if (!this.config.dmSoundEnabled || !user || user === this.dmUser) return false;
+      const listed = this.config.dmNickList.includes(user);
+      return this.config.dmNickWhitelist ? listed : !listed;
+    }
+    saveCustomSound(file, isDm = false) {
       return new Promise((resolve, reject) => {
         if (!file || !file.type.startsWith("audio/")) return reject(new Error("\u0412\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0430\u0443\u0434\u0438\u043E\u0444\u0430\u0439\u043B"));
         if (file.size > 2 * 1024 * 1024) return reject(new Error("\u0420\u0430\u0437\u043C\u0435\u0440 \u0444\u0430\u0439\u043B\u0430 \u0434\u043E\u043B\u0436\u0435\u043D \u0431\u044B\u0442\u044C \u043D\u0435 \u0431\u043E\u043B\u044C\u0448\u0435 2 \u041C\u0411"));
         const reader = new FileReader();
         reader.onload = () => {
-          this.config.customSound = String(reader.result || "");
-          this.config.selectedPreset = "custom";
-          this.customBuffer = null;
-          this.customBufferPromise = null;
+          if (isDm) {
+            this.config.dmCustomSound = String(reader.result || "");
+            this.config.dmSelectedPreset = "custom";
+            this.dmCustomBuffer = null;
+            this.dmCustomBufferPromise = null;
+          } else {
+            this.config.customSound = String(reader.result || "");
+            this.config.selectedPreset = "custom";
+            this.customBuffer = null;
+            this.customBufferPromise = null;
+          }
           this.save();
           resolve();
         };
@@ -1604,21 +1599,47 @@
       return this.customBuffer;
     }
     async play() {
+      return this.playSound(this.config.selectedPreset, this.config.customSound, false);
+    }
+    async playDm() {
+      return this.playSound(this.config.dmSelectedPreset, this.config.dmCustomSound, true);
+    }
+    async decodeCustomBuffer(context, encodedSound) {
+      const encoded = encodedSound.split(",")[1];
+      if (!encoded) throw new Error("\u041D\u0435\u043A\u043E\u0440\u0440\u0435\u043A\u0442\u043D\u044B\u0439 \u0430\u0443\u0434\u0438\u043E\u0444\u0430\u0439\u043B");
+      const binary = atob(encoded);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return context.decodeAudioData(bytes.buffer);
+    }
+    saveCustomDmSound(file) {
+      return this.saveCustomSound(file, true);
+    }
+    async playSound(preset, customSound, isDm) {
       if (this.config.volume <= 0) return;
       const context = this.getAudioContext();
       if (!context) return;
       if (context.state === "suspended") await context.resume();
-      if (this.config.selectedPreset === "custom" && this.config.customSound) {
+      if (preset === "custom" && customSound) {
         try {
           const source = context.createBufferSource();
           const gain = context.createGain();
-          source.buffer = await this.loadCustomBuffer(context);
+          if (isDm) {
+            if (!this.dmCustomBufferPromise) {
+              this.dmCustomBufferPromise = this.decodeCustomBuffer(context, customSound);
+            }
+            this.dmCustomBuffer = await this.dmCustomBufferPromise;
+            source.buffer = this.dmCustomBuffer;
+          } else {
+            source.buffer = await this.loadCustomBuffer(context);
+          }
           gain.gain.value = this.config.volume;
           source.connect(gain);
           gain.connect(context.destination);
           source.start();
         } catch (error) {
-          this.customBufferPromise = null;
+          if (isDm) this.dmCustomBufferPromise = null;
+          else this.customBufferPromise = null;
           console.warn("[7TV] \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0434\u0435\u043A\u043E\u0434\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u043F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C\u0441\u043A\u0438\u0439 \u0437\u0432\u0443\u043A", error);
         }
         return;
@@ -1627,7 +1648,7 @@
         bell: [[740, 0, 0.24, "sine"], [988, 0.08, 0.3, "sine"]],
         chime: [[660, 0, 0.32, "sine"], [880, 0.12, 0.4, "sine"]],
         pop: [[360, 0, 0.12, "triangle"], [220, 0.04, 0.16, "sine"]]
-      }[this.config.selectedPreset] || [];
+      }[preset] || [];
       for (const [frequency, offset, duration, type] of tones) {
         const oscillator = context.createOscillator();
         const gain = context.createGain();
@@ -1645,6 +1666,102 @@
     }
   };
   var pingSystem = new PingSystem();
+  var processors = [];
+  var SOURCE_KEY = "l7tvEmoteSource";
+  function registerChatProcessor(processor) {
+    if (typeof processor === "function" && !processors.includes(processor)) processors.push(processor);
+  }
+  registerChatProcessor(processEmotes);
+  registerChatProcessor(processLinks);
+  registerChatProcessor(processMentions);
+  var scrollListSelector2 = `${SEL.chatList}, .cy-chat-dmx, .dm-l`;
+  var initializedDmLists = /* @__PURE__ */ new WeakSet();
+  var seenDmMessages = /* @__PURE__ */ new Set();
+  function dmMessageKey(message) {
+    const sender = message.querySelector("[data-nick], [data-login], b")?.dataset.nick || message.querySelector("[data-login]")?.dataset.login || message.querySelector("b")?.textContent.trim().toLowerCase() || "";
+    const time = message.querySelector("time[datetime]")?.dateTime || message.querySelector("[data-time]")?.dataset.time || "";
+    const id = message.dataset.id || message.getAttribute("data-id") || "";
+    return id ? `id:${id}` : `${sender}|${time}|${message.textContent.trim()}`;
+  }
+  function rememberDmMessage(key) {
+    if (!key || seenDmMessages.has(key)) return false;
+    seenDmMessages.add(key);
+    if (seenDmMessages.size > 500) seenDmMessages.delete(seenDmMessages.values().next().value);
+    return true;
+  }
+  function processDmMessage(message, isInitial) {
+    const key = dmMessageKey(message);
+    const isNew = rememberDmMessage(key);
+    processMessage(message, "dm");
+    if (isInitial || !isNew || message.matches(SEL.emptyMessage)) return;
+    const nickElement = message.querySelector("[data-nick], [data-login], b");
+    const sender = nickElement && (nickElement.dataset.nick || nickElement.dataset.login || nickElement.textContent);
+    if (pingSystem.shouldNotifyDm(sender)) {
+      pingSystem.playDm().catch((error) => console.warn("[7TV] \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0437\u0432\u0443\u043A \u041B\u0421", error));
+    }
+  }
+  document.addEventListener("scroll", (event) => {
+    const list = getScrollContainer(event.target);
+    if (!list || !list.matches(scrollListSelector2)) return;
+    getScrollState(list).atEnd = isAtEnd(list);
+  }, true);
+  function stickEnds(lists) {
+    lists.forEach((list) => {
+      const state = getScrollState(list);
+      if (state.atEnd) scrollToEnd(list);
+    });
+  }
+  function processMessage(message, room) {
+    if (message.dataset.l7tvProcessed || message.matches(SEL.emptyMessage)) return;
+    const kind = message.matches(SEL.systemMessage) ? "system" : message.matches(SEL.eventMessage) ? "event" : "message";
+    let content = message;
+    if (kind === "message") {
+      const spans = message.querySelectorAll(SEL.messageContent);
+      content = spans[spans.length - 1];
+      if (!content) return;
+    }
+    const source = kind === "message" ? content.dataset[SOURCE_KEY] != null ? content.dataset[SOURCE_KEY] : content.dataset.t7o != null ? content.dataset.t7o : content.textContent : content.textContent;
+    if (kind === "message") {
+      content.dataset[SOURCE_KEY] = source;
+      content.replaceChildren(document.createTextNode(source));
+    }
+    message.dataset.l7tvProcessed = "1";
+    const context = { message, content, room, kind, source };
+    for (const processor of processors) processor(context);
+  }
+  function scan() {
+    const chatFresh = document.querySelectorAll(SEL.freshChatRows);
+    const chatLists = new Set([...chatFresh].map((message) => message.closest(SEL.chatList)).filter(Boolean));
+    chatLists.forEach(getScrollState);
+    chatFresh.forEach((message) => processMessage(message, "chat"));
+    if (chatLists.size) stickEnds(chatLists);
+    const dmFresh = document.querySelectorAll(SEL.freshDmRows);
+    const dmLists = new Set([...dmFresh].map((message) => message.closest(".dm-l") || message.closest(".cy-chat-dmx")).filter(Boolean));
+    const dmScrollLists = new Set([...dmLists].map(getScrollContainer).filter(Boolean));
+    dmScrollLists.forEach(getScrollState);
+    for (const list of dmLists) {
+      const isInitial = !initializedDmLists.has(list);
+      initializedDmLists.add(list);
+      dmFresh.forEach((message) => {
+        const messageList = message.closest(".dm-l") || message.closest(".cy-chat-dmx");
+        if (messageList === list) processDmMessage(message, isInitial);
+      });
+    }
+    if (dmScrollLists.size) stickEnds(dmScrollLists);
+  }
+  function resetDmNotificationBaseline() {
+    initializedDmLists = /* @__PURE__ */ new WeakSet();
+  }
+  function rescanAll() {
+    document.querySelectorAll(`${SEL.processedChatRows}, ${SEL.processedDmRows}`).forEach((message) => {
+      delete message.dataset.l7tvProcessed;
+    });
+    scan();
+  }
+  var applySize = () => {
+    document.documentElement.style.setProperty("--t7-h", SIZES[S.size].h);
+    document.documentElement.style.setProperty("--t7-tile", SIZES[S.size].p + "px");
+  };
   var GOOGLE_FONTS_ID = "t7-chat-google-fonts";
   var GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Comfortaa:wght@700&display=swap";
   var CUSTOM_FAMILY = "T7UploadedChatFont";
@@ -2191,6 +2308,20 @@
                     </div>
                     <div class="t7-ping-status" role="status"></div>
                 </details>
+                <details class="t7-sec" open>
+                    <summary>\u041B\u0438\u0447\u043D\u044B\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F</summary>
+                    <label class="t7-chk"><input type="checkbox" class="t7-dm-sound-enabled"> \u0417\u0432\u0443\u043A \u043F\u0440\u0438 \u043D\u043E\u0432\u043E\u043C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0438 \u0432 \u041B\u0421</label>
+                    <label class="t7-fl">\u0417\u0432\u0443\u043A \u043B\u0438\u0447\u043D\u044B\u0445 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0439<select class="t7-dm-ping-preset"><option value="bell">\u041A\u043E\u043B\u043E\u043A\u043E\u043B\u044C\u0447\u0438\u043A</option><option value="chime">\u0417\u0432\u043E\u043D</option><option value="pop">\u041A\u043E\u0440\u043E\u0442\u043A\u0438\u0439 \u0441\u0438\u0433\u043D\u0430\u043B</option><option value="custom">\u0421\u0432\u043E\u0439 \u0437\u0432\u0443\u043A \u0434\u043B\u044F \u041B\u0421</option></select></label>
+                    <label class="t7-fl">\u041D\u0438\u043A\u0438 \u0434\u043B\u044F \u0437\u0432\u0443\u043A\u043E\u0432\u044B\u0445 \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u0439<textarea class="t7-dm-nick-list" rows="2" placeholder="\u043F\u043E \u043E\u0434\u043D\u043E\u043C\u0443 \u043D\u0438\u043A\u0443 \u043D\u0430 \u0441\u0442\u0440\u043E\u043A\u0443"></textarea></label>
+                    <label class="t7-chk"><input type="checkbox" class="t7-dm-nick-whitelist"> \u0411\u0435\u043B\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A: \u0441\u0438\u0433\u043D\u0430\u043B\u0438\u0442\u044C \u0442\u043E\u043B\u044C\u043A\u043E \u043E\u0442 \u0443\u043A\u0430\u0437\u0430\u043D\u043D\u044B\u0445 \u043D\u0438\u043A\u043E\u0432</label>
+                    <div class="t7-row t7-wrap">
+                        <button type="button" class="t7-b" data-act="custom-dm-sound">\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0437\u0432\u0443\u043A \u0434\u043B\u044F \u041B\u0421</button>
+                        <button type="button" class="t7-b" data-act="test-dm-ping">\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0437\u0432\u0443\u043A \u041B\u0421</button>
+                        <input type="file" class="t7-dm-ping-file" accept="audio/*" hidden>
+                    </div>
+                    <div class="t7-ping-status t7-dm-ping-status" role="status"></div>
+                    <div class="t7-note">\u0413\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u044C \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u0439 \u041B\u0421 \u0440\u0435\u0433\u0443\u043B\u0438\u0440\u0443\u0435\u0442\u0441\u044F \u043E\u0431\u0449\u0435\u0439 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u043E\u0439 \u0433\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u0438 \u0432\u044B\u0448\u0435. \u0412 \u0447\u0451\u0440\u043D\u043E\u043C \u0440\u0435\u0436\u0438\u043C\u0435 \u0441\u043F\u0438\u0441\u043E\u043A \u0438\u0441\u043A\u043B\u044E\u0447\u0430\u0435\u0442 \u043D\u0438\u043A\u0438; \u0432 \u0431\u0435\u043B\u043E\u043C \u2014 \u0440\u0430\u0437\u0440\u0435\u0448\u0430\u0435\u0442 \u0441\u0438\u0433\u043D\u0430\u043B\u044B \u0442\u043E\u043B\u044C\u043A\u043E \u0434\u043B\u044F \u043D\u0438\u0445.</div>
+                </details>
             </div>
             <div class="t7-setting-panel" id="t7-settings-panel-data" role="tabpanel" aria-labelledby="t7-settings-tab-data" tabindex="0" hidden>
                 <details class="t7-sec" open>
@@ -2303,6 +2434,38 @@
       }
       pingFile.value = "";
     });
+    const dmSoundEnabled = el.querySelector(".t7-dm-sound-enabled");
+    dmSoundEnabled.checked = pingSystem.config.dmSoundEnabled;
+    dmSoundEnabled.addEventListener("change", () => pingSystem.setDmSoundEnabled(dmSoundEnabled.checked));
+    const dmPreset = el.querySelector(".t7-dm-ping-preset");
+    dmPreset.value = pingSystem.config.dmSelectedPreset;
+    const dmPingFile = el.querySelector(".t7-dm-ping-file");
+    const dmPingStatus = el.querySelector(".t7-dm-ping-status");
+    dmPreset.addEventListener("change", () => {
+      if (dmPreset.value === "custom" && !pingSystem.config.dmCustomSound) {
+        dmPreset.value = pingSystem.config.dmSelectedPreset;
+        dmPingFile.click();
+        return;
+      }
+      pingSystem.setDmPreset(dmPreset.value);
+      dmPreset.value = pingSystem.config.dmSelectedPreset;
+    });
+    const dmNickList = el.querySelector(".t7-dm-nick-list");
+    dmNickList.value = pingSystem.config.dmNickList.join("\n");
+    dmNickList.addEventListener("change", () => pingSystem.setList("dmNickList", dmNickList.value));
+    const dmNickWhitelist = el.querySelector(".t7-dm-nick-whitelist");
+    dmNickWhitelist.checked = pingSystem.config.dmNickWhitelist;
+    dmNickWhitelist.addEventListener("change", () => pingSystem.setDmNickWhitelist(dmNickWhitelist.checked));
+    dmPingFile.addEventListener("change", async () => {
+      try {
+        await pingSystem.saveCustomDmSound(dmPingFile.files[0]);
+        dmPreset.value = pingSystem.config.dmSelectedPreset;
+        dmPingStatus.textContent = "\u0421\u0432\u043E\u0439 \u0437\u0432\u0443\u043A \u0434\u043B\u044F \u041B\u0421 \u0441\u043E\u0445\u0440\u0430\u043D\u0451\u043D";
+      } catch (error) {
+        dmPingStatus.textContent = error.message;
+      }
+      dmPingFile.value = "";
+    });
     const chatFont = el.querySelector(".t7-chat-font");
     const chatFontFile = el.querySelector(".t7-chat-font-file");
     const chatFontStatus = el.querySelector(".t7-chat-font-status");
@@ -2414,6 +2577,9 @@
       if (b.dataset.act === "custom-sound") {
         pingSystem.unlockAudio();
         pingFile.click();
+      } else if (b.dataset.act === "custom-dm-sound") {
+        pingSystem.unlockAudio();
+        dmPingFile.click();
       } else if (b.dataset.act === "chat-font") chatFontFile.click();
       else if (b.dataset.act === "chat-font-reset") {
         await removeCustomChatFont();
@@ -2421,6 +2587,7 @@
         b.disabled = true;
         chatFontStatus.textContent = "\u0421\u0432\u043E\u0439 \u0448\u0440\u0438\u0444\u0442 \u0443\u0434\u0430\u043B\u0451\u043D";
       } else if (b.dataset.act === "test-ping") pingSystem.play();
+      else if (b.dataset.act === "test-dm-ping") pingSystem.playDm();
       else if (b.dataset.act === "refresh") reload(true);
       else if (b.dataset.act === "cache") {
         clearResolvedImageCache();
@@ -3757,12 +3924,13 @@
       init(ctx) {
         let context = "";
         try {
-          context = `${String(ctx && ctx.me && ctx.me() || "").toLowerCase()}|${String(ctx && ctx.ch || "").toLowerCase()}`;
+          const user = String(ctx && ctx.me && ctx.me() || "").toLowerCase();
+          context = `${user}|${String(ctx && ctx.ch || "").toLowerCase()}`;
+          pingSystem.setDmUser(user);
         } catch (e) {
         }
+        resetDmNotificationBaseline();
         const list = context && context === lastContext ? document.querySelector(".dm-l") : null;
-        const scrollTop = list ? list.scrollTop : 0;
-        const atEnd = list && list.scrollHeight - list.scrollTop - list.clientHeight < 40;
         let dmContext = ctx;
         if (ctx && typeof ctx.api === "function") {
           const api = ctx.api.bind(ctx);
@@ -3778,8 +3946,14 @@
         }
         const args = [...arguments];
         args[0] = dmContext;
-        const result = init.apply(this, args);
-        if (list && list.isConnected) list.scrollTop = atEnd ? list.scrollHeight : scrollTop;
+        let result;
+        if (list && list.isConnected) {
+          mutatePreservingScroll(list, () => {
+            result = init.apply(this, args);
+          });
+        } else {
+          result = init.apply(this, args);
+        }
         lastContext = context;
         return result;
       }

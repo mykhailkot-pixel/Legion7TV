@@ -22,6 +22,5 @@
 // @connect      imgbb.com
 // @connect      www.imgbb.com
 // @connect      i.ibb.co
-// @connect      workers.dev
 // @license      MIT
 // ==/UserScript==

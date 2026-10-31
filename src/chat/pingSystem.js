@@ -7,6 +7,11 @@ const DEFAULTS = {
     volume: 0.5,
     selectedPreset: 'bell',
     customSound: '',
+    dmSoundEnabled: true,
+    dmSelectedPreset: 'chime',
+    dmCustomSound: '',
+    dmNickList: [],
+    dmNickWhitelist: false,
     pingColor: '#e89aa3',
     tabCompletion: true,
     aliases: [],
@@ -23,10 +28,17 @@ function readConfig() {
     const config = { ...DEFAULTS, ...(saved && typeof saved === 'object' ? saved : {}) };
     config.volume = Number.isFinite(config.volume) ? Math.max(0, Math.min(1, config.volume)) : DEFAULTS.volume;
     config.selectedPreset = PRESETS.has(config.selectedPreset) ? config.selectedPreset : DEFAULTS.selectedPreset;
-    config.customSound = typeof config.customSound === 'string' && config.customSound.startsWith('data:audio/') ? config.customSound : '';
+    for (const key of ['customSound', 'dmCustomSound'])
+        config[key] = typeof config[key] === 'string' && config[key].startsWith('data:audio/') ? config[key] : '';
+    config.dmSoundEnabled = config.dmSoundEnabled !== false;
+    config.dmSelectedPreset = PRESETS.has(config.dmSelectedPreset) ? config.dmSelectedPreset : DEFAULTS.dmSelectedPreset;
+    if (config.dmSelectedPreset === 'custom' && !config.dmCustomSound) {
+        config.dmSelectedPreset = DEFAULTS.dmSelectedPreset;
+    }
+    config.dmNickWhitelist = config.dmNickWhitelist === true;
     config.pingColor = /^#[0-9a-f]{6}$/i.test(config.pingColor) ? config.pingColor : DEFAULTS.pingColor;
     config.tabCompletion = config.tabCompletion !== false;
-    for (const key of ['aliases', 'blacklist', 'stopWords']) {
+    for (const key of ['aliases', 'blacklist', 'stopWords', 'dmNickList']) {
         config[key] = Array.isArray(config[key]) ? normalizeList(config[key].join('\n')) : [];
     }
     return config;
@@ -44,6 +56,9 @@ class PingSystem {
         this.audioContext = null;
         this.customBuffer = null;
         this.customBufferPromise = null;
+        this.dmCustomBuffer = null;
+        this.dmCustomBufferPromise = null;
+        this.dmUser = '';
     }
 
     reloadConfig() {
@@ -73,7 +88,7 @@ class PingSystem {
     }
 
     setList(key, value) {
-        if (!['aliases', 'blacklist', 'stopWords'].includes(key)) return;
+        if (!['aliases', 'blacklist', 'stopWords', 'dmNickList'].includes(key)) return;
         this.config[key] = normalizeList(value);
         if (key === 'aliases') this.regexCache.clear();
         this.save();
@@ -119,16 +134,50 @@ class PingSystem {
         this.save();
     }
 
-    saveCustomSound(file) {
+    setDmSoundEnabled(enabled) {
+        this.config.dmSoundEnabled = !!enabled;
+        this.save();
+    }
+
+    setDmPreset(value) {
+        if (!PRESETS.has(value) || (value === 'custom' && !this.config.dmCustomSound)) return;
+        this.config.dmSelectedPreset = value;
+        this.save();
+    }
+
+    setDmNickWhitelist(enabled) {
+        this.config.dmNickWhitelist = !!enabled;
+        this.save();
+    }
+
+    setDmUser(login) {
+        this.dmUser = String(login || '').trim().toLowerCase();
+    }
+
+    shouldNotifyDm(sender) {
+        const user = String(sender || '').trim().toLowerCase();
+        if (!this.config.dmSoundEnabled || !user || user === this.dmUser) return false;
+        const listed = this.config.dmNickList.includes(user);
+        return this.config.dmNickWhitelist ? listed : !listed;
+    }
+
+    saveCustomSound(file, isDm = false) {
         return new Promise((resolve, reject) => {
             if (!file || !file.type.startsWith('audio/')) return reject(new Error('Выберите аудиофайл'));
             if (file.size > 2 * 1024 * 1024) return reject(new Error('Размер файла должен быть не больше 2 МБ'));
             const reader = new FileReader();
             reader.onload = () => {
-                this.config.customSound = String(reader.result || '');
-                this.config.selectedPreset = 'custom';
-                this.customBuffer = null;
-                this.customBufferPromise = null;
+                if (isDm) {
+                    this.config.dmCustomSound = String(reader.result || '');
+                    this.config.dmSelectedPreset = 'custom';
+                    this.dmCustomBuffer = null;
+                    this.dmCustomBufferPromise = null;
+                } else {
+                    this.config.customSound = String(reader.result || '');
+                    this.config.selectedPreset = 'custom';
+                    this.customBuffer = null;
+                    this.customBufferPromise = null;
+                }
                 this.save();
                 resolve();
             };
@@ -197,22 +246,52 @@ class PingSystem {
     }
 
     async play() {
+        return this.playSound(this.config.selectedPreset, this.config.customSound, false);
+    }
+
+    async playDm() {
+        return this.playSound(this.config.dmSelectedPreset, this.config.dmCustomSound, true);
+    }
+
+    async decodeCustomBuffer(context, encodedSound) {
+        const encoded = encodedSound.split(',')[1];
+        if (!encoded) throw new Error('Некорректный аудиофайл');
+        const binary = atob(encoded);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return context.decodeAudioData(bytes.buffer);
+    }
+
+    saveCustomDmSound(file) {
+        return this.saveCustomSound(file, true);
+    }
+
+    async playSound(preset, customSound, isDm) {
         if (this.config.volume <= 0) return;
         const context = this.getAudioContext();
         if (!context) return;
         if (context.state === 'suspended') await context.resume();
 
-        if (this.config.selectedPreset === 'custom' && this.config.customSound) {
+        if (preset === 'custom' && customSound) {
             try {
                 const source = context.createBufferSource();
                 const gain = context.createGain();
-                source.buffer = await this.loadCustomBuffer(context);
+                if (isDm) {
+                    if (!this.dmCustomBufferPromise) {
+                        this.dmCustomBufferPromise = this.decodeCustomBuffer(context, customSound);
+                    }
+                    this.dmCustomBuffer = await this.dmCustomBufferPromise;
+                    source.buffer = this.dmCustomBuffer;
+                } else {
+                    source.buffer = await this.loadCustomBuffer(context);
+                }
                 gain.gain.value = this.config.volume;
                 source.connect(gain);
                 gain.connect(context.destination);
                 source.start();
             } catch (error) {
-                this.customBufferPromise = null;
+                if (isDm) this.dmCustomBufferPromise = null;
+                else this.customBufferPromise = null;
                 console.warn('[7TV] не удалось декодировать пользовательский звук', error);
             }
             return;
@@ -222,7 +301,7 @@ class PingSystem {
             bell: [[740, 0, 0.24, 'sine'], [988, 0.08, 0.3, 'sine']],
             chime: [[660, 0, 0.32, 'sine'], [880, 0.12, 0.4, 'sine']],
             pop: [[360, 0, 0.12, 'triangle'], [220, 0.04, 0.16, 'sine']]
-        }[this.config.selectedPreset] || [];
+        }[preset] || [];
         for (const [frequency, offset, duration, type] of tones) {
             const oscillator = context.createOscillator();
             const gain = context.createGain();
@@ -238,6 +317,7 @@ class PingSystem {
             oscillator.stop(start + duration);
         }
     }
+
 }
 
 export const pingSystem = new PingSystem();
