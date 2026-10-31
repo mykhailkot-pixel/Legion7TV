@@ -137,7 +137,7 @@ export function openSettings() {
 
             <details class="t7-sec">
                 <summary>Ссылки в чате</summary>
-                <label class="t7-chk"><input type="checkbox" class="t7-link-encoding"> Преобразовывать HTTPS-ссылки при отправке</label>
+                <label class="t7-chk"><input type="checkbox" class="t7-link-encoding"> Обрабатывать ссылки при отправке и отображении</label>
                 <div class="t7-note" role="note"><span class="t7-note-icon" aria-hidden="true">!</span><span>Используйте на свой страх и риск.</span></div>
             </details>
 
@@ -346,7 +346,10 @@ export function openSettings() {
 
     const linkEncoding = el.querySelector('.t7-link-encoding');
     linkEncoding.checked = isLinkEncodingEnabled();
-    linkEncoding.addEventListener('change', () => setLinkEncodingEnabled(linkEncoding.checked));
+    linkEncoding.addEventListener('change', () => {
+        setLinkEncodingEnabled(linkEncoding.checked);
+        rescanAll();
+    });
 
     el.addEventListener('click', async (e) => {
         const b = e.target.closest('[data-act]');

@@ -118,6 +118,7 @@ function linkifyText(root) {
 }
 
 export function processLinks({ content }) {
+    if (!isLinkEncodingEnabled()) return;
     linkifyText(content);
 }
 

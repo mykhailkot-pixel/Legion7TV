@@ -14,23 +14,64 @@ registerChatProcessor(processEmotes);
 registerChatProcessor(processLinks);
 registerChatProcessor(processMentions);
 
-/* ---------- не даём ленте «уползать» вверх, когда эмоуты увеличивают строки ---------- */
-// scroll не всплывает, поэтому ловим в capture-фазе; программный рост высоты событие scroll не вызывает,
-// так что флаг отражает только то, где ленту оставил пользователь (или игра)
-document.addEventListener('scroll', (e) => {
-    const t = e.target;
-    if (t && t.classList && t.classList.contains('cy-chat-l'))
-        t.dataset.t7end = (t.scrollHeight - t.scrollTop - t.clientHeight < 40) ? '1' : '0';
+/* ---------- сохраняем положение ленты при обновлении сообщений ---------- */
+const scrollStates = new WeakMap();
+const scrollListSelector = `${SEL.chatList}, .dm-l`;
+
+function isAtEnd(list) {
+    return list.scrollHeight - list.scrollTop - list.clientHeight < 40;
+}
+
+function getScrollState(list) {
+    let state = scrollStates.get(list);
+    if (!state) {
+        state = { top: list.scrollTop, atEnd: isAtEnd(list), userInput: false, timer: 0 };
+        scrollStates.set(list, state);
+    }
+    return state;
+}
+
+function markUserScroll(event) {
+    const target = event.target && (event.target.nodeType === 1 ? event.target : event.target.parentElement);
+    const list = target && target.closest(scrollListSelector);
+    if (!list) return;
+    const state = getScrollState(list);
+    state.userInput = true;
+    clearTimeout(state.timer);
+    state.timer = setTimeout(() => { state.userInput = false; }, 250);
+}
+
+document.addEventListener('wheel', markUserScroll, true);
+document.addEventListener('touchstart', markUserScroll, true);
+document.addEventListener('touchmove', markUserScroll, true);
+document.addEventListener('keydown', (event) => {
+    if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key))
+        markUserScroll(event);
+}, true);
+document.addEventListener('scroll', (event) => {
+    const list = event.target;
+    if (!list || !list.matches || !list.matches(scrollListSelector)) return;
+    const state = getScrollState(list);
+    if (!state.userInput) return;
+    state.top = list.scrollTop;
+    state.atEnd = isAtEnd(list);
+    clearTimeout(state.timer);
+    state.timer = setTimeout(() => { state.userInput = false; }, 250);
 }, true);
 
 function stickEnds(lists) {
-    lists.forEach((l) => {
-        if (l.dataset.t7end !== '0') l.scrollTop = l.scrollHeight;
+    lists.forEach((list) => {
+        const state = getScrollState(list);
+        if (state.atEnd) list.scrollTop = list.scrollHeight;
+        else list.scrollTop = state.top;
     });
 }
 function stickFrom(el) {
-    const l = el.closest && el.closest(SEL.chatList);
-    if (l && l.dataset.t7end !== '0') l.scrollTop = l.scrollHeight;
+    const list = el.closest && el.closest(scrollListSelector);
+    if (!list) return;
+    const state = getScrollState(list);
+    if (state.atEnd) list.scrollTop = list.scrollHeight;
+    else list.scrollTop = state.top;
 }
 
 function processMessage(message, room) {
@@ -62,14 +103,16 @@ function processMessage(message, room) {
 
 export function scan() {
     const chatFresh = document.querySelectorAll(SEL.freshChatRows);
+    const chatLists = new Set([...chatFresh].map((message) => message.closest(SEL.chatList)).filter(Boolean));
+    chatLists.forEach(getScrollState);
     chatFresh.forEach((message) => processMessage(message, 'chat'));
-    if (chatFresh.length) {
-        const lists = new Set([...chatFresh].map((message) => message.closest(SEL.chatList)).filter(Boolean));
-        stickEnds(lists);
-    }
+    if (chatLists.size) stickEnds(chatLists);
 
-    document.querySelectorAll(SEL.freshDmRows)
-        .forEach((message) => processMessage(message, 'dm'));
+    const dmFresh = document.querySelectorAll(SEL.freshDmRows);
+    const dmLists = new Set([...dmFresh].map((message) => message.closest('.dm-l')).filter(Boolean));
+    dmLists.forEach(getScrollState);
+    dmFresh.forEach((message) => processMessage(message, 'dm'));
+    if (dmLists.size) stickEnds(dmLists);
 }
 
 export function rescanAll() {
