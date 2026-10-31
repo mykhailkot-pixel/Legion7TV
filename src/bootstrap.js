@@ -23,7 +23,7 @@ function initialize() {
 
     const size = store.get(STORE.emoteSize);
     if (SIZES[size]) S.size = size;
-    S.nick = store.get(STORE.channelNickPrefix + pageChan) || pageChan;
+    S.nick = pageChan;
     const position = store.get(STORE.popupPosition);
     if (position && Number.isFinite(position.x) && Number.isFinite(position.y)) st.pos = position;
     const windowSize = store.get(STORE.popupSize);

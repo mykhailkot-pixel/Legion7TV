@@ -203,8 +203,7 @@ export function openSettings() {
         if (raw && !n) { setStatus('Неверный ник: нужны латинские буквы, цифры и _'); return; }
         S.nick = n;
         nickInp.value = n;
-        store.set(STORE.channelNickPrefix + pageChan, n);
-        reload(true);
+        reload(false);
     });
 
     const pingFields = [

@@ -11,6 +11,29 @@
 			],
 			"isBackground": false,
 			"problemMatcher": []
+		},
+		{
+			"label": "Build userscript bundle",
+			"type": "shell",
+			"command": "npm",
+			"args": [
+				"run",
+				"build"
+			],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Check built userscript",
+			"type": "shell",
+			"command": "cmd.exe",
+			"args": [
+				"/c",
+				"node --check 7tv-multidonate.user.js && git diff --check"
+			],
+			"isBackground": false,
+			"problemMatcher": []
 		}
 	]
 }

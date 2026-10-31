@@ -1,11 +1,10 @@
 export const STORE = Object.freeze({
     emoteSize: 't7size',
-    channelNickPrefix: 't7nick:',
     popupPosition: 't7pos',
     popupSize: 't7win',
     settingsPosition: 't7spos',
     emotesEnabled: 't7on',
-    emoteCachePrefix: 't7c3:',
+    emoteCachePrefix: 't7c4:',
     favorites: 't7favorites',
     recentEmotes: 't7recent',
     recentEmoteLimit: 't7recentLimit',

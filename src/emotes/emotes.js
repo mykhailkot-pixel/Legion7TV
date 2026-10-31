@@ -96,53 +96,83 @@ export function reusableUrlsFor(em, n) {
 }
 
 async function loadEmotes(nick, force) {
-    const key = STORE.emoteCachePrefix + nick + ':' + xsig();
-    if (!force) {
-        const c = store.get(key);
-        if (c) return { map: c.map, msg: c.msg, stale: Date.now() - c.at >= CACHE_TTL };
-    }
-    const map = {};
+    const now = Date.now();
+    const globalKey = STORE.emoteCachePrefix + 'global:' + xsig();
+    const channel = String(nick || '').trim().toLowerCase();
+    const channelKey = STORE.emoteCachePrefix + 'channel:' + encodeURIComponent(channel);
+    const validCache = (value) => value && value.map && typeof value.map === 'object';
+    let globalData = !force ? store.get(globalKey) : null;
+    if (!validCache(globalData)) globalData = null;
+    let channelData = channel && !force ? store.get(channelKey) : null;
+    if (!validCache(channelData)) channelData = null;
     let err = '';
-    try { addSet(map, await getJson('https://7tv.io/v3/emote-sets/global'), true, false); }
-    catch (e) { err = 'глобальные не загрузились'; console.warn('[7TV]', e); }
+
+    if (!globalData) {
+        const globalMap = {};
+        let globalLoaded = false;
+        try {
+            addSet(globalMap, await getJson('https://7tv.io/v3/emote-sets/global'), true, false);
+            globalLoaded = true;
+        } catch (e) {
+            err = 'глобальные не загрузились';
+            console.warn('[7TV]', e);
+        }
+        let extras = {};
+        let bad = 0;
+        if (EXTRA_EMOTES.length || EXTRA_SETS.length) {
+            const result = await loadExtras();
+            extras = result.map;
+            bad = result.bad;
+        }
+        globalData = { at: now, map: globalMap, extras, bad };
+        if (globalLoaded && !bad) store.set(globalKey, globalData);
+    }
 
     let chanMsg = '';
-    if (!nick) {
+    if (!channel) {
         chanMsg = 'укажи ник стримера';
+    } else if (channelData) {
+        chanMsg = channelData.msg || '';
     } else {
+        const channelMap = {};
+        let canCacheChannel = false;
         try {
-            const u = await getJson('https://api.ivr.fi/v2/twitch/user?login=' + encodeURIComponent(nick));
+            const u = await getJson('https://api.ivr.fi/v2/twitch/user?login=' + encodeURIComponent(channel));
             const id = u && u[0] && u[0].id;
-            if (!id) chanMsg = 'Twitch-канал «' + nick + '» не найден';
-            else {
+            if (!id) {
+                chanMsg = 'Twitch-канал «' + channel + '» не найден';
+                canCacheChannel = true;
+            } else {
                 const user = await getJson('https://7tv.io/v3/users/twitch/' + id);
                 const set = user && user.emote_set;
-                if (set && set.emotes && set.emotes.length) addSet(map, set, false, false);
+                if (set && set.emotes && set.emotes.length) addSet(channelMap, set, false, false);
                 else chanMsg = 'у канала нет эмоутов 7TV';
+                canCacheChannel = true;
             }
         } catch (e) {
             chanMsg = 'эмоуты канала не загрузились (нет аккаунта 7TV или сервис недоступен)';
             console.warn('[7TV]', e);
         }
+        channelData = { at: now, map: channelMap, msg: chanMsg };
+        if (canCacheChannel) store.set(channelKey, channelData);
     }
 
-    // свои эмоуты - в конце: при совпадении имён побеждают они
-    let bad = 0;
-    if (EXTRA_EMOTES.length || EXTRA_SETS.length) {
-        const ex = await loadExtras();
-        Object.assign(map, ex.map);
-        bad = ex.bad;
-    }
-
+    const map = {};
+    if (globalData) Object.assign(map, globalData.map);
+    if (channelData) Object.assign(map, channelData.map);
+    if (globalData && globalData.extras) Object.assign(map, globalData.extras);
     const names = Object.keys(map);
     const nc = names.filter((n) => !map[n].g).length;
     const xc = names.filter((n) => map[n].x).length;
-    let msg = `Канал: ${nc} · глобальные: ${names.length - nc - xc}`;
+    const gc = names.filter((n) => map[n].g && !map[n].x).length;
+    const bad = globalData && globalData.bad || 0;
+    let msg = `Канал: ${nc} · глобальные: ${gc}`;
     if (xc || bad) msg += ` · свои: ${xc}${bad ? ' (не все загрузились: ' + bad + ')' : ''}`;
     if (chanMsg) msg += ' · ' + chanMsg;
     if (err) msg += ' · ' + err;
-    if (names.length && !chanMsg && !err && !bad) store.set(key, { at: Date.now(), map, msg });
-    return { map, msg, stale: false };
+    const stale = !!((globalData && now - globalData.at >= CACHE_TTL)
+        || (channelData && now - channelData.at >= CACHE_TTL));
+    return { map, msg, stale };
 }
 
 export function setStatus(t) {

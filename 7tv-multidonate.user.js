@@ -71,12 +71,11 @@
   ];
   var STORE = Object.freeze({
     emoteSize: "t7size",
-    channelNickPrefix: "t7nick:",
     popupPosition: "t7pos",
     popupSize: "t7win",
     settingsPosition: "t7spos",
     emotesEnabled: "t7on",
-    emoteCachePrefix: "t7c3:",
+    emoteCachePrefix: "t7c4:",
     favorites: "t7favorites",
     recentEmotes: "t7recent",
     recentEmoteLimit: "t7recentLimit",
@@ -315,53 +314,79 @@
     return [target, ...higher];
   }
   async function loadEmotes(nick, force) {
-    const key = STORE.emoteCachePrefix + nick + ":" + xsig();
-    if (!force) {
-      const c = store.get(key);
-      if (c) return { map: c.map, msg: c.msg, stale: Date.now() - c.at >= CACHE_TTL };
-    }
-    const map = {};
+    const now = Date.now();
+    const globalKey = STORE.emoteCachePrefix + "global:" + xsig();
+    const channel = String(nick || "").trim().toLowerCase();
+    const channelKey = STORE.emoteCachePrefix + "channel:" + encodeURIComponent(channel);
+    const validCache = (value) => value && value.map && typeof value.map === "object";
+    let globalData = !force ? store.get(globalKey) : null;
+    if (!validCache(globalData)) globalData = null;
+    let channelData = channel && !force ? store.get(channelKey) : null;
+    if (!validCache(channelData)) channelData = null;
     let err = "";
-    try {
-      addSet(map, await getJson("https://7tv.io/v3/emote-sets/global"), true, false);
-    } catch (e) {
-      err = "\u0433\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435 \u043D\u0435 \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u043B\u0438\u0441\u044C";
-      console.warn("[7TV]", e);
+    if (!globalData) {
+      const globalMap = {};
+      let globalLoaded = false;
+      try {
+        addSet(globalMap, await getJson("https://7tv.io/v3/emote-sets/global"), true, false);
+        globalLoaded = true;
+      } catch (e) {
+        err = "\u0433\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435 \u043D\u0435 \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u043B\u0438\u0441\u044C";
+        console.warn("[7TV]", e);
+      }
+      let extras = {};
+      let bad2 = 0;
+      if (EXTRA_EMOTES.length || EXTRA_SETS.length) {
+        const result = await loadExtras();
+        extras = result.map;
+        bad2 = result.bad;
+      }
+      globalData = { at: now, map: globalMap, extras, bad: bad2 };
+      if (globalLoaded && !bad2) store.set(globalKey, globalData);
     }
     let chanMsg = "";
-    if (!nick) {
+    if (!channel) {
       chanMsg = "\u0443\u043A\u0430\u0436\u0438 \u043D\u0438\u043A \u0441\u0442\u0440\u0438\u043C\u0435\u0440\u0430";
+    } else if (channelData) {
+      chanMsg = channelData.msg || "";
     } else {
+      const channelMap = {};
+      let canCacheChannel = false;
       try {
-        const u = await getJson("https://api.ivr.fi/v2/twitch/user?login=" + encodeURIComponent(nick));
+        const u = await getJson("https://api.ivr.fi/v2/twitch/user?login=" + encodeURIComponent(channel));
         const id = u && u[0] && u[0].id;
-        if (!id) chanMsg = "Twitch-\u043A\u0430\u043D\u0430\u043B \xAB" + nick + "\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D";
-        else {
+        if (!id) {
+          chanMsg = "Twitch-\u043A\u0430\u043D\u0430\u043B \xAB" + channel + "\xBB \u043D\u0435 \u043D\u0430\u0439\u0434\u0435\u043D";
+          canCacheChannel = true;
+        } else {
           const user = await getJson("https://7tv.io/v3/users/twitch/" + id);
           const set = user && user.emote_set;
-          if (set && set.emotes && set.emotes.length) addSet(map, set, false, false);
+          if (set && set.emotes && set.emotes.length) addSet(channelMap, set, false, false);
           else chanMsg = "\u0443 \u043A\u0430\u043D\u0430\u043B\u0430 \u043D\u0435\u0442 \u044D\u043C\u043E\u0443\u0442\u043E\u0432 7TV";
+          canCacheChannel = true;
         }
       } catch (e) {
         chanMsg = "\u044D\u043C\u043E\u0443\u0442\u044B \u043A\u0430\u043D\u0430\u043B\u0430 \u043D\u0435 \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u043B\u0438\u0441\u044C (\u043D\u0435\u0442 \u0430\u043A\u043A\u0430\u0443\u043D\u0442\u0430 7TV \u0438\u043B\u0438 \u0441\u0435\u0440\u0432\u0438\u0441 \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D)";
         console.warn("[7TV]", e);
       }
+      channelData = { at: now, map: channelMap, msg: chanMsg };
+      if (canCacheChannel) store.set(channelKey, channelData);
     }
-    let bad = 0;
-    if (EXTRA_EMOTES.length || EXTRA_SETS.length) {
-      const ex = await loadExtras();
-      Object.assign(map, ex.map);
-      bad = ex.bad;
-    }
+    const map = {};
+    if (globalData) Object.assign(map, globalData.map);
+    if (channelData) Object.assign(map, channelData.map);
+    if (globalData && globalData.extras) Object.assign(map, globalData.extras);
     const names = Object.keys(map);
     const nc = names.filter((n) => !map[n].g).length;
     const xc = names.filter((n) => map[n].x).length;
-    let msg = `\u041A\u0430\u043D\u0430\u043B: ${nc} \xB7 \u0433\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435: ${names.length - nc - xc}`;
+    const gc = names.filter((n) => map[n].g && !map[n].x).length;
+    const bad = globalData && globalData.bad || 0;
+    let msg = `\u041A\u0430\u043D\u0430\u043B: ${nc} \xB7 \u0433\u043B\u043E\u0431\u0430\u043B\u044C\u043D\u044B\u0435: ${gc}`;
     if (xc || bad) msg += ` \xB7 \u0441\u0432\u043E\u0438: ${xc}${bad ? " (\u043D\u0435 \u0432\u0441\u0435 \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u043B\u0438\u0441\u044C: " + bad + ")" : ""}`;
     if (chanMsg) msg += " \xB7 " + chanMsg;
     if (err) msg += " \xB7 " + err;
-    if (names.length && !chanMsg && !err && !bad) store.set(key, { at: Date.now(), map, msg });
-    return { map, msg, stale: false };
+    const stale = !!(globalData && now - globalData.at >= CACHE_TTL || channelData && now - channelData.at >= CACHE_TTL);
+    return { map, msg, stale };
   }
   function setStatus(t) {
     st.status = t;
@@ -1631,8 +1656,7 @@
       }
       S.nick = n;
       nickInp.value = n;
-      store.set(STORE.channelNickPrefix + pageChan, n);
-      reload(true);
+      reload(false);
     });
     const pingFields = [
       [".t7-ping-aliases", "aliases"],
@@ -3146,7 +3170,7 @@
     document.head.appendChild(style);
     const size = store.get(STORE.emoteSize);
     if (SIZES[size]) S.size = size;
-    S.nick = store.get(STORE.channelNickPrefix + pageChan) || pageChan;
+    S.nick = pageChan;
     const position2 = store.get(STORE.popupPosition);
     if (position2 && Number.isFinite(position2.x) && Number.isFinite(position2.y)) st.pos = position2;
     const windowSize = store.get(STORE.popupSize);
