@@ -837,7 +837,7 @@
   var FAVORITE_LIMIT = 200;
   var activeDialog = null;
   function isImagePickerButtonEnabled() {
-    return store.get(STORE.imagePickerButton) !== false;
+    return store.get(STORE.imagePickerButton) === true;
   }
   function setImagePickerButtonEnabled(enabled) {
     const visible = !!enabled;

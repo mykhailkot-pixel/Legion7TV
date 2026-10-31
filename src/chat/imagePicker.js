@@ -9,7 +9,7 @@ const FAVORITE_LIMIT = 200;
 let activeDialog = null;
 
 export function isImagePickerButtonEnabled() {
-    return store.get(STORE.imagePickerButton) !== false;
+    return store.get(STORE.imagePickerButton) === true;
 }
 
 export function setImagePickerButtonEnabled(enabled) {
