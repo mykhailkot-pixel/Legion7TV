@@ -16,7 +16,7 @@ export function setImagePickerButtonEnabled(enabled) {
     const visible = !!enabled;
     store.set(STORE.imagePickerButton, visible);
     document.querySelectorAll('.t7-images-btn').forEach((button) => {
-        button.hidden = !visible;
+        button.hidden = !visible || !!button.closest('.dm-f');
     });
 }
 

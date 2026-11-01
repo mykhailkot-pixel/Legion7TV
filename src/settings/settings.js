@@ -117,7 +117,8 @@ export function openSettings() {
             <div class="t7-setting-panel" id="t7-settings-panel-emotes" role="tabpanel" aria-labelledby="t7-settings-tab-emotes" tabindex="0">
                 <details class="t7-sec" open>
                     <summary>Отображение</summary>
-                    <label class="t7-chk"><input type="checkbox" class="t7-on"> Показывать эмоуты 7TV в чате</label>
+                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-on"><span class="t7-toggle-track" aria-hidden="true"></span>Показывать эмоуты 7TV в чате</label>
+                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-emote-completion"><span class="t7-toggle-track" aria-hidden="true"></span>Показывать карусель эмоутов по Tab</label>
                 </details>
 
                 <details class="t7-sec" open>
@@ -148,14 +149,14 @@ export function openSettings() {
 
                 <details class="t7-sec" open>
                     <summary>Кнопки в чате</summary>
-                    <label class="t7-chk"><input type="checkbox" class="t7-pastes-enabled"> Показывать кнопку паст в чате</label>
-                    <label class="t7-chk"><input type="checkbox" class="t7-image-picker-enabled"> Показывать кнопку imgBB в чате</label>
+                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-pastes-enabled"><span class="t7-toggle-track" aria-hidden="true"></span>Показывать кнопку паст в чате</label>
+                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-image-picker-enabled"><span class="t7-toggle-track" aria-hidden="true"></span>Показывать кнопку imgBB в чате</label>
                 </details>
 
                 <details class="t7-sec" open>
                     <summary>Ссылки</summary>
-                    <label class="t7-chk"><input type="checkbox" class="t7-link-encoding"> Обрабатывать ссылки при отправке и отображении</label>
-                    <label class="t7-chk"><input type="checkbox" class="t7-image-previews"> Показывать изображения по ссылкам (imgbb)</label>
+                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-link-encoding"><span class="t7-toggle-track" aria-hidden="true"></span>Обрабатывать ссылки при отправке и отображении</label>
+                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-image-previews"><span class="t7-toggle-track" aria-hidden="true"></span>Показывать изображения по ссылкам (imgbb; в ЛС не отправляем)</label>
                     <div class="t7-note" role="note"><span class="t7-note-icon" aria-hidden="true">!</span><span>Используйте на свой страх и риск.</span></div>
                 </details>
 
@@ -171,7 +172,7 @@ export function openSettings() {
             <div class="t7-setting-panel" id="t7-settings-panel-pings" role="tabpanel" aria-labelledby="t7-settings-tab-pings" tabindex="0" hidden>
                 <details class="t7-sec" open>
                     <summary>Упоминания и фильтры</summary>
-                    <label class="t7-chk"><input type="checkbox" class="t7-tab-completion"> Дополнять ник по Tab</label>
+                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-tab-completion"><span class="t7-toggle-track" aria-hidden="true"></span>Дополнять ник по Tab</label>
                     <label class="t7-fl">Ники и варианты для пинга<textarea class="t7-ping-aliases" rows="2" placeholder="ник, nick, @ник"></textarea></label>
                     <label class="t7-fl t7-ping-color-control">Цвет упоминаний (@ник)<input type="color" class="t7-ping-color"></label>
                     <label class="t7-fl">Черный список ников<textarea class="t7-ping-blacklist" rows="2" placeholder="по одному нику на строку"></textarea></label>
@@ -188,10 +189,17 @@ export function openSettings() {
 
                 <details class="t7-sec" open>
                     <summary>Личные сообщения</summary>
-                    <label class="t7-chk"><input type="checkbox" class="t7-dm-sound-enabled"> Звук при новом сообщении в ЛС</label>
+                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-dm-sound-enabled"><span class="t7-toggle-track" aria-hidden="true"></span>Звук при новом сообщении в ЛС</label>
                     <label class="t7-fl">Звук личных сообщений<select class="t7-dm-ping-preset"><option value="bell">Колокольчик</option><option value="chime">Звон</option><option value="pop">Короткий сигнал</option><option value="custom">Свой звук для ЛС</option></select></label>
                     <label class="t7-fl">Ники для звуковых уведомлений<textarea class="t7-dm-nick-list" rows="2" placeholder="по одному нику на строку"></textarea></label>
-                    <label class="t7-chk"><input type="checkbox" class="t7-dm-nick-whitelist"> Белый список: сигналить только от указанных ников</label>
+                    <div class="t7-dm-nick-mode">
+                        <span class="t7-dm-nick-mode-label">Чёрный список</span>
+                        <label class="t7-toggle-switch">
+                            <input type="checkbox" class="t7-dm-nick-whitelist" role="switch" aria-label="Белый список">
+                            <span class="t7-toggle-track" aria-hidden="true"></span>
+                        </label>
+                        <span class="t7-dm-nick-mode-label">Белый список</span>
+                    </div>
                     <div class="t7-row t7-wrap">
                         <button type="button" class="t7-b" data-act="custom-dm-sound">Загрузить звук для ЛС</button>
                         <button type="button" class="t7-b" data-act="test-dm-ping">Проверить звук ЛС</button>
@@ -291,6 +299,9 @@ export function openSettings() {
     const tabCompletion = el.querySelector('.t7-tab-completion');
     tabCompletion.checked = pingSystem.config.tabCompletion;
     tabCompletion.addEventListener('change', () => pingSystem.setTabCompletion(tabCompletion.checked));
+    const emoteCompletion = el.querySelector('.t7-emote-completion');
+    emoteCompletion.checked = pingSystem.config.emoteCompletion;
+    emoteCompletion.addEventListener('change', () => pingSystem.setEmoteCompletion(emoteCompletion.checked));
     const pingColor = el.querySelector('.t7-ping-color');
     pingColor.value = pingSystem.config.pingColor;
     pingColor.addEventListener('input', () => pingSystem.setPingColor(pingColor.value));
@@ -340,8 +351,16 @@ export function openSettings() {
     dmNickList.value = pingSystem.config.dmNickList.join('\n');
     dmNickList.addEventListener('change', () => pingSystem.setList('dmNickList', dmNickList.value));
     const dmNickWhitelist = el.querySelector('.t7-dm-nick-whitelist');
+    const dmNickMode = dmNickWhitelist.closest('.t7-dm-nick-mode');
     dmNickWhitelist.checked = pingSystem.config.dmNickWhitelist;
-    dmNickWhitelist.addEventListener('change', () => pingSystem.setDmNickWhitelist(dmNickWhitelist.checked));
+    const renderDmNickMode = () => {
+        dmNickMode.classList.toggle('is-whitelist', dmNickWhitelist.checked);
+    };
+    dmNickWhitelist.addEventListener('change', () => {
+        pingSystem.setDmNickWhitelist(dmNickWhitelist.checked);
+        renderDmNickMode();
+    });
+    renderDmNickMode();
     dmPingFile.addEventListener('change', async () => {
         try {
             await pingSystem.saveCustomDmSound(dmPingFile.files[0]);
@@ -422,7 +441,7 @@ export function openSettings() {
             const tab = CHAT_TABS.find((item) => item.id === id);
             const row = document.createElement('div');
             row.className = 't7-chat-tab-row';
-            row.innerHTML = `<span class="t7-chat-tab-name">${tab.label}</span><label class="t7-chat-tab-visible"><input type="checkbox" data-tab-visible="${id}" ${prefs.hidden.has(id) ? '' : 'checked'} ${!prefs.hidden.has(id) && visibleCount === 1 ? 'disabled' : ''}>Показать</label><span class="t7-chat-tab-move"><button type="button" data-tab-move="up" data-tab-id="${id}" aria-label="Переместить ${tab.label} выше" title="Переместить выше" ${index === 0 ? 'disabled' : ''}>↑</button><button type="button" data-tab-move="down" data-tab-id="${id}" aria-label="Переместить ${tab.label} ниже" title="Переместить ниже" ${index === prefs.order.length - 1 ? 'disabled' : ''}>↓</button></span>`;
+            row.innerHTML = `<span class="t7-chat-tab-name">${tab.label}</span><label class="t7-chat-tab-visible t7-toggle-switch"><input type="checkbox" data-tab-visible="${id}" ${prefs.hidden.has(id) ? '' : 'checked'} ${!prefs.hidden.has(id) && visibleCount === 1 ? 'disabled' : ''}><span class="t7-toggle-track" aria-hidden="true"></span><span>Показать</span></label><span class="t7-chat-tab-move"><button type="button" data-tab-move="up" data-tab-id="${id}" aria-label="Переместить ${tab.label} выше" title="Переместить выше" ${index === 0 ? 'disabled' : ''}>↑</button><button type="button" data-tab-move="down" data-tab-id="${id}" aria-label="Переместить ${tab.label} ниже" title="Переместить ниже" ${index === prefs.order.length - 1 ? 'disabled' : ''}>↓</button></span>`;
             return row;
         }));
     };

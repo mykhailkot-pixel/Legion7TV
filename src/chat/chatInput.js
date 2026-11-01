@@ -1,12 +1,15 @@
-import { st } from '../core/state.js';
-import { HARD_BANNED_WORDS } from '../core/config.js';
+import { EM, S, st } from '../core/state.js';
+import { HARD_BANNED_WORDS, SIZES } from '../core/config.js';
 import { EV, SEL, on } from '../core/consts.js';
+import { fetchImg } from '../emotes/imgcache.js';
+import { reusableUrlsFor, urlFor } from '../emotes/emotes.js';
 import { togglePop, closePop, recordRecentFromMessage } from '../emotes/popup.js';
 import { pingSystem } from './pingSystem.js';
 import { arePastesEnabled, openPastes } from './pastes.js';
 import { disposeImagePicker, isImagePickerButtonEnabled, openImagePicker } from './imagePicker.js';
 
 const bindings = new WeakMap();
+const emoteBindings = new WeakMap();
 function normalizeBanword(value) {
     return String(value || '').normalize('NFKC').toLowerCase().replace(/\s+/gu, ' ').trim();
 }
@@ -35,6 +38,8 @@ function showTwitchBanwordWarning(form, word) {
     warning.hidden = false;
     const menu = form.querySelector('.t7-ping-menu');
     if (menu) menu.hidden = true;
+    const emoteMenu = form.querySelector('.t7-emote-menu');
+    if (emoteMenu) emoteMenu.hidden = true;
 }
 
 function bindMessageHistory(input) {
@@ -181,6 +186,193 @@ function bindPingAutocomplete(form, input) {
     };
 }
 
+function bindEmoteAutocomplete(form, input) {
+    const menu = document.createElement('div');
+    menu.className = 't7-emote-menu';
+    menu.setAttribute('role', 'group');
+    menu.setAttribute('aria-label', 'Эмоуты');
+    menu.hidden = true;
+
+    const previous = document.createElement('button');
+    previous.type = 'button';
+    previous.className = 't7-emote-nav';
+    previous.textContent = '‹';
+    previous.title = 'Предыдущие эмоуты';
+    previous.setAttribute('aria-label', previous.title);
+    const strip = document.createElement('div');
+    strip.className = 't7-emote-strip';
+    strip.setAttribute('role', 'listbox');
+    const next = document.createElement('button');
+    next.type = 'button';
+    next.className = 't7-emote-nav';
+    next.textContent = '›';
+    next.title = 'Следующие эмоуты';
+    next.setAttribute('aria-label', next.title);
+    menu.append(previous, strip, next);
+    form.appendChild(menu);
+
+    let matches = [];
+    let selectedIndex = -1;
+    let pageStart = 0;
+    let pageSize = 1;
+    let requested = false;
+    let dismissed = false;
+    const getToken = () => {
+        const caret = input.selectionStart == null ? input.value.length : input.selectionStart;
+        if (caret !== input.selectionEnd) return null;
+        const before = input.value.slice(0, caret);
+        const match = /(?:^|\s)([^\s]*)$/u.exec(before);
+        if (!match || match[1].length < 2) return null;
+        return { query: match[1].toLowerCase(), start: caret - match[1].length, end: caret };
+    };
+    const complete = (name) => {
+        const token = getToken();
+        if (!token || !name) return;
+        const after = input.value.slice(token.end);
+        const suffix = /^\s/.test(after) ? '' : ' ';
+        const replacement = name + suffix;
+        input.value = input.value.slice(0, token.start) + replacement + after;
+        const caret = token.start + replacement.length;
+        input.setSelectionRange(caret, caret);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.focus({ preventScroll: true });
+        menu.hidden = true;
+    };
+    const render = () => {
+        strip.replaceChildren();
+        if (!matches.length) {
+            menu.hidden = true;
+            return;
+        }
+        const width = menu.clientWidth || Math.max(1, Math.min(620, form.clientWidth, window.innerWidth - 24));
+        pageSize = Math.max(1, Math.floor((width - 64) / 66));
+        if (selectedIndex >= matches.length) selectedIndex = -1;
+        if (selectedIndex >= 0) pageStart = Math.floor(selectedIndex / pageSize) * pageSize;
+        else pageStart = Math.floor(pageStart / pageSize) * pageSize;
+        pageStart = Math.min(pageStart, Math.floor((matches.length - 1) / pageSize) * pageSize);
+        const start = pageStart;
+        for (const [offset, name] of matches.slice(start, start + pageSize).entries()) {
+            const option = document.createElement('button');
+            option.type = 'button';
+            option.className = 't7-emote-option';
+            option.title = name;
+            option.setAttribute('role', 'option');
+            option.setAttribute('aria-selected', String(selectedIndex >= 0 && start + offset === selectedIndex));
+            const image = document.createElement('img');
+            image.alt = '';
+            image.loading = 'lazy';
+            option.appendChild(image);
+            const label = document.createElement('span');
+            label.textContent = name.length > 9 ? name.slice(0, 9) + '…' : name;
+            option.appendChild(label);
+            option.addEventListener('pointerdown', (event) => event.preventDefault());
+            option.addEventListener('click', () => complete(name));
+            strip.appendChild(option);
+
+            const emote = EM[name];
+            if (emote) {
+                const resolution = Math.min(2, SIZES[S.size].n);
+                fetchImg(urlFor(emote, resolution), false, reusableUrlsFor(emote, resolution)).then(
+                    (src) => { if (image.isConnected) image.src = src; },
+                    (error) => console.warn('[7TV] картинка эмоута для автокомплита не загрузилась', name, error)
+                );
+            }
+        }
+        previous.disabled = pageStart === 0;
+        next.disabled = pageStart + pageSize >= matches.length;
+        previous.hidden = matches.length <= pageSize;
+        next.hidden = matches.length <= pageSize;
+        menu.hidden = !pingSystem.config.emoteCompletion || !requested || dismissed;
+    };
+    const update = () => {
+        requested = false;
+        dismissed = false;
+        if (!pingSystem.config.emoteCompletion) {
+            matches = [];
+            render();
+            return;
+        }
+        const token = getToken();
+        if (!token) {
+            matches = [];
+            render();
+            return;
+        }
+        matches = Object.keys(EM)
+            .filter((name) => name.toLowerCase().startsWith(token.query) && name.toLowerCase() !== token.query)
+            .sort((a, b) => a.localeCompare(b));
+        selectedIndex = -1;
+        pageStart = 0;
+        render();
+    };
+    const move = (offset) => {
+        const current = selectedIndex < 0 ? (offset > 0 ? pageStart - 1 : pageStart) : selectedIndex;
+        selectedIndex = Math.max(0, Math.min(matches.length - 1, current + offset));
+        pageStart = Math.floor(selectedIndex / pageSize) * pageSize;
+        render();
+    };
+    const onKeyDown = (event) => {
+        if (event.key === 'Tab' && !event.shiftKey && menu.hidden
+            && pingSystem.config.emoteCompletion && matches.length) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            requested = true;
+            dismissed = false;
+            render();
+            return;
+        }
+        if (menu.hidden) return;
+        if (event.key === 'Escape') {
+            dismissed = true;
+            menu.hidden = true;
+            event.preventDefault();
+            event.stopPropagation();
+        } else if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+            event.preventDefault();
+            event.stopPropagation();
+            move(1);
+        } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+            event.preventDefault();
+            event.stopPropagation();
+            move(-1);
+        } else if (event.key === 'Enter' && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            complete(matches[selectedIndex < 0 ? pageStart : selectedIndex]);
+        } else if (event.key === 'Tab' && !event.shiftKey) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            complete(matches[selectedIndex < 0 ? pageStart : selectedIndex]);
+        }
+    };
+    const changePage = (offset) => {
+        const nextStart = Math.max(0, Math.min(
+            Math.floor((matches.length - 1) / pageSize) * pageSize,
+            pageStart + offset * pageSize
+        ));
+        pageStart = nextStart;
+        selectedIndex = -1;
+        render();
+    };
+    previous.addEventListener('pointerdown', (event) => event.preventDefault());
+    next.addEventListener('pointerdown', (event) => event.preventDefault());
+    previous.addEventListener('click', () => changePage(-1));
+    next.addEventListener('click', () => changePage(1));
+    input.addEventListener('input', update);
+    input.addEventListener('keydown', onKeyDown, true);
+    const unsubscribe = on(EV.emoteCompletionChange, update);
+    const resizeObserver = new ResizeObserver(render);
+    resizeObserver.observe(form);
+    update();
+    return () => {
+        input.removeEventListener('input', update);
+        input.removeEventListener('keydown', onKeyDown, true);
+        unsubscribe();
+        resizeObserver.disconnect();
+        menu.remove();
+    };
+}
+
 function bindChatForm(form, input) {
     const history = bindMessageHistory(input);
     const disposeAutocomplete = bindPingAutocomplete(form, input);
@@ -241,11 +433,17 @@ function bindChatForm(form, input) {
 
 function disposeForm(form) {
     const dispose = bindings.get(form);
-    if (!dispose) return;
-    if (st.anchor && form.contains(st.anchor)) closePop();
+    const disposeEmotes = emoteBindings.get(form);
+    if (dispose && st.anchor && form.contains(st.anchor)) closePop();
     disposeImagePicker(form);
-    dispose();
-    bindings.delete(form);
+    if (dispose) {
+        dispose();
+        bindings.delete(form);
+    }
+    if (disposeEmotes) {
+        disposeEmotes();
+        emoteBindings.delete(form);
+    }
 }
 
 export function disposeInputBindings(node) {
@@ -257,6 +455,9 @@ export function disposeInputBindings(node) {
 export function ensureButtons() {
     document.querySelectorAll(SEL.chatForms).forEach((form) => {
         const input = form.querySelector(SEL.textInput);
+        if (input && !emoteBindings.has(form)) {
+            emoteBindings.set(form, bindEmoteAutocomplete(form, input));
+        }
         if (input && !bindings.has(form)) {
             bindings.set(form, form.matches(SEL.chatForm) ? bindChatForm(form, input) : () => {});
         }
@@ -286,7 +487,7 @@ export function ensureButtons() {
             imagesButton.type = 'button';
             imagesButton.className = 't7-btn t7-images-btn';
             imagesButton.textContent = 'imgBB';
-            imagesButton.hidden = !isImagePickerButtonEnabled();
+            imagesButton.hidden = !isImagePickerButtonEnabled() || !!form.closest('.dm-f');
             imagesButton.title = 'Картинки imgBB';
             imagesButton.setAttribute('aria-label', 'Картинки imgBB');
             imagesButton.setAttribute('aria-haspopup', 'dialog');
@@ -298,7 +499,7 @@ export function ensureButtons() {
             if (submit) submit.before(imagesButton);
             else form.appendChild(imagesButton);
         }
-        if (imagesButton) imagesButton.hidden = !isImagePickerButtonEnabled();
+        if (imagesButton) imagesButton.hidden = !isImagePickerButtonEnabled() || !!form.closest('.dm-f');
 
         let pastesButton = form.querySelector('.t7-pastes-btn');
         if (!pastesButton) {

@@ -1,30 +1,22 @@
 import { SEL } from '../core/consts.js';
 
+const scrollListSelector = `${SEL.chatList}, .dm-l`;
 const scrollStates = new WeakMap();
-const scrollListSelector = `${SEL.chatList}, .cy-chat-dmx, .dm-l`;
+let started = false;
 
-export function getScrollContainer(element) {
-    let fallback = null;
-    for (let node = element; node && node.nodeType === 1; node = node.parentElement) {
-        if (!node.matches(scrollListSelector)) continue;
-        fallback ||= node;
-        const overflowY = getComputedStyle(node).overflowY;
-        if ((overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay')
-            && node.clientHeight > 0 && node.scrollHeight > node.clientHeight + 1) return node;
-    }
-    return fallback;
+function getContainer(element) {
+    return element && element.closest ? element.closest(scrollListSelector) : null;
 }
 
-export function isAtEnd(list) {
-    const tolerance = list.matches('.dm-l, .cy-chat-dmx') ? 2 : 40;
-    return list.scrollHeight - list.scrollTop - list.clientHeight < tolerance;
+function isAtEnd(list) {
+    return list.scrollHeight - list.scrollTop - list.clientHeight < 40;
 }
 
-export function scrollToEnd(list) {
+function scrollToEnd(list) {
     list.scrollTo({ top: list.scrollHeight, behavior: 'instant' });
 }
 
-export function getScrollState(list) {
+function getState(list) {
     let state = scrollStates.get(list);
     if (!state) {
         state = { atEnd: isAtEnd(list) };
@@ -33,31 +25,64 @@ export function getScrollState(list) {
     return state;
 }
 
-export function mutatePreservingScroll(element, mutate) {
-    const list = getScrollContainer(element);
-    if (!list) {
+export const chatScroller = {
+    start() {
+        if (started) return;
+        started = true;
+        document.addEventListener('scroll', (event) => {
+            const list = event.target;
+            if (list && list.matches && list.matches(scrollListSelector)) {
+                getState(list).atEnd = isAtEnd(list);
+            }
+        }, true);
+    },
+
+    getContainer,
+    isAtEnd,
+    scrollToEnd,
+
+    register(list) {
+        if (list) getState(list);
+    },
+
+    reinitialize(list, mutate) {
+        const scrollTop = list.scrollTop;
+        const atEnd = isAtEnd(list);
+        const result = mutate();
+        if (list.isConnected) list.scrollTop = atEnd ? list.scrollHeight : scrollTop;
+        getState(list).atEnd = isAtEnd(list);
+        return result;
+    },
+
+    stickAtEnd(lists) {
+        lists.forEach((list) => {
+            if (getState(list).atEnd) scrollToEnd(list);
+        });
+    },
+
+    preserve(element, mutate) {
+        const list = getContainer(element);
+        if (!list) {
+            mutate();
+            return;
+        }
+
+        const wasAtEnd = isAtEnd(list);
+        const listRect = list.getBoundingClientRect();
+        const candidates = [...list.children];
+        const anchor = [...candidates].find((child) => {
+            const rect = child.getBoundingClientRect();
+            return rect.bottom > listRect.top && rect.top < listRect.bottom;
+        });
+        const anchorTop = anchor && anchor.getBoundingClientRect().top;
+
         mutate();
-        return;
+
+        if (wasAtEnd) {
+            scrollToEnd(list);
+        } else if (anchor && anchor.isConnected) {
+            list.scrollTop += anchor.getBoundingClientRect().top - anchorTop;
+        }
+        getState(list).atEnd = isAtEnd(list);
     }
-
-    const wasAtEnd = isAtEnd(list);
-    const listRect = list.getBoundingClientRect();
-    const rowList = element.matches && element.matches(scrollListSelector)
-        ? element
-        : element.closest && element.closest(scrollListSelector);
-    const candidates = rowList && rowList.children.length ? rowList.children : list.children;
-    const anchor = [...candidates].find((child) => {
-        const rect = child.getBoundingClientRect();
-        return rect.bottom > listRect.top && rect.top < listRect.bottom;
-    });
-    const anchorTop = anchor && anchor.getBoundingClientRect().top;
-
-    mutate();
-
-    if (wasAtEnd) {
-        scrollToEnd(list);
-    } else if (anchor && anchor.isConnected) {
-        list.scrollTop += anchor.getBoundingClientRect().top - anchorTop;
-    }
-    getScrollState(list).atEnd = isAtEnd(list);
-}
+};

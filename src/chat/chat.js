@@ -4,7 +4,7 @@ import { S } from '../core/state.js';
 import { processEmotes } from './chatEmotes.js';
 import { processLinks } from './links.js';
 import { processMentions } from './mentions.js';
-import { getScrollContainer, getScrollState, isAtEnd, scrollToEnd } from './scrollState.js';
+import { chatScroller } from './scrollState.js';
 import { pingSystem } from './pingSystem.js';
 
 const processors = [];
@@ -17,106 +17,13 @@ registerChatProcessor(processLinks);
 registerChatProcessor(processMentions);
 
 /* ---------- сохраняем положение ленты при обновлении сообщений ---------- */
-const scrollListSelector = `${SEL.chatList}, .cy-chat-dmx, .dm-l`;
 let initializedDmLists = new WeakSet();
-const seenDmMessages = new Set();
-const ownDmMessages = new Map();
-let activeDmContext = '';
-let dmContextChangedAt = 0;
-let dmNotificationsMutedUntil = 0;
-
-function getDmSender(message) {
-    const nickElement = message.querySelector('[data-nick], [data-login], b');
-    return nickElement && (nickElement.dataset.nick || nickElement.dataset.login || nickElement.textContent).trim();
-}
-
-function getDmText(message) {
-    const spans = message.querySelectorAll(SEL.messageContent);
-    return (spans[spans.length - 1] || message).textContent.trim().replace(/\s+/g, ' ');
-}
-
-function dmMessageKey(message) {
-    const sender = String(getDmSender(message) || '').toLowerCase();
-    const time = message.querySelector('time[datetime]')?.dateTime
-        || message.querySelector('[data-time]')?.dataset.time
-        || '';
-    const id = message.dataset.id || message.getAttribute('data-id') || '';
-    return id ? `id:${id}` : `${sender}|${time}|${message.textContent.trim()}`;
-}
-
-function getDmTimestamp(message) {
-    const datetime = message.querySelector('time[datetime]')?.dateTime;
-    if (datetime) {
-        const parsed = Date.parse(datetime);
-        if (Number.isFinite(parsed)) return parsed;
-    }
-
-    const raw = message.querySelector('[data-time]')?.dataset.time;
-    if (!raw || !/^\d{10,13}$/.test(raw)) return 0;
-    const value = Number(raw);
-    return raw.length === 10 ? value * 1000 : value;
-}
-
-function rememberDmMessage(key) {
-    if (!key || seenDmMessages.has(key)) return false;
-    seenDmMessages.add(key);
-    if (seenDmMessages.size > 500) seenDmMessages.delete(seenDmMessages.values().next().value);
-    return true;
-}
-
-export function rememberOwnDmMessage(text) {
-    const normalized = String(text || '').trim().replace(/\s+/g, ' ');
-    if (!normalized) return;
-    const previous = ownDmMessages.get(normalized);
-    ownDmMessages.set(normalized, {
-        count: (previous && previous.count || 0) + 1,
-        expiresAt: Date.now() + 10000
-    });
-}
-
-function isOwnDmMessage(message) {
-    const text = getDmText(message);
-    const pending = ownDmMessages.get(text);
-    if (!pending) return false;
-    if (pending.expiresAt < Date.now()) {
-        ownDmMessages.delete(text);
-        return false;
-    }
-    if (pending.count > 1) pending.count--;
-    else ownDmMessages.delete(text);
-    return true;
-}
 
 function processDmMessage(message, isInitial) {
-    const key = dmMessageKey(message);
-    const isNew = rememberDmMessage(key);
-    const isOwn = isOwnDmMessage(message);
     processMessage(message, 'dm');
-    if (!isNew || message.matches(SEL.emptyMessage)) return;
-    if (isInitial || Date.now() < dmNotificationsMutedUntil) return;
-
-    const timestamp = getDmTimestamp(message);
-    if (timestamp && timestamp < dmContextChangedAt) return;
-
-    const sender = getDmSender(message);
-    if (isOwn) return;
-    if (pingSystem.shouldNotifyDm(sender)) {
-        pingSystem.playDm().catch((error) => console.warn('[7TV] не удалось воспроизвести звук ЛС', error));
-    }
 }
 
-document.addEventListener('scroll', (event) => {
-    const list = getScrollContainer(event.target);
-    if (!list || !list.matches(scrollListSelector)) return;
-    getScrollState(list).atEnd = isAtEnd(list);
-}, true);
-
-function stickEnds(lists) {
-    lists.forEach((list) => {
-        const state = getScrollState(list);
-        if (state.atEnd) scrollToEnd(list);
-    });
-}
+chatScroller.start();
 
 function processMessage(message, room) {
     if (message.dataset.l7tvProcessed || message.matches(SEL.emptyMessage)) return;
@@ -148,15 +55,16 @@ function processMessage(message, room) {
 export function scan() {
     const chatFresh = document.querySelectorAll(SEL.freshChatRows);
     const chatLists = new Set([...chatFresh].map((message) => message.closest(SEL.chatList)).filter(Boolean));
-    chatLists.forEach(getScrollState);
+    chatLists.forEach((list) => chatScroller.register(list));
     chatFresh.forEach((message) => processMessage(message, 'chat'));
-    if (chatLists.size) stickEnds(chatLists);
+    if (chatLists.size) chatScroller.stickAtEnd(chatLists);
 
     const dmFresh = document.querySelectorAll(SEL.freshDmRows);
     const dmLists = new Set([...dmFresh].map((message) =>
         message.closest('.dm-l') || message.closest('.cy-chat-dmx')).filter(Boolean));
-    const dmScrollLists = new Set([...dmLists].map(getScrollContainer).filter(Boolean));
-    dmScrollLists.forEach(getScrollState);
+    const scrollLists = new Set([...dmLists].filter((list) => list.matches('.dm-l')));
+    scrollLists.forEach((list) => chatScroller.register(list));
+    const dmWasAtEnd = new Set([...scrollLists].filter((list) => chatScroller.isAtEnd(list)));
     for (const list of dmLists) {
         const isInitial = !initializedDmLists.has(list);
         const messages = [...dmFresh].filter((message) =>
@@ -166,16 +74,9 @@ export function scan() {
         }
         messages.forEach((message) => processDmMessage(message, isInitial));
     }
-    if (dmScrollLists.size) stickEnds(dmScrollLists);
-}
-
-export function resetDmNotificationBaseline(context) {
-    const nextContext = String(context || '');
-    if (nextContext === activeDmContext) return;
-    activeDmContext = nextContext;
-    initializedDmLists = new WeakSet();
-    dmContextChangedAt = Date.now();
-    dmNotificationsMutedUntil = dmContextChangedAt + 1500;
+    dmWasAtEnd.forEach((list) => {
+        if (list.isConnected) chatScroller.scrollToEnd(list);
+    });
 }
 
 export function rescanAll() {

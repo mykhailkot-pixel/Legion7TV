@@ -7,13 +7,14 @@ const DEFAULTS = {
     volume: 0.5,
     selectedPreset: 'bell',
     customSound: '',
-    dmSoundEnabled: true,
+    dmSoundEnabled: false,
     dmSelectedPreset: 'chime',
     dmCustomSound: '',
     dmNickList: [],
     dmNickWhitelist: false,
     pingColor: '#e89aa3',
     tabCompletion: true,
+    emoteCompletion: true,
     aliases: [],
     blacklist: [],
     stopWords: []
@@ -38,6 +39,7 @@ function readConfig() {
     config.dmNickWhitelist = config.dmNickWhitelist === true;
     config.pingColor = /^#[0-9a-f]{6}$/i.test(config.pingColor) ? config.pingColor : DEFAULTS.pingColor;
     config.tabCompletion = config.tabCompletion !== false;
+    config.emoteCompletion = config.emoteCompletion !== false;
     for (const key of ['aliases', 'blacklist', 'stopWords', 'dmNickList']) {
         config[key] = Array.isArray(config[key]) ? normalizeList(config[key].join('\n')) : [];
     }
@@ -99,6 +101,12 @@ class PingSystem {
         this.config.tabCompletion = !!enabled;
         this.save();
         emit(EV.tabCompletionChange);
+    }
+
+    setEmoteCompletion(enabled) {
+        this.config.emoteCompletion = !!enabled;
+        this.save();
+        emit(EV.emoteCompletionChange);
     }
 
     toggleBlacklist(login) {

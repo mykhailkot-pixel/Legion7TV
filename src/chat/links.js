@@ -4,11 +4,12 @@ import { STORE } from '../core/consts.js';
 import { fetchImg } from '../emotes/imgcache.js';
 import { resolveImageUrl, supportsImageUrl } from './imageProviders.js';
 import { rememberSentImages } from './imagePicker.js';
-import { mutatePreservingScroll } from './scrollState.js';
+import { chatScroller } from './scrollState.js';
 
 export const SAY_RE = /^\/api\/(?:chat\/say|city\/say|mine\/chat\/say|dm\/say)(?:\?|$)/;
 const LINK_ENCODING_KEY = STORE.linkEncoding;
 const IMAGE_PREVIEWS_KEY = STORE.imagePreviews;
+const previewCache = new Map();
 
 export const isLinkEncodingEnabled = () => store.get(LINK_ENCODING_KEY) === true;
 export const setLinkEncodingEnabled = (enabled) => store.set(LINK_ENCODING_KEY, !!enabled);
@@ -77,7 +78,7 @@ export function refToUrl(body) {
     return 'https://' + host + rest;
 }
 
-function linkifyText(root) {
+function linkifyText(root, showImages) {
     const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
@@ -112,7 +113,7 @@ function linkifyText(root) {
                 anchor.target = '_blank';
                 anchor.rel = 'noopener noreferrer';
                 anchor.textContent = label;
-                if (areImagePreviewsEnabled() && supportsImageUrl(href)) {
+                if (showImages && supportsImageUrl(href)) {
                     anchor.classList.add('t7-image-pending');
                     anchor.dataset.t7ImagePreview = 'pending';
                 }
@@ -128,11 +129,30 @@ function linkifyText(root) {
     }
 }
 
+function buildPreview(anchor, src, w, h) {
+    const image = document.createElement('img');
+    image.className = 't7-image-preview';
+    image.alt = 'Изображение по ссылке';
+    image.decoding = 'sync';
+    image.width = w;
+    image.height = h;
+    image.src = src;
+    anchor.replaceChildren(image);
+    anchor.classList.remove('t7-image-pending');
+    anchor.classList.add('t7-image-link');
+    anchor.dataset.t7ImagePreview = 'done';
+}
+
 async function addImagePreview(anchor) {
     if (anchor.dataset.t7ImagePreview === 'done') return;
     if (!supportsImageUrl(anchor.href)) return;
-    anchor.dataset.t7ImagePreview = 'pending';
     try {
+        const cached = previewCache.get(anchor.href);
+        if (cached) {
+            if (anchor.isConnected) buildPreview(anchor, cached.src, cached.w, cached.h);
+            return;
+        }
+        anchor.dataset.t7ImagePreview = 'pending';
         const imageUrl = await resolveImageUrl(anchor.href);
         if (!imageUrl || !anchor.isConnected) {
             anchor.classList.remove('t7-image-pending');
@@ -142,22 +162,12 @@ async function addImagePreview(anchor) {
         const imageSrc = await fetchImg(imageUrl, true);
         if (!anchor.isConnected) return;
         const image = document.createElement('img');
-        image.className = 't7-image-preview';
-        image.alt = 'Изображение по ссылке';
-        image.decoding = 'async';
         image.src = imageSrc;
         await image.decode();
         if (!anchor.isConnected) return;
-        const isDmMessage = !!anchor.closest('.dm-l, .cy-chat-dmx')
-            && !anchor.closest('.cy-chat-l');
-        const insertPreview = () => {
-            anchor.replaceChildren(image);
-            anchor.classList.remove('t7-image-pending');
-            anchor.classList.add('t7-image-link');
-            anchor.dataset.t7ImagePreview = 'done';
-        };
-        if (isDmMessage) insertPreview();
-        else mutatePreservingScroll(anchor, insertPreview);
+        const preview = { src: imageSrc, w: image.naturalWidth, h: image.naturalHeight };
+        previewCache.set(anchor.href, preview);
+        chatScroller.preserve(anchor, () => buildPreview(anchor, preview.src, preview.w, preview.h));
     } catch (error) {
         if (anchor.isConnected) {
             anchor.classList.remove('t7-image-pending');
@@ -167,11 +177,12 @@ async function addImagePreview(anchor) {
     }
 }
 
-export function processLinks({ content }) {
+export function processLinks({ content, room }) {
     const parseLinks = isLinkEncodingEnabled();
-    const showImages = areImagePreviewsEnabled();
-    if (!parseLinks && !showImages) return;
-    linkifyText(content);
+    const previewsEnabled = areImagePreviewsEnabled();
+    const showImages = previewsEnabled && room !== 'dm';
+    if (!parseLinks && !previewsEnabled) return;
+    linkifyText(content, showImages);
     if (showImages) content.querySelectorAll('a.t7-link').forEach((anchor) => { addImagePreview(anchor); });
 }
 

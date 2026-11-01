@@ -28,6 +28,7 @@ export const STORE = Object.freeze({
 
 export const EV = Object.freeze({
     tabCompletionChange: 't7-tab-completion-change',
+    emoteCompletionChange: 't7-emote-completion-change',
     chatTabsChange: 't7-chat-tabs-change',
     recentLimitChange: 't7-recent-limit-change'
 });
