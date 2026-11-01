@@ -6,8 +6,6 @@
     height: var(--t7-h, 1.9em);
     width: auto;
     min-width: var(--t7-h, 1.9em);
-    /* Добавьте это, чтобы браузер не менял высоту строки при загрузке картинки */
-    aspect-ratio: auto; 
 }
 .t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:100%;width:auto;pointer-events:none}
 .t7-e:not([src]),.t7-zw:not([src]){visibility:hidden}
@@ -275,7 +273,8 @@ form.cy-chat-f>.t7-banword-warning[hidden]{display:none}
 .cy-chat .cy-chat-pn[hidden]{display:none!important}
 .cy-chat-l>li.t7-ping-hidden{display:none!important}
 .cy-chat-l[data-t7-no-pings="true"]:after{display:block;padding:12px 6px;color:#aaa;font:12px/1.4 system-ui,sans-serif;text-align:center;content:"Пингов пока нет"}
-.cy-chat-l,.cy-chat-dmx .dm-l{font-family:var(--t7-chat-font,inherit);font-size:var(--t7-chat-font-size,inherit);font-synthesis:weight style}
+.cy-chat-l,.cy-chat-dmx .dm-l{font-family:var(--t7-chat-font,inherit);font-size:var(--t7-chat-font-size,14px);line-height:calc(var(--t7-chat-font-size,14px) + 3px);font-synthesis:weight style}
+.cy-chat-l>li,.cy-chat-dmx .dm-l>li{line-height:calc(var(--t7-chat-font-size,14px) + 3px)}
 .t7-mention{color:var(--t7-ping-color,#e89aa3);font-weight:600}
 .cy-chat-l>li.t7-filtered{font-style:italic}
 .cy-chat-l>li>.t7-filter-label{display:inline-block;margin-right:5px;padding:2px 6px;border-radius:4px;background:rgba(255,201,77,.14);color:#ffca66;font-size:13px;font-weight:700;white-space:nowrap}
@@ -287,11 +286,6 @@ form.cy-chat-f>.t7-banword-warning[hidden]{display:none}
 .cy-chat-l,
 .dm-l {
   overflow-anchor: none;
-}
-
-/* Запрещаем браузеру самовольно дергать размеры картинок при вставке */
-.cy-chat-dmx img.t7-e {
-  content-visibility: auto;
 }
 
 /* ========== Кнопка 7TV в форме чата и ЛС ========== */

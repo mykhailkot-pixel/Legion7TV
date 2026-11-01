@@ -4,7 +4,28 @@ import { has } from '../core/util.js';
 import { fetchImg } from '../emotes/imgcache.js';
 import { reusableUrlsFor, urlFor } from '../emotes/emotes.js';
 import { setEmoteTooltipData } from '../emotes/tooltip.js';
-import { chatScroller } from './scrollState.js';
+
+const emoteAspectRatios = new Map();
+const emoteAspectRatioLoads = new Map();
+
+function loadAspectRatio(url, data) {
+    if (emoteAspectRatios.has(url)) return Promise.resolve(emoteAspectRatios.get(url));
+    if (emoteAspectRatioLoads.has(url)) return emoteAspectRatioLoads.get(url);
+
+    const image = new Image();
+    image.src = data;
+    const load = image.decode().then(() => {
+        const ratio = image.naturalWidth / image.naturalHeight;
+        emoteAspectRatios.set(url, ratio);
+        emoteAspectRatioLoads.delete(url);
+        return ratio;
+    }, (error) => {
+        emoteAspectRatioLoads.delete(url);
+        throw error;
+    });
+    emoteAspectRatioLoads.set(url, load);
+    return load;
+}
 
 function makeImg(name, em, cls) {
     const img = document.createElement('img');
@@ -12,24 +33,15 @@ function makeImg(name, em, cls) {
     img.alt = name;
     if (cls === 't7-e') setEmoteTooltipData(img, name, em);
     const resolution = SIZES[S.size].n;
-    fetchImg(urlFor(em, resolution), true, reusableUrlsFor(em, resolution)).then(async (data) => {
-        if (cls !== 't7-e') {
-            img.src = data;
-            return;
-        }
-        const decoded = new Image();
-        decoded.src = data;
-        await decoded.decode();
-        if (!img.isConnected) return;
-        chatScroller.preserve(img, () => {
-            img.style.aspectRatio = `${decoded.naturalWidth} / ${decoded.naturalHeight}`;
-            img.src = data;
-        });
+    const url = urlFor(em, resolution);
+    if (cls === 't7-e' && emoteAspectRatios.has(url)) {
+        img.style.aspectRatio = String(emoteAspectRatios.get(url));
+    }
+    fetchImg(url, true, reusableUrlsFor(em, resolution)).then(async (data) => {
+        if (cls === 't7-e') img.style.aspectRatio = String(await loadAspectRatio(url, data));
+        img.src = data;
     }).catch((error) => {
         console.warn('[7TV] картинка не загрузилась', name, error);
-        if (img.isConnected) {
-            chatScroller.preserve(img, () => img.replaceWith(document.createTextNode(name)));
-        }
     });
     return img;
 }

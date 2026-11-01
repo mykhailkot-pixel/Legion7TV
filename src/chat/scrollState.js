@@ -2,6 +2,7 @@ import { SEL } from '../core/consts.js';
 
 const scrollListSelector = `${SEL.chatList}, .dm-l`;
 const scrollStates = new WeakMap();
+const SCROLL_CORRECTION_THRESHOLD = 0.5;
 let started = false;
 
 function getContainer(element) {
@@ -10,11 +11,12 @@ function getContainer(element) {
 
 function isAtEnd(list) {
     const maxScroll = list.scrollHeight - list.clientHeight;
-    return maxScroll <= 1 || (list.scrollTop > 1 && maxScroll - list.scrollTop < 40);
+    return maxScroll - list.scrollTop <= 1;
 }
 
 function scrollToEnd(list) {
-    list.scrollTo({ top: list.scrollHeight, behavior: 'instant' });
+    const target = Math.max(0, list.scrollHeight - list.clientHeight);
+    if (Math.abs(list.scrollTop - target) > SCROLL_CORRECTION_THRESHOLD) list.scrollTop = target;
 }
 
 function getState(list) {
@@ -47,7 +49,8 @@ export const chatScroller = {
     },
 
     keep(list, mutate) {
-        const atEnd = isAtEnd(list);
+        const state = getState(list);
+        const atEnd = isAtEnd(list) || state.atEnd;
         let anchor = null;
         if (!atEnd) {
             const listTop = list.getBoundingClientRect().top;
@@ -67,8 +70,9 @@ export const chatScroller = {
         if (atEnd) {
             scrollToEnd(list);
         } else if (anchor && anchor.li.isConnected) {
-            list.scrollTop += anchor.li.getBoundingClientRect().top
+            const delta = anchor.li.getBoundingClientRect().top
                 - list.getBoundingClientRect().top - anchor.offset;
+            if (Math.abs(delta) > SCROLL_CORRECTION_THRESHOLD) list.scrollTop += delta;
         }
         getState(list).atEnd = isAtEnd(list);
     },
@@ -95,7 +99,8 @@ export const chatScroller = {
             return;
         }
 
-        const wasAtEnd = isAtEnd(list);
+        const state = getState(list);
+        const wasAtEnd = isAtEnd(list) || state.atEnd;
         const listRect = list.getBoundingClientRect();
         const candidates = [...list.children];
         const anchor = [...candidates].find((child) => {
@@ -109,7 +114,8 @@ export const chatScroller = {
         if (wasAtEnd) {
             scrollToEnd(list);
         } else if (anchor && anchor.isConnected) {
-            list.scrollTop += anchor.getBoundingClientRect().top - anchorTop;
+            const delta = anchor.getBoundingClientRect().top - anchorTop;
+            if (Math.abs(delta) > SCROLL_CORRECTION_THRESHOLD) list.scrollTop += delta;
         }
         getState(list).atEnd = isAtEnd(list);
     }

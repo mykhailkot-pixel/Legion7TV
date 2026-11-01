@@ -498,8 +498,11 @@ export function openSettings() {
             b.disabled = true;
             chatFontStatus.textContent = 'Свой шрифт удалён';
         }
-        else if (b.dataset.act === 'test-ping') pingSystem.play();
-        else if (b.dataset.act === 'test-dm-ping') pingSystem.playDm();
+        else if (b.dataset.act === 'test-ping') {
+            pingSystem.play().catch((error) => console.warn('[7TV] не удалось воспроизвести звук пинга', error));
+        } else if (b.dataset.act === 'test-dm-ping') {
+            pingSystem.playDm().catch((error) => console.warn('[7TV] не удалось воспроизвести звук ЛС', error));
+        }
         else if (b.dataset.act === 'refresh') reload(true);
         else if (b.dataset.act === 'cache') {
             clearResolvedImageCache();

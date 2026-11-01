@@ -61,6 +61,9 @@ class PingSystem {
         this.dmCustomBuffer = null;
         this.dmCustomBufferPromise = null;
         this.dmUser = '';
+        this.audioUnlockHandler = () => this.unlockAudio();
+        document.addEventListener('pointerdown', this.audioUnlockHandler, { capture: true, passive: true });
+        document.addEventListener('keydown', this.audioUnlockHandler, true);
     }
 
     reloadConfig() {
@@ -231,7 +234,10 @@ class PingSystem {
     unlockAudio() {
         try {
             const context = this.getAudioContext();
-            if (context && context.state === 'suspended') context.resume();
+            if (context && context.state === 'suspended') {
+                context.resume().catch((error) =>
+                    console.warn('[7TV] не удалось включить аудио', error));
+            }
         } catch (error) {
             console.warn('[7TV] не удалось включить аудио', error);
         }

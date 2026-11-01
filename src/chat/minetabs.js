@@ -289,7 +289,8 @@ function countPings(room, msgs) {
         if (!pingSystem.isPinged(m.t, me ? [me] : [])) continue;
         const id = m.id == null ? '' : room + ':' + String(m.id);
         if (!id || !seenPings.has(id)) {
-            pingSystem.play();
+            pingSystem.play().catch((error) =>
+                console.warn('[7TV] не удалось воспроизвести звук пинга', error));
             if (id) {
                 seenPings.add(id);
                 if (seenPings.size > 500) seenPings.delete(seenPings.values().next().value);
