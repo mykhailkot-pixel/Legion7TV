@@ -263,9 +263,15 @@ function syncPingArchive(room) {
 function refreshPingArchive(room) {
     const i = rooms[room].instance;
     if (!i) return;
-    if (syncPingArchive(room)) i.raw.render();
-    markFilteredMessages(room);
-    applyPingOnly(room);
+    const o = chatOf(room);
+    const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
+    const update = () => {
+        if (syncPingArchive(room)) i.raw.render();
+        markFilteredMessages(room);
+        applyPingOnly(room);
+    };
+    if (list) chatScroller.keep(list, update);
+    else update();
     updatePingArchiveControl(room);
 }
 function countPings(room, msgs) {
@@ -323,9 +329,17 @@ function markFilteredMessages(room) {
             tag.className = 't7-filter-label';
             row.prepend(tag);
         }
-        tag.textContent = label === 'В ЧС' ? `Пользователь ${m.n || m.l} в чёрном списке` : 'Сообщение скрыто фильтром';
+        const text = label === 'В ЧС' ? `Пользователь ${m.n || m.l} в чёрном списке` : 'Сообщение скрыто фильтром';
+        if (tag.textContent !== text) tag.textContent = text;
         tag.title = label === 'В ЧС' ? 'Отправитель в вашем черном списке' : 'В сообщении найдено слово или фраза из фильтра';
     });
+}
+
+function keepPingList(room, mutate) {
+    const o = chatOf(room);
+    const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
+    if (list) chatScroller.keep(list, mutate);
+    else mutate();
 }
 
 function applyPingOnly(room) {
@@ -353,8 +367,6 @@ function syncPingOnlyControls() {
         const input = o && o.S.el && o.S.el.querySelector('.t7-chat-filter input');
         if (input) input.checked = pingOnly;
         refreshPingArchive(room);
-        applyPingOnly(room);
-        updatePingArchiveControl(room);
     }
 }
 
@@ -395,7 +407,7 @@ function addPingOnlyControl(room, box) {
         header.insertBefore(nav, close || null);
     }
     updatePingArchiveControl(room);
-    applyPingOnly(room);
+    keepPingList(room, () => applyPingOnly(room));
 }
 function updatePingArchiveControl(room) {
     const o = chatOf(room);
@@ -478,14 +490,18 @@ function pingBind(room) {
     if (list && roomState.filterList !== list) {
         if (roomState.filterObserver) roomState.filterObserver.disconnect();
         roomState.filterObserver = new MutationObserver(() => {
-            markFilteredMessages(room);
-            applyPingOnly(room);
+            chatScroller.keep(list, () => {
+                markFilteredMessages(room);
+                applyPingOnly(room);
+            });
         });
         roomState.filterObserver.observe(list, { childList: true });
         roomState.filterList = list;
     }
-    markFilteredMessages(room);
-    applyPingOnly(room);
+    keepPingList(room, () => {
+        markFilteredMessages(room);
+        applyPingOnly(room);
+    });
     updatePingArchiveControl(room);
 }
 

@@ -149,7 +149,9 @@ async function addImagePreview(anchor) {
     try {
         const cached = previewCache.get(anchor.href);
         if (cached) {
-            if (anchor.isConnected) buildPreview(anchor, cached.src, cached.w, cached.h);
+            if (anchor.isConnected) {
+                chatScroller.preserve(anchor, () => buildPreview(anchor, cached.src, cached.w, cached.h));
+            }
             return;
         }
         anchor.dataset.t7ImagePreview = 'pending';

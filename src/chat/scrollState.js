@@ -9,7 +9,8 @@ function getContainer(element) {
 }
 
 function isAtEnd(list) {
-    return list.scrollHeight - list.scrollTop - list.clientHeight < 40;
+    const maxScroll = list.scrollHeight - list.clientHeight;
+    return maxScroll <= 1 || (list.scrollTop > 1 && maxScroll - list.scrollTop < 40);
 }
 
 function scrollToEnd(list) {
@@ -43,6 +44,33 @@ export const chatScroller = {
 
     register(list) {
         if (list) getState(list);
+    },
+
+    keep(list, mutate) {
+        const atEnd = isAtEnd(list);
+        let anchor = null;
+        if (!atEnd) {
+            const listTop = list.getBoundingClientRect().top;
+            for (const li of list.children) {
+                if (li.tagName !== 'LI') continue;
+                const rect = li.getBoundingClientRect();
+                if (rect.bottom > listTop + 1) {
+                    anchor = { li, offset: rect.top - listTop };
+                    break;
+                }
+            }
+        }
+
+        mutate();
+
+        if (!list.isConnected) return;
+        if (atEnd) {
+            scrollToEnd(list);
+        } else if (anchor && anchor.li.isConnected) {
+            list.scrollTop += anchor.li.getBoundingClientRect().top
+                - list.getBoundingClientRect().top - anchor.offset;
+        }
+        getState(list).atEnd = isAtEnd(list);
     },
 
     reinitialize(list, mutate) {

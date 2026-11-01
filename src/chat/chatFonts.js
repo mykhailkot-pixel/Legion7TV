@@ -2,10 +2,10 @@ import { store } from '../core/store.js';
 import { STORE } from '../core/consts.js';
 
 const GOOGLE_FONTS_ID = 't7-chat-google-fonts';
-const GOOGLE_FONTS_URL = 'https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Comfortaa:wght@700&display=swap';
+const GOOGLE_FONTS_URL = 'https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400;1,700&family=Montserrat:ital,wght@0,400;0,700;1,400;1,700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400;1,600;1,700;1,800&family=Open+Sans:ital,wght@0,400;0,600;0,700;0,800;1,400;1,600;1,700;1,800&family=Roboto:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&display=swap';
 const CUSTOM_FAMILY = 'T7UploadedChatFont';
 const FONT_MIME = { woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf', otf: 'font/otf' };
-const FONT_CHOICES = new Set(['site', 'nunito', 'comfortaa', 'custom']);
+const FONT_CHOICES = new Set(['site', 'nunito', 'open-sans', 'roboto', 'lato', 'montserrat', 'custom']);
 const MAX_FONT_SIZE = 2 * 1024 * 1024;
 const DEFAULT_CHAT_FONT_SIZE = 14;
 let customFace = null;
@@ -62,7 +62,7 @@ async function loadCustomFont(font) {
 export async function applyChatFont() {
     const choice = getChatFont();
     document.documentElement.style.setProperty('--t7-chat-font-size', getChatFontSize() + 'px');
-    if (choice === 'nunito' || choice === 'comfortaa') ensureGoogleFonts();
+    if (choice !== 'site' && choice !== 'custom') ensureGoogleFonts();
     if (choice === 'custom') {
         try {
             if (await loadCustomFont(getCustomChatFont())) return true;
@@ -73,7 +73,10 @@ export async function applyChatFont() {
         return false;
     }
     setFamily(choice === 'nunito' ? 'Nunito, sans-serif'
-        : choice === 'comfortaa' ? 'Comfortaa, sans-serif' : null);
+        : choice === 'open-sans' ? '"Open Sans", sans-serif'
+            : choice === 'roboto' ? 'Roboto, sans-serif'
+                : choice === 'lato' ? 'Lato, sans-serif'
+                    : choice === 'montserrat' ? 'Montserrat, sans-serif' : null);
     return true;
 }
 

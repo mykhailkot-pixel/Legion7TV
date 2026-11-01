@@ -1,6 +1,7 @@
 import { SIZES } from '../core/config.js';
 import { SEL } from '../core/consts.js';
 import { S } from '../core/state.js';
+import { processMarkdown } from './markdown.js';
 import { processEmotes } from './chatEmotes.js';
 import { processLinks } from './links.js';
 import { processMentions } from './mentions.js';
@@ -12,8 +13,9 @@ const SOURCE_KEY = 'l7tvEmoteSource';
 export function registerChatProcessor(processor) {
     if (typeof processor === 'function' && !processors.includes(processor)) processors.push(processor);
 }
-registerChatProcessor(processEmotes);
+registerChatProcessor(processMarkdown);
 registerChatProcessor(processLinks);
+registerChatProcessor(processEmotes);
 registerChatProcessor(processMentions);
 
 /* ---------- сохраняем положение ленты при обновлении сообщений ---------- */
@@ -54,10 +56,17 @@ function processMessage(message, room) {
 
 export function scan() {
     const chatFresh = document.querySelectorAll(SEL.freshChatRows);
-    const chatLists = new Set([...chatFresh].map((message) => message.closest(SEL.chatList)).filter(Boolean));
-    chatLists.forEach((list) => chatScroller.register(list));
-    chatFresh.forEach((message) => processMessage(message, 'chat'));
-    if (chatLists.size) chatScroller.stickAtEnd(chatLists);
+    const chatLists = new Map();
+    chatFresh.forEach((message) => {
+        const list = message.closest(SEL.chatList);
+        if (!list) return;
+        if (!chatLists.has(list)) chatLists.set(list, []);
+        chatLists.get(list).push(message);
+    });
+    for (const [list, messages] of chatLists) {
+        chatScroller.register(list);
+        chatScroller.keep(list, () => messages.forEach((message) => processMessage(message, 'chat')));
+    }
 
     const dmFresh = document.querySelectorAll(SEL.freshDmRows);
     const dmLists = new Set([...dmFresh].map((message) =>

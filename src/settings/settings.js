@@ -162,7 +162,7 @@ export function openSettings() {
 
                 <details class="t7-sec" open>
                     <summary>Шрифт</summary>
-                    <label class="t7-fl t7-chat-font-control">Гарнитура<select class="t7-chat-font"><option value="site">Как на сайте</option><option value="nunito">Nunito</option><option value="comfortaa">Comfortaa</option><option value="custom">Свой шрифт…</option></select></label>
+                    <label class="t7-fl t7-chat-font-control">Гарнитура<select class="t7-chat-font"><option value="site">Как на сайте</option><option value="nunito">Nunito</option><option value="open-sans">Open Sans</option><option value="roboto">Roboto</option><option value="lato">Lato</option><option value="montserrat">Montserrat</option><option value="custom">Свой шрифт…</option></select></label>
                     <label class="t7-fl t7-chat-font-size-control">Размер текста<input type="range" class="t7-chat-font-size" min="11" max="22" step="1"><output class="t7-chat-font-size-value"></output></label>
                     <div class="t7-row t7-wrap t7-chat-font-actions"><button type="button" class="t7-b" data-act="chat-font">Загрузить файл шрифта</button><button type="button" class="t7-b" data-act="chat-font-reset">Удалить свой шрифт</button><input type="file" class="t7-chat-font-file" accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf" hidden></div>
                     <div class="t7-ping-status t7-chat-font-status" role="status"></div>
