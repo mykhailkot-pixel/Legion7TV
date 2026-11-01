@@ -1,5 +1,8 @@
 # Legion chat extensions
 
+
+**Теперь в гугл стор** [ссылка](https://chromewebstore.google.com/detail/legion7tv/fgfpeemileehohfccmjfoefldjdnjkhh?utm_source=item-share-cb)
+
 Userscript для [Multidonate Play](https://play.multidonate.ru/): эмоуты 7TV и дополнительные инструменты для чата.
 
 Скрипт работает на страницах `play.multidonate.ru` и расширяет встроенный чат сайта. Он адаптирует общий интерфейс города и шахты, а личные сообщения остаются отдельной частью сайта и не объединяются с общим чатом.
