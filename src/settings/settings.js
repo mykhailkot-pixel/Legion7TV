@@ -385,6 +385,7 @@ export function openSettings() {
         const size = setChatFontSize(chatFontSize.value);
         chatFontSize.value = String(size);
         chatFontSizeValue.value = size + ' px';
+        applySize();
     });
     el.querySelector('[data-act="chat-font-reset"]').disabled = !customChatFont;
     chatFontStatus.textContent = customChatFont ? `Загружен: ${customChatFont.name}` : '';

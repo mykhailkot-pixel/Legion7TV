@@ -2,14 +2,19 @@ import { CACHE_TTL, EXTRA_EMOTES, EXTRA_SETS } from '../core/config.js';
 import { S, EM, st } from '../core/state.js';
 import { store } from '../core/store.js';
 import { getJson } from '../network/net.js';
+import { fetchImg } from './imgcache.js';
 import { STORE } from '../core/consts.js';
 
 function mk(host, flags, isGlobal, isExtra, meta = {}) {
-    const files = (host.files || []).filter((f) => f.format === 'WEBP').map((f) => f.name);
+    const imageFiles = (host.files || []).filter((f) => f.format === 'WEBP');
+    const files = imageFiles.map((f) => f.name);
+    const dimensions = imageFiles.find((f) => Number.isFinite(f.width) && f.width > 0
+        && Number.isFinite(f.height) && f.height > 0);
     const owner = meta.owner || {};
     return {
         base: 'https:' + host.url,
         f: files.length ? files : ['1x.webp', '2x.webp'],
+        ...(dimensions ? { r: dimensions.width / dimensions.height } : {}),
         zw: !!(flags & 256),   // zero-width эмоут
         g: isGlobal,
         id: String(meta.id || ''),
@@ -86,7 +91,20 @@ export function urlFor(em, n) {
     return em.base + '/' + (best || em.f[0]);
 }
 
-export function reusableUrlsFor(em, n) {
+export function setEmoteImage(image, em, n, loading = 'lazy', onError) {
+    const src = urlFor(em, n);
+    image.loading = loading;
+    image.decoding = 'async';
+    image.removeAttribute('srcset');
+    fetchImg(src, true, reusableUrlsFor(em, n)).then((cachedSrc) => {
+        image.src = cachedSrc;
+    }, (error) => {
+        if (onError) onError(error);
+        else console.warn('[7TV] картинка эмоута не загрузилась', src, error);
+    });
+}
+
+function reusableUrlsFor(em, n) {
     const target = urlFor(em, n);
     const targetSize = parseInt(target.slice(em.base.length + 1), 10);
     const higher = em.f.filter((f) => parseInt(f, 10) > targetSize)

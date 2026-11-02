@@ -1,5 +1,4 @@
-import { fetchImg } from './imgcache.js';
-import { reusableUrlsFor, urlFor } from './emotes.js';
+import { setEmoteImage } from './emotes.js';
 
 const tooltipData = new WeakMap();
 let tooltip = null;
@@ -70,15 +69,15 @@ function show(target) {
     const image = tip.querySelector('img');
     const token = ++imageToken;
     image.removeAttribute('src');
+    image.removeAttribute('srcset');
     image.classList.add('t7-tip-loading');
     tip.hidden = false;
     target.setAttribute('aria-describedby', tip.id);
     position(target);
-    fetchImg(urlFor(emote, 4), true, reusableUrlsFor(emote, 4)).then((src) => {
-        if (current !== target || token !== imageToken) return;
-        image.src = src;
-        image.classList.remove('t7-tip-loading');
-    }, (error) => {
+    image.onload = () => {
+        if (current === target && token === imageToken) image.classList.remove('t7-tip-loading');
+    };
+    setEmoteImage(image, emote, 4, 'eager', (error) => {
         if (current === target && token === imageToken) {
             image.classList.remove('t7-tip-loading');
             console.warn('[7TV] не удалось загрузить превью эмоута', name, error);

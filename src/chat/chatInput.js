@@ -1,8 +1,7 @@
 import { EM, S, st } from '../core/state.js';
 import { HARD_BANNED_WORDS, SIZES } from '../core/config.js';
 import { EV, SEL, on } from '../core/consts.js';
-import { fetchImg } from '../emotes/imgcache.js';
-import { reusableUrlsFor, urlFor } from '../emotes/emotes.js';
+import { setEmoteImage } from '../emotes/emotes.js';
 import { togglePop, closePop, recordRecentFromMessage } from '../emotes/popup.js';
 import { pingSystem } from './pingSystem.js';
 import { arePastesEnabled, openPastes } from './pastes.js';
@@ -178,11 +177,16 @@ function bindPingAutocomplete(form, input) {
     input.addEventListener('input', update);
     input.addEventListener('keydown', onKeyDown, true);
     const unsubscribe = on(EV.tabCompletionChange, update);
-    return () => {
-        input.removeEventListener('input', update);
-        input.removeEventListener('keydown', onKeyDown, true);
-        unsubscribe();
-        menu.remove();
+    return {
+        hide() {
+            menu.hidden = true;
+        },
+        dispose() {
+            input.removeEventListener('input', update);
+            input.removeEventListener('keydown', onKeyDown, true);
+            unsubscribe();
+            menu.remove();
+        }
     };
 }
 
@@ -272,10 +276,9 @@ function bindEmoteAutocomplete(form, input) {
             const emote = EM[name];
             if (emote) {
                 const resolution = Math.min(2, SIZES[S.size].n);
-                fetchImg(urlFor(emote, resolution), false, reusableUrlsFor(emote, resolution)).then(
-                    (src) => { if (image.isConnected) image.src = src; },
-                    (error) => console.warn('[7TV] картинка эмоута для автокомплита не загрузилась', name, error)
-                );
+                setEmoteImage(image, emote, resolution, 'lazy', (error) => {
+                    console.warn('[7TV] картинка эмоута для автокомплита не загрузилась', name, error);
+                });
             }
         }
         previous.disabled = pageStart === 0;
@@ -375,7 +378,7 @@ function bindEmoteAutocomplete(form, input) {
 
 function bindChatForm(form, input) {
     const history = bindMessageHistory(input);
-    const disposeAutocomplete = bindPingAutocomplete(form, input);
+    const pingAutocomplete = bindPingAutocomplete(form, input);
     let lastRecentMessage = '';
     let recentRecorded = false;
     let warning = null;
@@ -392,6 +395,7 @@ function bindChatForm(form, input) {
     const record = () => {
         const text = input.value.trim();
         if (!text) return;
+        pingAutocomplete.hide();
         history.remember(text);
         if (recentRecorded && text === lastRecentMessage) return;
         recordRecentFromMessage(text);
@@ -423,7 +427,7 @@ function bindChatForm(form, input) {
     form.addEventListener('click', onClick, true);
     return () => {
         history.dispose();
-        disposeAutocomplete();
+        pingAutocomplete.dispose();
         input.removeEventListener('input', onInput);
         input.removeEventListener('keydown', onKeyDown, true);
         form.removeEventListener('submit', onSubmit, true);
