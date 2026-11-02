@@ -1,8 +1,7 @@
 /* ========== Эмоуты в сообщениях ========== */
 .t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}
 .t7-e {
-    display: inline-block;
-    vertical-align: middle;
+    display: block;
     height: var(--t7-h, 1.9em);
     width: auto;
     min-width: var(--t7-h, 1.9em);
