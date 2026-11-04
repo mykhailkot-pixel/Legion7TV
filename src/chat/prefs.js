@@ -1,7 +1,7 @@
 import { store } from '../core/store.js';
 import { EV, STORE, emit } from '../core/consts.js';
 
-const DEFAULT_ORDER = ['g', 'tr', 'ev', 'mn', 'dm'];
+const DEFAULT_ORDER = ['g', 'tr', 'mn', 'dm'];
 const TAB_IDS = new Set(DEFAULT_ORDER);
 const DEFAULT_RECENT_LIMIT = 20;
 const MAX_RECENT_LIMIT = 100;
@@ -9,8 +9,7 @@ const MAX_RECENT_LIMIT = 100;
 export const CHAT_TABS = [
     { id: 'g',  label: 'Город' },
     { id: 'tr', label: 'Торговля' },
-    { id: 'ev', label: 'Достижения' },
-    { id: 'mn', label: 'Шахта' },
+    { id: 'mn', label: 'Ремёсла' },
     { id: 'dm', label: 'Личные' },
 ];
 
