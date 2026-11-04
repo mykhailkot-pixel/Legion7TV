@@ -305,17 +305,28 @@ function countPings(room, msgs) {
 }
 
 const seenPings = new Set();
+function visibleChatMessages(C) {
+    return C.list.filter((m) => tabOfMsg(C, m) === C.tab
+        && !(C.ign && C.ign.has(m.l))
+        && (C.tab !== 'dm' || !C.peer || m.sys || m.l === C.peer || m.to === C.peer));
+}
+
 function markFilteredMessages(room) {
     const o = chatOf(room);
     const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
     if (!list || !o.C) return;
-    const visible = o.C.list.filter((m) => tabOfMsg(o.C, m) === o.C.tab && !(o.C.ign && o.C.ign.has(m.l)) && (o.C.tab !== 'dm' || !o.C.peer || m.sys || m.l === o.C.peer || m.to === o.C.peer));
+    const messagesById = new Map(visibleChatMessages(o.C).map((message) => [String(message.id), message]));
     const rows = list.querySelectorAll(SEL.nonEmptyChatRows);
     const x = rooms[room].instance.K.X();
     const me = String((x && x.login && x.login()) || '').toLowerCase();
-    visible.forEach((m, index) => {
-        const row = rows[index];
-        if (!row) return;
+    rows.forEach((row) => {
+        const m = messagesById.get(row.dataset.mid);
+        if (!m) {
+            row.classList.remove('ping', 't7-filtered', 't7-filtered-blacklist');
+            const oldTag = row.querySelector(':scope > .t7-filter-label');
+            if (oldTag) oldTag.remove();
+            return;
+        }
         const label = pingSystem.filterLabel(m.l, m.t);
         row.classList.toggle('t7-filtered', !!label);
         row.classList.toggle('t7-filtered-blacklist', label === 'В ЧС');
@@ -347,13 +358,12 @@ function applyPingOnly(room) {
     const o = chatOf(room);
     const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
     if (!list) return;
-    const visible = o.C.list.filter((m) => tabOfMsg(o.C, m) === o.C.tab && !(o.C.ign && o.C.ign.has(m.l)) && (o.C.tab !== 'dm' || !o.C.peer || m.sys || m.l === o.C.peer || m.to === o.C.peer));
+    const messagesById = new Map(visibleChatMessages(o.C).map((message) => [String(message.id), message]));
     const pageIds = new Set(archivePage(room, o.C).map((m) => String(m.id)));
-    let messageIndex = 0;
     let hasPing = false;
     list.querySelectorAll(':scope > li').forEach((row) => {
         if (row.classList.contains('cy-chat-0')) return;
-        const message = visible[messageIndex++];
+        const message = messagesById.get(row.dataset.mid);
         const onPage = message && (message.id == null || pageIds.has(String(message.id)));
         const keep = !pingOnly || row.classList.contains('ping') && onPage;
         row.classList.toggle('t7-ping-hidden', !keep);
@@ -488,6 +498,7 @@ function pingBind(room) {
         }, true);
     }
     const roomState = rooms[room];
+    if (list) chatScroller.register(list, room, true);
     if (list && roomState.filterList !== list) {
         if (roomState.filterObserver) roomState.filterObserver.disconnect();
         roomState.filterObserver = new MutationObserver(() => {
@@ -553,7 +564,11 @@ function wrapInst(raw, K, room) {
                 return;
             }
             const own = d && Array.isArray(d.chat) && mine ? { ...d, chat: d.chat.map(tagMn) } : d;
-            raw.apply(own);
+            const apply = () => raw.apply(own);
+            const o = mine && chatOf(room);
+            const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
+            if (list) chatScroller.keep(list, apply);
+            else apply();
             if (own && own.chat) countPings(room, own.chat);
             if (pingOnly) refreshPingArchive(room);
         }
