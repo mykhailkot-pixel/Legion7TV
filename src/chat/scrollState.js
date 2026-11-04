@@ -52,7 +52,8 @@ function getState(list) {
             resizeObserver: null,
             mutationObserver: null,
             lastScrollTop: list.scrollTop,
-            userScrollUntil: 0
+            userScrollUntil: 0,
+            userScrollVersion: 0
         };
         scrollStates.set(list, state);
     }
@@ -61,7 +62,11 @@ function getState(list) {
 
 function markUserScroll(event) {
     const list = getContainer(event.target);
-    if (list) getState(list).userScrollUntil = performance.now() + 300;
+    if (list) {
+        const state = getState(list);
+        state.userScrollUntil = performance.now() + 300;
+        state.userScrollVersion++;
+    }
 }
 
 function refreshRows(list, state) {
@@ -164,6 +169,28 @@ export const chatScroller = {
     getContainer,
     isAtEnd,
     scrollToEnd,
+
+    captureEndIntent(list) {
+        const state = getState(list);
+        return { atEnd: state.atEnd || isAtEnd(list), userScrollVersion: state.userScrollVersion };
+    },
+
+    settleAtEnd(list, intent) {
+        if (!list || !intent || !intent.atEnd) return;
+        const state = getState(list);
+        let frames = 18;
+        const settle = () => {
+            requestAnimationFrame(() => {
+                if (!list.isConnected || state.userScrollVersion !== intent.userScrollVersion) return;
+                scrollToEnd(list);
+                state.atEnd = isAtEnd(list);
+                refreshRows(list, state);
+                savePosition(list, state);
+                if (--frames) settle();
+            });
+        };
+        settle();
+    },
 
     register(list, key, restore = false) {
         if (!list) return;

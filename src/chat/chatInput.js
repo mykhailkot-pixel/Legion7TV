@@ -410,6 +410,13 @@ function bindChatForm(form, input) {
     const onSubmit = (event) => {
         if (blockBannedWord(event)) return;
         record();
+        requestAnimationFrame(() => {
+            if (!form.isConnected) return;
+            const active = document.activeElement;
+            if (active !== document.body && !form.contains(active)) return;
+            const currentInput = form.querySelector(SEL.textInput);
+            if (currentInput) currentInput.focus({ preventScroll: true });
+        });
     };
     const onClick = (event) => {
         if (event.target.closest(SEL.submitButton)) blockBannedWord(event);

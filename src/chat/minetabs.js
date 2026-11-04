@@ -147,7 +147,14 @@ function patchK(K, room) {
     const cache = new WeakMap();
     const route = (api, p, b) => {
         const result = api(p, b);
-        return room === 'mine' && p === K.say ? Promise.resolve(result).then(tagMsg) : result;
+        if (room !== 'mine' || p !== K.say) return result;
+        const o = chatOf(room);
+        const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
+        const endIntent = list && chatScroller.captureEndIntent(list);
+        return Promise.resolve(result).then((response) => {
+            if (response && response.ok && list && endIntent) chatScroller.settleAtEnd(list, endIntent);
+            return tagMsg(response);
+        });
     };
     return {
         ...K,
@@ -469,7 +476,9 @@ function pingBind(room) {
     if (!box || box.dataset.t7pg) return;
     box.dataset.t7pg = '1';
     addPingOnlyControl(room, box);
-    box.addEventListener('click', () => {
+    box.addEventListener('click', (event) => {
+        if (!(event.target instanceof Element)
+            || !event.target.closest(`${SEL.chatTabButtons}, ${SEL.chatToggleButton}, ${SEL.chatCloseButton}`)) return;
         refreshPingArchive(room);
         updatePingArchiveControl(room);
         paint(room);
