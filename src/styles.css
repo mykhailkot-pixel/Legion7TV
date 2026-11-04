@@ -278,6 +278,7 @@ form.cy-chat-f>.t7-banword-warning[hidden]{display:none}
 .cy-chat-l>li.t7-filtered{font-style:italic}
 .cy-chat-l>li>.t7-filter-label{display:inline-block;margin-right:5px;padding:2px 6px;border-radius:4px;background:rgba(255,201,77,.14);color:#ffca66;font-size:13px;font-weight:700;white-space:nowrap}
 .cy-chat-l>li.t7-filtered>:not(.t7-filter-label){display:none!important}
+.cy-chat-l,.cy-chat-l li,.cy-chat-l li span,.cy-chat-l li a,.dm-l,.dm-l li,.dm-l li span,.dm-l li a{-webkit-user-select:text!important;user-select:text!important}
 .cy-chat-l a.t7-link{color:#8edbff;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .cy-chat-tabs>button[data-tab][hidden]{display:none!important}
 /* Позицию в лентах контролирует скрипт, без конкурирующего нативного якорения. */
