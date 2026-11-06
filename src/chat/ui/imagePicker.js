@@ -1,6 +1,6 @@
-import { store } from '../core/store.js';
-import { STORE } from '../core/consts.js';
-import { fetchImg } from '../emotes/imgcache.js';
+import { store } from '../../core/store.js';
+import { STORE } from '../../core/consts.js';
+import { fetchImg } from '../../emotes/imgcache.js';
 import { resolveImageUrl } from './imageProviders.js';
 
 const IMAGE_ID = /^[a-z0-9]{1,32}$/i;

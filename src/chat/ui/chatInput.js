@@ -1,9 +1,9 @@
-import { EM, S, st } from '../core/state.js';
-import { HARD_BANNED_WORDS, SIZES } from '../core/config.js';
-import { EV, SEL, on } from '../core/consts.js';
-import { setEmoteImage } from '../emotes/emotes.js';
-import { togglePop, closePop, recordRecentFromMessage } from '../emotes/popup.js';
-import { pingSystem } from './pingSystem.js';
+import { EM, S, st } from '../../core/state.js';
+import { HARD_BANNED_WORDS, SIZES } from '../../core/config.js';
+import { EV, SEL, on } from '../../core/consts.js';
+import { setEmoteImage } from '../../emotes/emotes.js';
+import { togglePop, closePop, recordRecentFromMessage } from '../../emotes/popup.js';
+import { pingSystem } from '../pingSystem.js';
 import { arePastesEnabled, openPastes } from './pastes.js';
 import { disposeImagePicker, isImagePickerButtonEnabled, openImagePicker } from './imagePicker.js';
 

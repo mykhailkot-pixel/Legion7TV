@@ -9,6 +9,7 @@ const MARKERS = [
 ];
 const WORD_CHAR_RE = /[\p{L}\p{N}_]/u;
 const URL_PREFIX_RE = /(?:\[ref\]\{[^{}\s]+\}|https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/iy;
+const MENTION_RE = /(?<![\p{L}\p{N}_])@[a-z0-9_]{1,25}(?![\p{L}\p{N}_])/iy;
 const MARKER_SUFFIX_RE = /(?:\*{1,3}|_{1,2}|~{2}|\|{2})+$/;
 
 function isUnderscoreBoundary(text, index, opening) {
@@ -62,6 +63,13 @@ function parseInline(text, start = 0, closing = null, depth = 0) {
         if (url) {
             const markerSuffix = MARKER_SUFFIX_RE.exec(url[0]);
             index += url[0].length - (markerSuffix ? markerSuffix[0].length : 0);
+            continue;
+        }
+
+        MENTION_RE.lastIndex = index;
+        const mention = MENTION_RE.exec(text);
+        if (mention) {
+            index += mention[0].length;
             continue;
         }
 

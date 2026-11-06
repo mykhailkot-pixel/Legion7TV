@@ -1,5 +1,5 @@
-import { store } from '../core/store.js';
-import { STORE } from '../core/consts.js';
+import { store } from '../../core/store.js';
+import { STORE } from '../../core/consts.js';
 
 const PASTES_KEY = STORE.pastes;
 const PASTES_ENABLED_KEY = STORE.pastesEnabled;

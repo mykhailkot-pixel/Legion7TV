@@ -1,6 +1,6 @@
-import { getText } from '../network/net.js';
-import { store } from '../core/store.js';
-import { STORE } from '../core/consts.js';
+import { getText } from '../../network/net.js';
+import { store } from '../../core/store.js';
+import { STORE } from '../../core/consts.js';
 
 const providers = [];
 const RESOLVE_CACHE_TTL = 24 * 60 * 60 * 1000;

@@ -4,15 +4,15 @@ import { STORE } from './core/consts.js';
 import { S, st } from './core/state.js';
 import { store } from './core/store.js';
 import { reload } from './emotes/emotes.js';
-import { scan, rescanAll, applySize } from './chat/chat.js';
+import { scan, rescanAll, applySize } from './chat/messages/chat.js';
 import { renderGrid, place } from './emotes/popup.js';
 import { updateSetStatus } from './settings/settings.js';
-import { ensureButtons } from './chat/chatInput.js';
-import { startChatObservers } from './chat/chatObservers.js';
-import { applyChatFont } from './chat/chatFonts.js';
+import { ensureButtons } from './chat/ui/chatInput.js';
+import { startChatObservers } from './chat/ui/chatObservers.js';
+import { applyChatFont } from './chat/ui/chatFonts.js';
 import { pingSystem } from './chat/pingSystem.js';
 import { initEmoteTooltip } from './emotes/tooltip.js';
-import './chat/minetabs.js';
+import './chat/integration/siteChat.js';
 
 let started = false;
 

@@ -568,6 +568,7 @@
   ];
   var WORD_CHAR_RE = /[\p{L}\p{N}_]/u;
   var URL_PREFIX_RE = /(?:\[ref\]\{[^{}\s]+\}|https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/iy;
+  var MENTION_RE = /(?<![\p{L}\p{N}_])@[a-z0-9_]{1,25}(?![\p{L}\p{N}_])/iy;
   var MARKER_SUFFIX_RE = /(?:\*{1,3}|_{1,2}|~{2}|\|{2})+$/;
   function isUnderscoreBoundary(text, index, opening) {
     const adjacent = opening ? text[index + 1] : text[index - 1];
@@ -616,6 +617,12 @@
       if (url) {
         const markerSuffix = MARKER_SUFFIX_RE.exec(url[0]);
         index += url[0].length - (markerSuffix ? markerSuffix[0].length : 0);
+        continue;
+      }
+      MENTION_RE.lastIndex = index;
+      const mention = MENTION_RE.exec(text);
+      if (mention) {
+        index += mention[0].length;
         continue;
       }
       if (closing && text.startsWith(closing.token, index) && (closing.token !== "_" || isUnderscoreBoundary(text, index, false))) {
@@ -1738,7 +1745,7 @@
     const encoded = encodeLinks(text);
     return call(path, encoded === text ? body : { ...body, text: encoded });
   }
-  var MENTION_RE = /(?<![\p{L}\p{N}_])@[a-z0-9_]{1,25}(?![\p{L}\p{N}_])/giu;
+  var MENTION_RE2 = /(?<![\p{L}\p{N}_])@[a-z0-9_]{1,25}(?![\p{L}\p{N}_])/giu;
   function processMentions({ content, kind }) {
     if (kind !== "message") return;
     const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
@@ -1747,7 +1754,7 @@
     for (const node of nodes) {
       if (node.parentElement && node.parentElement.closest("a")) continue;
       const text = node.nodeValue;
-      const matches = [...text.matchAll(MENTION_RE)];
+      const matches = [...text.matchAll(MENTION_RE2)];
       if (!matches.length) continue;
       const fragment = document.createDocumentFragment();
       let offset = 0;
@@ -3939,9 +3946,150 @@
       observer.disconnect();
     };
   }
-  var W = globalThis.__L7TV_EXTENSION_PAGE__ ? window : typeof unsafeWindow !== "undefined" ? unsafeWindow : null;
-  var CITY = "/api/city/chat";
-  var MINE = "/api/mine/chat";
+  var chats = /* @__PURE__ */ new Set();
+  function setupTabs(K) {
+    const S2 = K.state();
+    if (!S2 || !S2.chat || !S2.el) return;
+    const C = S2.chat;
+    const tabs = S2.el.querySelector(SEL.chatTabs);
+    if (!tabs) return;
+    chats.add(K);
+    const prefs = getChatTabPrefs();
+    for (const id of prefs.order) {
+      const button = tabs.querySelector(`[data-tab="${id}"]`);
+      if (!button) continue;
+      button.hidden = prefs.hidden.has(id) || !C[id];
+      tabs.appendChild(button);
+    }
+    tabs.querySelectorAll("[data-tab]").forEach((button) => {
+      if (button._t7h) return;
+      button._t7h = 1;
+      new MutationObserver(() => {
+        const hidden = getChatTabPrefs().hidden.has(button.dataset.tab) || !C[button.dataset.tab];
+        if (hidden !== button.hidden) button.hidden = hidden;
+      }).observe(button, { attributes: true, attributeFilter: ["hidden"] });
+    });
+    if (prefs.hidden.has(C.tab) || !C[C.tab]) {
+      const fallback = prefs.order.find((id) => {
+        const button = tabs.querySelector(`[data-tab="${id}"]`);
+        return !prefs.hidden.has(id) && C[id] && button;
+      });
+      if (fallback) selectTab(K, fallback);
+    }
+    if (!tabs._t7) {
+      tabs._t7 = 1;
+      new MutationObserver(() => {
+        const chat = K.state() && K.state().chat;
+        if (tabs.hidden && chat && !chat.panel) tabs.hidden = false;
+      }).observe(tabs, { attributes: true, attributeFilter: ["hidden"] });
+    }
+    if (!C.panel) tabs.hidden = false;
+  }
+  on(EV.chatTabsChange, () => {
+    for (const K of chats) setupTabs(K);
+  });
+  function selectTab(K, id) {
+    const S2 = K.state();
+    const button = S2 && S2.el && S2.el.querySelector(`${SEL.chatTabs} [data-tab="${id}"]`);
+    if (button) button.click();
+  }
+  function wrapDm(v) {
+    if (!v || v.__t7 || typeof v.init !== "function") return v;
+    const init = v.init;
+    let lastContext = "";
+    const dmSoundSeen = /* @__PURE__ */ new Set();
+    let lastSig = "";
+    let lastParent = null;
+    const wrapped = {
+      ...v,
+      place() {
+        try {
+          const list = document.querySelector(".dm-l");
+          const dm = list && list.closest(".dm");
+          if (dm && dm.isConnected && dm.getClientRects().length) {
+            const active = v.active();
+            const conv = v.conv(active) || [];
+            const last = conv[conv.length - 1];
+            const sig = [
+              active,
+              v.tabs().join(","),
+              v.unread(),
+              conv.length,
+              last && last.id
+            ].join("|");
+            if (sig === lastSig && dm.parentNode === lastParent) return;
+            lastSig = sig;
+            lastParent = dm.parentNode;
+          }
+        } catch (e) {
+          return v.place.apply(this, arguments);
+        }
+        return v.place.apply(this, arguments);
+      },
+      onEvent(d) {
+        try {
+          const message = d && d.m;
+          if (message && message.id != null) {
+            const id = String(message.id);
+            if (!dmSoundSeen.has(id)) {
+              dmSoundSeen.add(id);
+              if (dmSoundSeen.size > 500) {
+                dmSoundSeen.delete(dmSoundSeen.values().next().value);
+              }
+              const fresh = !Number.isFinite(message.at) || Date.now() - message.at < 5 * 60 * 1e3;
+              if (fresh && pingSystem.shouldNotifyDm(message.fl)) {
+                pingSystem.playDm().catch((error) => console.warn("[7TV] \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0437\u0432\u0443\u043A \u041B\u0421", error));
+              }
+            }
+          }
+        } catch (error) {
+          console.warn("[7TV] \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0437\u0432\u0443\u043A \u041B\u0421", error);
+        }
+        if (typeof v.onEvent === "function") return v.onEvent.apply(this, arguments);
+      },
+      init(ctx) {
+        let context = "";
+        try {
+          const user = String(ctx && ctx.me && ctx.me() || "").toLowerCase();
+          context = `${user}|${String(ctx && ctx.ch || "").toLowerCase()}`;
+          pingSystem.setDmUser(user);
+        } catch (e) {
+        }
+        const list = context && context === lastContext ? document.querySelector(".dm-l") : null;
+        let dmContext = ctx;
+        if (ctx && typeof ctx.api === "function") {
+          const api = ctx.api.bind(ctx);
+          dmContext = new Proxy(ctx, {
+            get(target, key) {
+              if (key === "api") {
+                return (path, body) => SAY_RE.test(path) ? sendWithLinks(api, path, body) : api(path, body);
+              }
+              const value = Reflect.get(target, key, target);
+              return typeof value === "function" ? value.bind(target) : value;
+            }
+          });
+        }
+        const args = [...arguments];
+        args[0] = dmContext;
+        let result;
+        if (list && list.isConnected) {
+          result = chatScroller.reinitialize(list, () => init.apply(this, args));
+        } else {
+          result = init.apply(this, args);
+        }
+        lastContext = context;
+        return result;
+      },
+      open(login, options) {
+        return v.open.apply(this, arguments);
+      },
+      setActive(login) {
+        return v.setActive.apply(this, arguments);
+      }
+    };
+    wrapped.__t7 = 1;
+    return wrapped;
+  }
   var PING_ONLY_KEY = STORE.pingOnly;
   var PING_ARCHIVE_KEY = STORE.pingArchive;
   var PING_ARCHIVE_LIMIT = 500;
@@ -3969,137 +4117,34 @@
   };
   var pingArchiveSaveTimer = 0;
   var hasUnifiedChat = () => !!rooms.one.instance;
+  function setChatInstance(room, instance) {
+    rooms[room].instance = instance;
+  }
+  function resetPingCounts(room) {
+    rooms[room].pings = {};
+  }
+  function clearInjectedPings(room) {
+    rooms[room].injectedPings.clear();
+  }
+  function removePingArchiveMessages(room, ids) {
+    const state = rooms[room];
+    const deleted = new Set(ids);
+    const kept = state.archive.filter((message) => !deleted.has(String(message.id)));
+    if (kept.length === state.archive.length) return false;
+    state.archive = kept;
+    state.archiveIds = new Set(kept.map((message) => String(message.id)));
+    schedulePingArchiveSave();
+    return true;
+  }
   pingSystem.subscribe(() => {
     for (const room of Object.values(rooms)) if (room.instance) room.instance.raw.render();
   });
-  var tagMn = (m) => m && m.tb !== "mn" ? { ...m, tb: "mn" } : m;
-  var tagMsg = (r) => r && r.msg ? { ...r, msg: tagMn(r.msg) } : r;
   function schedulePingArchiveSave() {
     clearTimeout(pingArchiveSaveTimer);
     pingArchiveSaveTimer = setTimeout(() => {
       pingArchiveSaveTimer = 0;
       store.set(PING_ARCHIVE_KEY, Object.fromEntries(ROOM_IDS.map((room) => [room, rooms[room].archive])));
     }, 500);
-  }
-  function setupTabs(K) {
-    const S2 = K.state();
-    if (!S2 || !S2.chat || !S2.el) return;
-    const C = S2.chat;
-    const tabs = S2.el.querySelector(SEL.chatTabs);
-    if (!tabs) return;
-    const preferredTab = !K.one && K.base === MINE ? "mn" : "g";
-    const otherCommonTab = preferredTab === "g" ? "mn" : "g";
-    const commonTab = tabs.querySelector(`[data-tab="${preferredTab}"]`) ? preferredTab : tabs.querySelector(`[data-tab="${otherCommonTab}"]`) ? otherCommonTab : preferredTab;
-    const alternateTab = K.one ? null : commonTab === "g" ? "mn" : "g";
-    const prefId = (id) => !K.one && (id === "g" || id === "mn") ? "g" : id;
-    const siteId = (id) => id === "g" ? commonTab : id;
-    if (!K.one) {
-      C[commonTab] = true;
-      if (C.un && C.un[commonTab] == null) C.un[commonTab] = 0;
-    }
-    const prefs = getChatTabPrefs();
-    for (const k of prefs.order) {
-      const id = siteId(k);
-      const e = tabs.querySelector(`[data-tab="${id}"]`);
-      if (!e) continue;
-      const legacyAlwaysAvailable = !K.one && id === commonTab;
-      const shouldBeHidden = prefs.hidden.has(prefId(k)) || !legacyAlwaysAvailable && !C[id];
-      e.hidden = shouldBeHidden;
-      tabs.appendChild(e);
-    }
-    tabs.querySelectorAll("[data-tab]").forEach((b) => {
-      if (alternateTab && b.dataset.tab === alternateTab) b.hidden = true;
-      if (b._t7h) return;
-      b._t7h = 1;
-      new MutationObserver(() => {
-        const hidden = getChatTabPrefs().hidden.has(prefId(b.dataset.tab));
-        if (hidden || alternateTab && b.dataset.tab === alternateTab) {
-          if (!b.hidden) b.hidden = true;
-        } else if (b.dataset.tab === commonTab && !K.one && b.hidden) b.hidden = false;
-      }).observe(b, { attributes: true, attributeFilter: ["hidden"] });
-    });
-    if (!K.one) {
-      for (const id of ["g", "mn"]) {
-        const button = tabs.querySelector(`[data-tab="${id}"]`);
-        if (button && button.firstChild && button.firstChild.nodeType === 3) button.firstChild.nodeValue = "\u041E\u0431\u0449\u0438\u0439";
-        if (button) button.title = "\u041E\u0431\u0449\u0438\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F";
-      }
-    }
-    if (prefs.hidden.has(prefId(C.tab))) {
-      const fallback = prefs.order.find((id) => {
-        const button = tabs.querySelector(`[data-tab="${siteId(id)}"]`);
-        return !prefs.hidden.has(id) && button && !button.hidden;
-      });
-      if (fallback) selectTab(K, siteId(fallback));
-    }
-    if (!tabs._t7) {
-      tabs._t7 = 1;
-      new MutationObserver(() => {
-        const c = K.state() && K.state().chat;
-        if (tabs.hidden && c && !c.panel) tabs.hidden = false;
-      }).observe(tabs, { attributes: true, attributeFilter: ["hidden"] });
-    }
-    if (!C.panel) tabs.hidden = false;
-  }
-  on(EV.chatTabsChange, () => {
-    for (const room of Object.values(rooms)) if (room.instance) setupTabs(room.instance.K);
-  });
-  function selectTab(K, t) {
-    const S2 = K.state();
-    const b = S2 && S2.el && S2.el.querySelector(`${SEL.chatTabs} [data-tab="${t}"]`);
-    if (b) b.click();
-  }
-  var CHAT_JS = "/lib/site-chat.js";
-  var chatLoad = null;
-  function loadChatLib() {
-    if (W.LGChat) return Promise.resolve();
-    if (!chatLoad) chatLoad = new Promise((ok) => {
-      const sc = document.createElement("script");
-      sc.src = CHAT_JS;
-      sc.onload = sc.onerror = () => ok();
-      document.head.appendChild(sc);
-    });
-    return chatLoad;
-  }
-  function patchK(K, room) {
-    const cache = /* @__PURE__ */ new WeakMap();
-    const route = (api, p, b) => {
-      const result = api(p, b);
-      if (room !== "mine" || p !== K.say) return result;
-      const o = chatOf(room);
-      const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
-      const endIntent = list && chatScroller.captureEndIntent(list);
-      return Promise.resolve(result).then((response) => {
-        if (response && response.ok && list && endIntent) chatScroller.settleAtEnd(list, endIntent);
-        return tagMsg(response);
-      });
-    };
-    return {
-      ...K,
-      flags: room === "mine" && !K.one ? () => {
-        const x = K.X();
-        const h = x && x.hero && x.hero() || {};
-        return { on: K.flags(h).on, tr: !!h.ct, dm: !!h.cd };
-      } : K.flags,
-      X: () => {
-        const x = K.X();
-        if (!x) return x;
-        let m = cache.get(x);
-        if (!m) {
-          const raw = (...a) => x.api(...a);
-          const api = (p, b) => SAY_RE.test(p) ? sendWithLinks(raw, p, b) : raw(p, b);
-          m = new Proxy(x, {
-            get(t, k) {
-              if (k === "api") return (p, b) => route(api, p, b);
-              const v = t[k];
-              return typeof v === "function" ? v.bind(t) : v;
-            }
-          });
-          cache.set(x, m);
-        }
-        return m;
-      }
-    };
   }
   function chatOf(room) {
     const i = rooms[room].instance;
@@ -4429,8 +4474,63 @@
     });
     updatePingArchiveControl(room);
   }
+  var isPingOnly = () => pingOnly;
+  var W = globalThis.__L7TV_EXTENSION_PAGE__ ? window : typeof unsafeWindow !== "undefined" ? unsafeWindow : null;
+  var CITY = "/api/city/chat";
+  var MINE = "/api/mine/chat";
+  var CHAT_JS = "/lib/site-chat.js";
+  var chatLoad = null;
+  function loadChatLib() {
+    if (W.LGChat) return Promise.resolve();
+    if (!chatLoad) chatLoad = new Promise((ok) => {
+      const sc = document.createElement("script");
+      sc.src = CHAT_JS;
+      sc.onload = sc.onerror = () => ok();
+      document.head.appendChild(sc);
+    });
+    return chatLoad;
+  }
+  function patchK(K, room) {
+    const cache = /* @__PURE__ */ new WeakMap();
+    const route = (api, p, b) => {
+      const result = api(p, b);
+      if (room !== "mine" || p !== K.say) return result;
+      const o = chatOf(room);
+      const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
+      const endIntent = list && chatScroller.captureEndIntent(list);
+      return Promise.resolve(result).then((response) => {
+        if (response && response.ok && list && endIntent) chatScroller.settleAtEnd(list, endIntent);
+        return response;
+      });
+    };
+    return {
+      ...K,
+      flags: room === "mine" && !K.one ? () => {
+        const x = K.X();
+        const h = x && x.hero && x.hero() || {};
+        return { on: K.flags(h).on, tr: !!h.ct, dm: !!h.cd };
+      } : K.flags,
+      X: () => {
+        const x = K.X();
+        if (!x) return x;
+        let m = cache.get(x);
+        if (!m) {
+          const raw = (...a) => x.api(...a);
+          const api = (p, b) => SAY_RE.test(p) ? sendWithLinks(raw, p, b) : raw(p, b);
+          m = new Proxy(x, {
+            get(t, k) {
+              if (k === "api") return (p, b) => route(api, p, b);
+              const v = t[k];
+              return typeof v === "function" ? v.bind(t) : v;
+            }
+          });
+          cache.set(x, m);
+        }
+        return m;
+      }
+    };
+  }
   function wrapInst(raw, K, room) {
-    const mine = room === "mine";
     const unified = !!K.one;
     return {
       ...raw,
@@ -4444,11 +4544,11 @@
           const enter2 = () => {
             raw.enter(r, rm);
             if (r && Array.isArray(r.chat)) rememberPingMessages(room, r.chat);
-            rooms[room].pings = {};
+            resetPingCounts(room);
             setupTabs(K);
             pingBind(room);
             paint(room);
-            if (pingOnly) refreshPingArchive(room);
+            if (isPingOnly()) refreshPingArchive(room);
           };
           const o2 = chatOf(room);
           const list2 = o2 && o2.S.el && o2.S.el.querySelector(SEL.chatList);
@@ -4457,17 +4557,15 @@
           return;
         }
         const enter = () => {
-          if (pingOnly) stripArchivedPings(room);
-          const entered = r && Array.isArray(r.chat) && mine ? { ...r, chat: r.chat.map(tagMn) } : r;
-          raw.enter(entered);
-          rooms[room].injectedPings.clear();
-          if (entered && Array.isArray(entered.chat)) rememberPingMessages(room, entered.chat);
+          if (isPingOnly()) stripArchivedPings(room);
+          raw.enter(r);
+          clearInjectedPings(room);
+          if (r && Array.isArray(r.chat)) rememberPingMessages(room, r.chat);
           setupTabs(K);
-          rooms[room].pings = {};
+          resetPingCounts(room);
           pingBind(room);
           paint(room);
-          selectTab(K, mine ? "mn" : "g");
-          if (pingOnly) refreshPingArchive(room);
+          if (isPingOnly()) refreshPingArchive(room);
         };
         const o = chatOf(room);
         const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
@@ -4483,26 +4581,18 @@
           else apply2();
           if (d && Array.isArray(d.chat)) countPings(room, d.chat);
           if (d && Array.isArray(d.chatDel)) {
-            const deleted = new Set(d.chatDel.map(String));
-            const archive = rooms[room];
-            const kept = archive.archive.filter((m) => !deleted.has(String(m.id)));
-            if (kept.length !== archive.archive.length) {
-              archive.archive = kept;
-              archive.archiveIds = new Set(kept.map((m) => String(m.id)));
-              schedulePingArchiveSave();
-            }
+            removePingArchiveMessages(room, d.chatDel.map(String));
           }
-          if (pingOnly) refreshPingArchive(room);
+          if (isPingOnly()) refreshPingArchive(room);
           return;
         }
-        const own = d && Array.isArray(d.chat) && mine ? { ...d, chat: d.chat.map(tagMn) } : d;
-        const apply = () => raw.apply(own);
-        const o = mine && chatOf(room);
+        const apply = () => raw.apply(d);
+        const o = room === "mine" && chatOf(room);
         const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
         if (list) chatScroller.keep(list, apply);
         else apply();
-        if (own && own.chat) countPings(room, own.chat);
-        if (pingOnly) refreshPingArchive(room);
+        if (d && d.chat) countPings(room, d.chat);
+        if (isPingOnly()) refreshPingArchive(room);
       }
     };
   }
@@ -4516,7 +4606,7 @@
         if (!room) return make(K);
         const KK = patchK(K, room);
         const raw = make(KK);
-        rooms[room].instance = { raw, K: KK };
+        setChatInstance(room, { raw, K: KK });
         return wrapInst(raw, KK, room);
       }
     };
@@ -4530,21 +4620,12 @@
       try {
         if (d) {
           if (Array.isArray(d.chatDel) && d.chatDel.length) {
-            const deleted = new Set(d.chatDel.map(String));
-            let changed = false;
             const archiveRoom = hasUnifiedChat() ? "one" : "city";
-            const archive = rooms[archiveRoom];
-            const kept = archive.archive.filter((m) => !deleted.has(String(m.id)));
-            if (kept.length !== archive.archive.length) {
-              archive.archive = kept;
-              archive.archiveIds = new Set(kept.map((m) => String(m.id)));
-              changed = true;
-            }
-            if (changed) schedulePingArchiveSave();
+            removePingArchiveMessages(archiveRoom, d.chatDel.map(String));
           }
         }
       } catch (e) {
-        console.warn("[mine-tabs] city", e);
+        console.warn("[7TV] city chat event", e);
       }
       return o.apply(this, arguments);
     };
@@ -4564,103 +4645,6 @@
     v.__t7 = 1;
     return v;
   }
-  function wrapDm(v) {
-    if (!v || v.__t7 || typeof v.init !== "function") return v;
-    const init = v.init;
-    let lastContext = "";
-    const dmSoundSeen = /* @__PURE__ */ new Set();
-    let lastSig = "";
-    let lastParent = null;
-    const wrapped = {
-      ...v,
-      place() {
-        try {
-          const list = document.querySelector(".dm-l");
-          const dm = list && list.closest(".dm");
-          if (dm && dm.isConnected && dm.getClientRects().length) {
-            const active = v.active();
-            const conv = v.conv(active) || [];
-            const last = conv[conv.length - 1];
-            const sig = [
-              active,
-              v.tabs().join(","),
-              v.unread(),
-              conv.length,
-              last && last.id
-            ].join("|");
-            if (sig === lastSig && dm.parentNode === lastParent) return;
-            lastSig = sig;
-            lastParent = dm.parentNode;
-          }
-        } catch (e) {
-          return v.place.apply(this, arguments);
-        }
-        return v.place.apply(this, arguments);
-      },
-      onEvent(d) {
-        try {
-          const message = d && d.m;
-          if (message && message.id != null) {
-            const id = String(message.id);
-            if (!dmSoundSeen.has(id)) {
-              dmSoundSeen.add(id);
-              if (dmSoundSeen.size > 500) {
-                dmSoundSeen.delete(dmSoundSeen.values().next().value);
-              }
-              const fresh = !Number.isFinite(message.at) || Date.now() - message.at < 5 * 60 * 1e3;
-              if (fresh && pingSystem.shouldNotifyDm(message.fl)) {
-                pingSystem.playDm().catch((error) => console.warn("[7TV] \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0437\u0432\u0443\u043A \u041B\u0421", error));
-              }
-            }
-          }
-        } catch (error) {
-          console.warn("[7TV] \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0437\u0432\u0443\u043A \u041B\u0421", error);
-        }
-        if (typeof v.onEvent === "function") return v.onEvent.apply(this, arguments);
-      },
-      init(ctx) {
-        let context = "";
-        try {
-          const user = String(ctx && ctx.me && ctx.me() || "").toLowerCase();
-          context = `${user}|${String(ctx && ctx.ch || "").toLowerCase()}`;
-          pingSystem.setDmUser(user);
-        } catch (e) {
-        }
-        const list = context && context === lastContext ? document.querySelector(".dm-l") : null;
-        let dmContext = ctx;
-        if (ctx && typeof ctx.api === "function") {
-          const api = ctx.api.bind(ctx);
-          dmContext = new Proxy(ctx, {
-            get(target, key) {
-              if (key === "api") {
-                return (path, body) => SAY_RE.test(path) ? sendWithLinks(api, path, body) : api(path, body);
-              }
-              const value = Reflect.get(target, key, target);
-              return typeof value === "function" ? value.bind(target) : value;
-            }
-          });
-        }
-        const args = [...arguments];
-        args[0] = dmContext;
-        let result;
-        if (list && list.isConnected) {
-          result = chatScroller.reinitialize(list, () => init.apply(this, args));
-        } else {
-          result = init.apply(this, args);
-        }
-        lastContext = context;
-        return result;
-      },
-      open(login, options) {
-        return v.open.apply(this, arguments);
-      },
-      setActive(login) {
-        return v.setActive.apply(this, arguments);
-      }
-    };
-    wrapped.__t7 = 1;
-    return wrapped;
-  }
   function hook(name, fn) {
     let val = W[name];
     if (val) val = fn(val);
@@ -4674,7 +4658,7 @@
         }
       });
     } catch (e) {
-      console.warn("[mine-tabs] hook", name, e);
+      console.warn("[7TV] chat hook", name, e);
     }
   }
   if (W) {

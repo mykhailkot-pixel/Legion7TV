@@ -1,4 +1,4 @@
-import { SEL } from '../core/consts.js';
+import { SEL } from '../../core/consts.js';
 
 const scrollListSelector = `${SEL.chatList}, .dm-l`;
 const scrollStates = new WeakMap();

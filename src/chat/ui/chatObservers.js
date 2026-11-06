@@ -1,6 +1,6 @@
-import { scan } from './chat.js';
+import { scan } from '../messages/chat.js';
 import { disposeInputBindings, ensureButtons } from './chatInput.js';
-import { SEL } from '../core/consts.js';
+import { SEL } from '../../core/consts.js';
 
 function contains(node, selector) {
     return node.nodeType === 1 && (node.matches(selector) || node.querySelector(selector));

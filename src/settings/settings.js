@@ -3,17 +3,17 @@ import { S, st } from '../core/state.js';
 import { store } from '../core/store.js';
 import { parseNick, clamp } from '../core/util.js';
 import { reload, setStatus } from '../emotes/emotes.js';
-import { rescanAll, applySize } from '../chat/chat.js';
+import { rescanAll, applySize } from '../chat/messages/chat.js';
 import { clearImgs } from '../emotes/imgcache.js';
 import { pingSystem } from '../chat/pingSystem.js';
-import { getChatFont, getChatFontSize, getCustomChatFont, setChatFont, setChatFontSize, uploadChatFont, removeCustomChatFont } from '../chat/chatFonts.js';
+import { getChatFont, getChatFontSize, getCustomChatFont, setChatFont, setChatFontSize, uploadChatFont, removeCustomChatFont } from '../chat/ui/chatFonts.js';
 import { getRecentLimit, setRecentLimit } from '../chat/prefs.js';
-import { areImagePreviewsEnabled, isLinkEncodingEnabled, setImagePreviewsEnabled, setLinkEncodingEnabled } from '../chat/links.js';
+import { areImagePreviewsEnabled, isLinkEncodingEnabled, setImagePreviewsEnabled, setLinkEncodingEnabled } from '../chat/messages/links.js';
 import { CHAT_TABS, getChatTabPrefs, setChatTabPrefs } from '../chat/prefs.js';
 import { STORE } from '../core/consts.js';
-import { arePastesEnabled, setPastesEnabled } from '../chat/pastes.js';
-import { clearResolvedImageCache } from '../chat/imageProviders.js';
-import { isImagePickerButtonEnabled, setImagePickerButtonEnabled } from '../chat/imagePicker.js';
+import { arePastesEnabled, setPastesEnabled } from '../chat/ui/pastes.js';
+import { clearResolvedImageCache } from '../chat/ui/imageProviders.js';
+import { isImagePickerButtonEnabled, setImagePickerButtonEnabled } from '../chat/ui/imagePicker.js';
 
 // смещение окна настроек от центра экрана
 let SOFF = (() => {

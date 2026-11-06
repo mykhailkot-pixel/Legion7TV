@@ -1,9 +1,9 @@
 // Ссылки в чате: отправка через [ref]{...}, разбор на приёме
-import { store } from '../core/store.js';
-import { STORE } from '../core/consts.js';
-import { fetchImg } from '../emotes/imgcache.js';
-import { resolveImageUrl, supportsImageUrl } from './imageProviders.js';
-import { rememberSentImages } from './imagePicker.js';
+import { store } from '../../core/store.js';
+import { STORE } from '../../core/consts.js';
+import { fetchImg } from '../../emotes/imgcache.js';
+import { resolveImageUrl, supportsImageUrl } from '../ui/imageProviders.js';
+import { rememberSentImages } from '../ui/imagePicker.js';
 import { chatScroller } from './scrollState.js';
 
 export const SAY_RE = /^\/api\/(?:chat\/say|city\/say|mine\/chat\/say|dm\/say)(?:\?|$)/;

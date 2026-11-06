@@ -1,8 +1,8 @@
-import { SIZES } from '../core/config.js';
-import { S, EM } from '../core/state.js';
-import { has } from '../core/util.js';
-import { setEmoteImage, urlFor } from '../emotes/emotes.js';
-import { setEmoteTooltipData } from '../emotes/tooltip.js';
+import { SIZES } from '../../core/config.js';
+import { S, EM } from '../../core/state.js';
+import { has } from '../../core/util.js';
+import { setEmoteImage, urlFor } from '../../emotes/emotes.js';
+import { setEmoteTooltipData } from '../../emotes/tooltip.js';
 
 const emoteAspectRatios = new Map();
 const loadedEmoteImages = new Set();

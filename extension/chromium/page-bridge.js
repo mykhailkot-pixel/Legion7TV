@@ -33,7 +33,7 @@ window.addEventListener(EVENTS.pageInit, async (event) => {
 
     try {
         ({ pingSystem } = await import('../../src/chat/pingSystem.js'));
-        await import('../../src/chat/minetabs.js');
+        await import('../../src/chat/integration/siteChat.js');
     } catch (error) {
         started = false;
         console.error('[Legion7TV] page bridge startup failed', error);

@@ -1,12 +1,12 @@
-import { SIZES } from '../core/config.js';
-import { SEL } from '../core/consts.js';
-import { S } from '../core/state.js';
+import { SIZES } from '../../core/config.js';
+import { SEL } from '../../core/consts.js';
+import { S } from '../../core/state.js';
 import { processMarkdown } from './markdown.js';
 import { processEmotes } from './chatEmotes.js';
 import { processLinks } from './links.js';
 import { processMentions } from './mentions.js';
 import { chatScroller } from './scrollState.js';
-import { pingSystem } from './pingSystem.js';
+import { pingSystem } from '../pingSystem.js';
 
 const processors = [];
 const SOURCE_KEY = 'l7tvEmoteSource';
