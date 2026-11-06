@@ -1280,158 +1280,177 @@
     urlInput.focus();
   }
   var scrollListSelector = `${SEL.chatList}, .dm-l`;
-  var scrollStates = /* @__PURE__ */ new WeakMap();
-  var keyedScrollStates = /* @__PURE__ */ new Map();
-  var SCROLL_CORRECTION_THRESHOLD = 0.5;
-  var END_INTENT_THRESHOLD = 40;
+  var states = /* @__PURE__ */ new WeakMap();
+  var savedPositions = /* @__PURE__ */ new Map();
+  var END_THRESHOLD = 40;
+  var CHANGE_THRESHOLD = 0.5;
+  var MAX_SAVED_POSITIONS = 20;
   var started = false;
   function getContainer(element) {
     return element && element.closest ? element.closest(scrollListSelector) : null;
   }
+  function maxScrollTop(list) {
+    return Math.max(0, list.scrollHeight - list.clientHeight);
+  }
   function isAtEnd(list) {
-    const maxScroll = list.scrollHeight - list.clientHeight;
-    return maxScroll - list.scrollTop <= END_INTENT_THRESHOLD;
+    return maxScrollTop(list) - list.scrollTop <= END_THRESHOLD;
   }
-  function updateAtEnd(list, state) {
-    if (list.scrollHeight > list.clientHeight) state.atEnd = isAtEnd(list);
-  }
-  function savePosition(list, state) {
-    if (state.key && list.clientHeight) {
-      keyedScrollStates.set(state.key, {
-        list,
-        top: list.scrollTop,
-        atEnd: state.atEnd
-      });
-    }
-  }
-  function restorePosition(list, state) {
-    const saved = state.key && keyedScrollStates.get(state.key);
-    if (!saved || !list.clientHeight) return;
-    const maxScroll = Math.max(0, list.scrollHeight - list.clientHeight);
-    list.scrollTop = saved.atEnd ? maxScroll : Math.min(saved.top, maxScroll);
-    state.atEnd = saved.atEnd && maxScroll - list.scrollTop <= SCROLL_CORRECTION_THRESHOLD;
-    state.lastScrollTop = list.scrollTop;
-  }
-  function scrollToEnd(list) {
-    const target = Math.max(0, list.scrollHeight - list.clientHeight);
-    if (Math.abs(list.scrollTop - target) > SCROLL_CORRECTION_THRESHOLD) list.scrollTop = target;
+  function getRows(list) {
+    return [...list.children].filter((child) => child.tagName === "LI");
   }
   function getState(list) {
-    let state = scrollStates.get(list);
+    let state = states.get(list);
     if (!state) {
       state = {
         atEnd: isAtEnd(list),
-        rows: /* @__PURE__ */ new Map(),
+        anchor: null,
+        rows: /* @__PURE__ */ new Set(),
         resizeObserver: null,
         mutationObserver: null,
-        lastScrollTop: list.scrollTop,
+        key: null,
         userScrollVersion: 0,
-        userScrollUntil: 0
+        lastScrollTop: list.scrollTop
       };
-      scrollStates.set(list, state);
+      states.set(list, state);
     }
     return state;
   }
-  function markUserScroll(event) {
-    const list = getContainer(event.target);
-    if (list) {
-      const state = getState(list);
-      const version = ++state.userScrollVersion;
-      state.userScrollUntil = performance.now() + 250;
-      requestAnimationFrame(() => {
-        if (!list.isConnected || state.userScrollVersion !== version) return;
-        updateAtEnd(list, state);
-        savePosition(list, state);
-      });
-    }
-  }
-  function refreshRows(list, state) {
-    observeSizeChanges(list, state);
-    const listRect = list.getBoundingClientRect();
-    const rows = new Set([...list.children].filter((child) => child.tagName === "LI"));
-    for (const row of state.rows.keys()) {
-      if (!rows.has(row)) {
-        if (state.resizeObserver) state.resizeObserver.unobserve(row);
-        state.rows.delete(row);
-      }
-    }
-    for (const row of rows) {
-      if (!state.rows.has(row) && state.resizeObserver) state.resizeObserver.observe(row);
+  function findVisibleAnchor(list, rows = getRows(list)) {
+    const listTop = list.getBoundingClientRect().top;
+    const listBottom = listTop + list.clientHeight;
+    for (let index = 0; index < rows.length; index++) {
+      const row = rows[index];
       const rect = row.getBoundingClientRect();
-      state.rows.set(row, { top: rect.top - listRect.top, height: rect.height });
-    }
-    state.lastScrollTop = list.scrollTop;
-  }
-  function visibleAnchor(list, state) {
-    let index = 0;
-    for (const [row, geometry] of state.rows) {
-      if (geometry.top + geometry.height > 0 && geometry.top < list.clientHeight) {
-        return { row, id: row.dataset.mid || "", top: geometry.top, index };
+      if (rect.height && rect.bottom > listTop && rect.top < listBottom) {
+        return {
+          row,
+          id: row.dataset.mid || "",
+          index,
+          offset: rect.top - listTop
+        };
       }
-      index++;
     }
     return null;
   }
-  function findAnchorRow(list, state, anchor) {
+  function findAnchorRow(list, anchor, oldRows) {
+    const rows = getRows(list);
     if (anchor.row.isConnected && list.contains(anchor.row)) return anchor.row;
-    const rows = [...list.children].filter((child) => child.tagName === "LI");
     if (anchor.id) {
       const match = rows.find((row) => row.dataset.mid === anchor.id);
       if (match) return match;
     }
-    const previousRows = [...state.rows.keys()];
-    for (let i = anchor.index + 1; i < previousRows.length; i++) {
-      if (previousRows[i].isConnected && list.contains(previousRows[i])) return previousRows[i];
+    for (let index = anchor.index + 1; index < oldRows.length; index++) {
+      const row = oldRows[index];
+      if (row.isConnected && list.contains(row)) return row;
     }
-    for (let i = anchor.index - 1; i >= 0; i--) {
-      if (previousRows[i].isConnected && list.contains(previousRows[i])) return previousRows[i];
+    for (let index = anchor.index - 1; index >= 0; index--) {
+      const row = oldRows[index];
+      if (row.isConnected && list.contains(row)) return row;
     }
     return rows[Math.min(anchor.index, rows.length - 1)] || null;
   }
-  function restoreAnchor(list, state, anchor) {
+  function restoreAnchor(list, anchor, oldRows) {
     if (!anchor) return;
-    const row = findAnchorRow(list, state, anchor);
+    const row = findAnchorRow(list, anchor, oldRows);
     if (!row) return;
-    const delta = row.getBoundingClientRect().top - list.getBoundingClientRect().top - anchor.top;
-    if (Math.abs(delta) > SCROLL_CORRECTION_THRESHOLD) list.scrollTop += delta;
+    const offset = row.getBoundingClientRect().top - list.getBoundingClientRect().top;
+    const delta = offset - anchor.offset;
+    if (Math.abs(delta) > CHANGE_THRESHOLD) list.scrollTop += delta;
   }
-  function observeSizeChanges(list, state) {
-    if (state.resizeObserver) return;
-    state.resizeObserver = new ResizeObserver(() => {
-      if (!list.isConnected) return;
-      const anchor = visibleAnchor(list, state);
-      if (list.matches(SEL.chatList)) {
-        if (state.atEnd) scrollToEnd(list);
-        refreshRows(list, state);
-        savePosition(list, state);
-        return;
-      }
-      if (state.atEnd) {
-        scrollToEnd(list);
-      } else restoreAnchor(list, state, anchor);
-      refreshRows(list, state);
-      savePosition(list, state);
+  function savePosition(list, state) {
+    if (!state.key || !list.clientHeight) return;
+    savedPositions.delete(state.key);
+    savedPositions.set(state.key, {
+      top: list.scrollTop,
+      atEnd: state.atEnd,
+      anchorId: state.anchor && state.anchor.id,
+      anchorOffset: state.anchor && state.anchor.offset
     });
-    state.resizeObserver.observe(list);
+    while (savedPositions.size > MAX_SAVED_POSITIONS) {
+      savedPositions.delete(savedPositions.keys().next().value);
+    }
   }
-  function observeListChanges(list, state) {
-    if (state.mutationObserver) return;
-    state.mutationObserver = new MutationObserver((records) => {
-      if (!list.isConnected || !records.some((record) => record.type === "childList" && record.target === list)) return;
-      if (list.matches(SEL.chatList)) {
-        if (state.atEnd) scrollToEnd(list);
-        refreshRows(list, state);
-        savePosition(list, state);
-        return;
+  function observeRows(list, state, rows = getRows(list)) {
+    if (!state.resizeObserver) return;
+    const currentRows = new Set(rows);
+    for (const row of state.rows) {
+      if (!currentRows.has(row)) state.resizeObserver.unobserve(row);
+    }
+    for (const row of currentRows) {
+      if (!state.rows.has(row)) state.resizeObserver.observe(row);
+    }
+    state.rows = currentRows;
+  }
+  function commit(list, state) {
+    const rows = getRows(list);
+    observeRows(list, state, rows);
+    state.anchor = findVisibleAnchor(list, rows);
+    state.lastScrollTop = list.scrollTop;
+    savePosition(list, state);
+  }
+  function scrollToEnd(list) {
+    const target = maxScrollTop(list);
+    if (Math.abs(list.scrollTop - target) > CHANGE_THRESHOLD) list.scrollTop = target;
+  }
+  function preserveAfterLayoutChange(list, state) {
+    if (!list.isConnected) return;
+    const previousRows = [...state.rows];
+    if (state.atEnd) scrollToEnd(list);
+    else restoreAnchor(list, state.anchor, previousRows);
+    commit(list, state);
+  }
+  function setupObservers(list, state) {
+    if (!state.resizeObserver) {
+      state.resizeObserver = new ResizeObserver(() => preserveAfterLayoutChange(list, state));
+      state.resizeObserver.observe(list);
+    }
+    if (!state.mutationObserver) {
+      state.mutationObserver = new MutationObserver((records) => {
+        if (records.some((record) => record.target === list && record.type === "childList")) {
+          preserveAfterLayoutChange(list, state);
+        }
+      });
+      state.mutationObserver.observe(list, { childList: true });
+    }
+  }
+  function register(list, key, restore) {
+    if (!list) return;
+    const state = getState(list);
+    if (key) state.key = key;
+    setupObservers(list, state);
+    if (restore && state.key) {
+      const saved = savedPositions.get(state.key);
+      if (saved) {
+        state.atEnd = saved.atEnd;
+        if (saved.atEnd) {
+          scrollToEnd(list);
+        } else {
+          const row = saved.anchorId && getRows(list).find((item) => item.dataset.mid === saved.anchorId);
+          if (row) {
+            const offset = row.getBoundingClientRect().top - list.getBoundingClientRect().top;
+            list.scrollTop += offset - saved.anchorOffset;
+          } else {
+            list.scrollTop = Math.min(saved.top, maxScrollTop(list));
+          }
+        }
       }
-      const anchor = state.atEnd ? null : visibleAnchor(list, state);
-      if (state.atEnd) {
-        scrollToEnd(list);
-      } else restoreAnchor(list, state, anchor);
-      refreshRows(list, state);
-      savePosition(list, state);
-    });
-    state.mutationObserver.observe(list, { childList: true });
+    }
+    commit(list, state);
+  }
+  function updateFromScroll(list) {
+    const state = getState(list);
+    state.atEnd = isAtEnd(list);
+    commit(list, state);
+  }
+  function markUserScroll(event) {
+    const list = getContainer(event.target);
+    if (!list) return;
+    const state = getState(list);
+    state.userScrollVersion++;
+  }
+  function captureAnchor(list) {
+    const rows = getRows(list);
+    return { anchor: findVisibleAnchor(list, rows), rows };
   }
   var chatScroller = {
     start() {
@@ -1451,22 +1470,22 @@
       }, true);
       document.addEventListener("scroll", (event) => {
         const list = event.target;
-        if (list && list.matches && list.matches(scrollListSelector)) {
-          const state = getState(list);
-          const delta = list.scrollTop - state.lastScrollTop;
-          for (const geometry of state.rows.values()) geometry.top -= delta;
-          state.lastScrollTop = list.scrollTop;
-          if (!list.matches(SEL.chatList) || performance.now() <= state.userScrollUntil) updateAtEnd(list, state);
-          savePosition(list, state);
-        }
+        if (list && list.matches && list.matches(scrollListSelector)) updateFromScroll(list);
       }, true);
     },
     getContainer,
     isAtEnd,
-    scrollToEnd,
-    captureEndIntent(list) {
+    scrollToEnd(list) {
+      if (!list) return;
       const state = getState(list);
-      return { atEnd: state.atEnd, userScrollVersion: state.userScrollVersion };
+      state.atEnd = true;
+      scrollToEnd(list);
+      commit(list, state);
+    },
+    captureEndIntent(list) {
+      if (!list) return null;
+      const state = getState(list);
+      return { atEnd: state.atEnd || isAtEnd(list), userScrollVersion: state.userScrollVersion };
     },
     settleAtEnd(list, intent) {
       if (!list || !intent || !intent.atEnd) return;
@@ -1475,100 +1494,53 @@
       const settle = () => {
         requestAnimationFrame(() => {
           if (!list.isConnected || state.userScrollVersion !== intent.userScrollVersion) return;
+          state.atEnd = true;
           scrollToEnd(list);
-          state.atEnd = isAtEnd(list);
-          refreshRows(list, state);
-          savePosition(list, state);
+          commit(list, state);
           if (--frames) settle();
         });
       };
       settle();
     },
-    register(list, key, restore = false) {
-      if (!list) return;
-      const state = getState(list);
-      if (key) state.key = key;
-      if (restore) restorePosition(list, state);
-      observeListChanges(list, state);
-      refreshRows(list, state);
-      savePosition(list, state);
-    },
+    register,
     keep(list, mutate) {
+      if (!list) return mutate();
       const state = getState(list);
-      const atEnd = isAtEnd(list);
+      const { anchor, rows } = captureAnchor(list);
+      const atEnd = state.atEnd || isAtEnd(list);
       state.atEnd = atEnd;
-      const scrollTop = list.scrollTop;
-      let anchor = null;
-      if (!atEnd) {
-        const listTop = list.getBoundingClientRect().top;
-        for (const li of list.children) {
-          if (li.tagName !== "LI") continue;
-          const rect = li.getBoundingClientRect();
-          if (rect.bottom > listTop + 1) {
-            anchor = { li, id: li.dataset.mid, offset: rect.top - listTop };
-            break;
-          }
-        }
-      }
-      mutate();
-      if (!list.isConnected) return;
-      if (atEnd) {
-        scrollToEnd(list);
-      } else if (anchor) {
-        const row = anchor.li.isConnected ? anchor.li : anchor.id && [...list.children].find((item) => item.dataset.mid === anchor.id);
-        if (row) {
-          const delta = row.getBoundingClientRect().top - list.getBoundingClientRect().top - anchor.offset;
-          if (Math.abs(delta) > SCROLL_CORRECTION_THRESHOLD) list.scrollTop += delta;
-        } else {
-          list.scrollTop = scrollTop;
-        }
-      } else {
-        list.scrollTop = scrollTop;
-      }
-      refreshRows(list, state);
-      savePosition(list, state);
+      const result = mutate();
+      if (!list.isConnected) return result;
+      if (atEnd) scrollToEnd(list);
+      else restoreAnchor(list, anchor, rows);
+      commit(list, state);
+      return result;
     },
     reinitialize(list, mutate) {
+      if (!list) return mutate();
       const state = getState(list);
-      const scrollTop = list.scrollTop;
-      const atEnd = state.atEnd;
+      const { anchor, rows } = captureAnchor(list);
+      const atEnd = state.atEnd || isAtEnd(list);
       const result = mutate();
-      if (list.isConnected) list.scrollTop = atEnd ? list.scrollHeight : scrollTop;
-      refreshRows(list, state);
-      savePosition(list, state);
+      if (list.isConnected) {
+        state.atEnd = atEnd;
+        if (atEnd) scrollToEnd(list);
+        else restoreAnchor(list, anchor, rows);
+        commit(list, state);
+      }
       return result;
     },
     stickAtEnd(lists) {
       lists.forEach((list) => {
-        if (getState(list).atEnd) scrollToEnd(list);
-        refreshRows(list, getState(list));
-        savePosition(list, getState(list));
+        const state = getState(list);
+        if (state.atEnd) scrollToEnd(list);
+        commit(list, state);
       });
     },
     preserve(element, mutate) {
       const list = getContainer(element);
-      if (!list) {
-        mutate();
-        return;
-      }
-      const state = getState(list);
-      const wasAtEnd = state.atEnd;
-      const listRect = list.getBoundingClientRect();
-      const candidates = [...list.children];
-      const anchor = [...candidates].find((child) => {
-        const rect = child.getBoundingClientRect();
-        return rect.bottom > listRect.top && rect.top < listRect.bottom;
-      });
-      const anchorTop = anchor && anchor.getBoundingClientRect().top;
-      mutate();
-      if (wasAtEnd) {
-        scrollToEnd(list);
-      } else if (anchor && anchor.isConnected) {
-        const delta = anchor.getBoundingClientRect().top - anchorTop;
-        if (Math.abs(delta) > SCROLL_CORRECTION_THRESHOLD) list.scrollTop += delta;
-      }
-      refreshRows(list, state);
-      savePosition(list, state);
+      if (!list) return mutate();
+      return this.keep(list, mutate);
     }
   };
   var SAY_RE = /^\/api\/(?:chat\/say|city\/say|mine\/chat\/say|dm\/say)(?:\?|$)/;
