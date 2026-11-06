@@ -22,7 +22,22 @@ function ensureTooltip() {
     tooltip.id = 't7-emote-tooltip';
     tooltip.setAttribute('role', 'tooltip');
     tooltip.hidden = true;
-    tooltip.innerHTML = '<div class="t7-tip-preview"><img alt=""></div><div class="t7-tip-info"><strong class="t7-tip-name"></strong><div class="t7-tip-author"></div><div class="t7-tip-type"></div></div>';
+    const preview = document.createElement('div');
+    preview.className = 't7-tip-preview';
+    const image = document.createElement('img');
+    image.alt = '';
+    preview.appendChild(image);
+
+    const info = document.createElement('div');
+    info.className = 't7-tip-info';
+    const name = document.createElement('strong');
+    name.className = 't7-tip-name';
+    const author = document.createElement('div');
+    author.className = 't7-tip-author';
+    const type = document.createElement('div');
+    type.className = 't7-tip-type';
+    info.append(name, author, type);
+    tooltip.append(preview, info);
     document.body.appendChild(tooltip);
     return tooltip;
 }

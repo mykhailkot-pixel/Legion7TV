@@ -5,6 +5,7 @@ import sharp from 'sharp';
 
 const root = process.cwd();
 const source = resolve(root, 'extension/chromium');
+const shared = resolve(root, 'extension/shared');
 const output = resolve(root, 'dist/chromium');
 const packageJson = JSON.parse(await readFile(resolve(root, 'package.json'), 'utf8'));
 const manifest = JSON.parse(await readFile(resolve(source, 'manifest.json'), 'utf8'));
@@ -46,9 +47,9 @@ async function writeIcons() {
 await Promise.all([
     build({
         entryPoints: {
-            'content-bridge': resolve(source, 'content-bridge.js'),
-            'page-bridge': resolve(source, 'page-bridge.js'),
-            background: resolve(source, 'background.js')
+            'content-bridge': resolve(shared, 'content-bridge.js'),
+            'page-bridge': resolve(shared, 'page-bridge.js'),
+            background: resolve(shared, 'background.js')
         },
         bundle: true,
         format: 'iife',

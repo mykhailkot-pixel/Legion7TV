@@ -84,6 +84,230 @@ export function updateSetStatus(t) {
     if (e) e.textContent = t;
 }
 
+function createNode(tag, attributes = {}, children = []) {
+    const node = document.createElement(tag);
+    for (const [name, value] of Object.entries(attributes)) {
+        if (name === 'className') node.className = value;
+        else if (name in node && !name.startsWith('aria-') && !name.startsWith('data-')) node[name] = value;
+        else node.setAttribute(name, value);
+    }
+    for (const child of children) {
+        node.appendChild(typeof child === 'string' ? document.createTextNode(child) : child);
+    }
+    return node;
+}
+
+function settingsSection(title, ...children) {
+    return createNode('details', { className: 't7-sec', open: true }, [
+        createNode('summary', {}, [title]),
+        ...children
+    ]);
+}
+
+function settingsField(title, control, className = 't7-fl') {
+    return createNode('label', { className }, [title, control]);
+}
+
+function settingsToggle(className, title) {
+    return createNode('label', { className: 't7-chk t7-toggle-switch' }, [
+        createNode('input', { type: 'checkbox', className }),
+        createNode('span', { className: 't7-toggle-track', 'aria-hidden': 'true' }),
+        title
+    ]);
+}
+
+function settingsButton(title, action) {
+    return createNode('button', { type: 'button', className: 't7-b', 'data-act': action }, [title]);
+}
+
+function buildSettingsMarkup(root) {
+    const dialog = createNode('div', {
+        className: 't7-sw',
+        role: 'dialog',
+        'aria-modal': 'true',
+        'aria-label': 'Настройки 7TV'
+    });
+    const header = createNode('div', { className: 't7-sth' }, [
+        createNode('b', {}, ['Настройки 7TV']),
+        createNode('button', { type: 'button', className: 't7-x', 'aria-label': 'Закрыть' }, ['×'])
+    ]);
+    const tabs = createNode('div', {
+        className: 't7-settings-tabs',
+        role: 'tablist',
+        'aria-label': 'Разделы настроек'
+    });
+    const tabNames = [['emotes', 'Эмоуты'], ['chat', 'Чат'], ['pings', 'Пинги'], ['data', 'Данные']];
+    for (const [id, title] of tabNames) {
+        tabs.appendChild(createNode('button', {
+            type: 'button',
+            id: `t7-settings-tab-${id}`,
+            role: 'tab',
+            'aria-selected': String(id === 'emotes'),
+            'aria-controls': `t7-settings-panel-${id}`,
+            tabindex: id === 'emotes' ? '0' : '-1'
+        }, [title]));
+    }
+
+    const panel = (id) => createNode('div', {
+        className: 't7-setting-panel',
+        id: `t7-settings-panel-${id}`,
+        role: 'tabpanel',
+        'aria-labelledby': `t7-settings-tab-${id}`,
+        tabindex: '0',
+        hidden: id !== 'emotes'
+    });
+
+    const emotesPanel = panel('emotes');
+    emotesPanel.append(
+        settingsSection('Отображение',
+            settingsToggle('t7-on', 'Показывать эмоуты 7TV в чате'),
+            settingsToggle('t7-emote-completion', 'Показывать карусель эмоутов по Tab')
+        ),
+        settingsSection('Канал',
+            createNode('form', { className: 't7-row' }, [
+                settingsField('Ник стримера на Twitch', createNode('input', {
+                    type: 'text', className: 't7-nick', maxlength: '80',
+                    autocomplete: 'off', spellcheck: false
+                })),
+                createNode('button', { type: 'submit', className: 't7-b p' }, ['Загрузить'])
+            ]),
+            createNode('div', { className: 't7-sst', role: 'status' })
+        ),
+        settingsSection('Размер в чате',
+            createNode('div', { className: 't7-szb' }, Object.keys(SIZES).map((size) =>
+                createNode('button', {
+                    type: 'button', 'data-sz': size, 'aria-pressed': 'false'
+                }, [SIZES[size].label])
+            ))
+        ),
+        settingsSection('Недавние эмоуты',
+            settingsField('Количество эмоутов в списке', createNode('input', {
+                className: 't7-recent-limit', type: 'number', min: '1', max: '100',
+                step: '1', inputmode: 'numeric'
+            }))
+        )
+    );
+
+    const chatPanel = panel('chat');
+    chatPanel.append(
+        settingsSection('Вкладки чата', createNode('div', { className: 't7-chat-tab-list' })),
+        settingsSection('Кнопки в чате',
+            settingsToggle('t7-pastes-enabled', 'Показывать кнопку паст в чате'),
+            settingsToggle('t7-image-picker-enabled', 'Показывать кнопку imgBB в чате')
+        ),
+        settingsSection('Ссылки',
+            settingsToggle('t7-link-encoding', 'Обрабатывать ссылки при отправке и отображении'),
+            settingsToggle('t7-image-previews', 'Показывать изображения по ссылкам (imgbb; в ЛС не отправляем)'),
+            createNode('div', { className: 't7-note', role: 'note' }, [
+                createNode('span', { className: 't7-note-icon', 'aria-hidden': 'true' }, ['!']),
+                createNode('span', {}, ['Используйте на свой страх и риск.'])
+            ])
+        ),
+        settingsSection('Шрифт',
+            settingsField('Гарнитура', createNode('select', { className: 't7-chat-font' }, [
+                ['site', 'Как на сайте'], ['nunito', 'Nunito'], ['open-sans', 'Open Sans'],
+                ['roboto', 'Roboto'], ['lato', 'Lato'], ['montserrat', 'Montserrat'],
+                ['custom', 'Свой шрифт…']
+            ].map(([value, title]) => createNode('option', { value }, [title]))), 't7-fl t7-chat-font-control'),
+            createNode('label', { className: 't7-fl t7-chat-font-size-control' }, [
+                'Размер текста',
+                createNode('input', {
+                    type: 'range', className: 't7-chat-font-size', min: '11', max: '22', step: '1'
+                }),
+                createNode('output', { className: 't7-chat-font-size-value' })
+            ]),
+            createNode('div', { className: 't7-row t7-wrap t7-chat-font-actions' }, [
+                settingsButton('Загрузить файл шрифта', 'chat-font'),
+                settingsButton('Удалить свой шрифт', 'chat-font-reset'),
+                createNode('input', {
+                    type: 'file', className: 't7-chat-font-file',
+                    accept: '.woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf',
+                    hidden: true
+                })
+            ]),
+            createNode('div', { className: 't7-ping-status t7-chat-font-status', role: 'status' })
+        )
+    );
+
+    const pingsPanel = panel('pings');
+    const pingPreset = createNode('select', { className: 't7-ping-preset' }, [
+        ['bell', 'Колокольчик'], ['chime', 'Звон'], ['pop', 'Короткий сигнал'], ['custom', 'Свой звук']
+    ].map(([value, title]) => createNode('option', { value }, [title])));
+    const dmPreset = createNode('select', { className: 't7-dm-ping-preset' }, [
+        ['bell', 'Колокольчик'], ['chime', 'Звон'], ['pop', 'Короткий сигнал'], ['custom', 'Свой звук для ЛС']
+    ].map(([value, title]) => createNode('option', { value }, [title])));
+    pingsPanel.append(
+        settingsSection('Упоминания и фильтры',
+            settingsToggle('t7-tab-completion', 'Дополнять ник по Tab'),
+            settingsField('Ники и варианты для пинга', createNode('textarea', {
+                className: 't7-ping-aliases', rows: '2', placeholder: 'ник, nick, @ник'
+            })),
+            settingsField('Цвет упоминаний (@ник)', createNode('input', {
+                type: 'color', className: 't7-ping-color'
+            }), 't7-fl t7-ping-color-control'),
+            settingsField('Черный список ников', createNode('textarea', {
+                className: 't7-ping-blacklist', rows: '2', placeholder: 'по одному нику на строку'
+            })),
+            settingsField('Игнорировать сообщения со словами или фразами', createNode('textarea', {
+                className: 't7-ping-stopwords', rows: '2', placeholder: 'по одному слову или фразе на строку'
+            })),
+            settingsField('Звук пинга', pingPreset),
+            createNode('label', { className: 't7-fl t7-volume' }, [
+                'Громкость',
+                createNode('input', {
+                    className: 't7-ping-volume', type: 'range', min: '0', max: '1', step: '0.05'
+                }),
+                createNode('output', { className: 't7-volume-value' })
+            ]),
+            createNode('div', { className: 't7-row t7-wrap' }, [
+                settingsButton('Загрузить свой звук', 'custom-sound'),
+                settingsButton('Проверить звук', 'test-ping'),
+                createNode('input', { type: 'file', className: 't7-ping-file', accept: 'audio/*', hidden: true })
+            ]),
+            createNode('div', { className: 't7-ping-status', role: 'status' })
+        ),
+        settingsSection('Личные сообщения',
+            settingsToggle('t7-dm-sound-enabled', 'Звук при новом сообщении в ЛС'),
+            settingsField('Звук личных сообщений', dmPreset),
+            settingsField('Ники для звуковых уведомлений', createNode('textarea', {
+                className: 't7-dm-nick-list', rows: '2', placeholder: 'по одному нику на строку'
+            })),
+            createNode('div', { className: 't7-dm-nick-mode' }, [
+                createNode('span', { className: 't7-dm-nick-mode-label' }, ['Чёрный список']),
+                createNode('label', { className: 't7-toggle-switch' }, [
+                    createNode('input', {
+                        type: 'checkbox', className: 't7-dm-nick-whitelist',
+                        role: 'switch', 'aria-label': 'Белый список'
+                    }),
+                    createNode('span', { className: 't7-toggle-track', 'aria-hidden': 'true' })
+                ]),
+                createNode('span', { className: 't7-dm-nick-mode-label' }, ['Белый список'])
+            ]),
+            createNode('div', { className: 't7-row t7-wrap' }, [
+                settingsButton('Загрузить звук для ЛС', 'custom-dm-sound'),
+                settingsButton('Проверить звук ЛС', 'test-dm-ping'),
+                createNode('input', { type: 'file', className: 't7-dm-ping-file', accept: 'audio/*', hidden: true })
+            ]),
+            createNode('div', { className: 't7-ping-status t7-dm-ping-status', role: 'status' }),
+            createNode('div', { className: 't7-note' }, [
+                'Громкость уведомлений ЛС регулируется общей настройкой громкости выше. В чёрном режиме список исключает ники; в белом — разрешает сигналы только для них.'
+            ])
+        )
+    );
+
+    const dataPanel = panel('data');
+    dataPanel.append(settingsSection('Управление данными',
+        createNode('div', { className: 't7-row t7-wrap' }, [
+            settingsButton('Обновить список', 'refresh'),
+            settingsButton('Очистить кеш картинок', 'cache'),
+            settingsButton('Сбросить положение окошка', 'pos')
+        ])
+    ));
+
+    dialog.append(header, tabs, emotesPanel, chatPanel, pingsPanel, dataPanel);
+    root.appendChild(dialog);
+}
+
 function onKey(e) {
     if (e.key === 'Escape' && st.set) {
         e.stopPropagation();
@@ -103,124 +327,7 @@ export function openSettings() {
     const el = document.createElement('div');
     st.set = el;
     el.className = 't7-set';
-    el.innerHTML = `
-        <div class="t7-sw" role="dialog" aria-modal="true" aria-label="Настройки 7TV">
-            <div class="t7-sth"><b>Настройки 7TV</b><button type="button" class="t7-x" aria-label="Закрыть">×</button></div>
-
-            <div class="t7-settings-tabs" role="tablist" aria-label="Разделы настроек">
-                <button type="button" id="t7-settings-tab-emotes" role="tab" aria-selected="true" aria-controls="t7-settings-panel-emotes" tabindex="0">Эмоуты</button>
-                <button type="button" id="t7-settings-tab-chat" role="tab" aria-selected="false" aria-controls="t7-settings-panel-chat" tabindex="-1">Чат</button>
-                <button type="button" id="t7-settings-tab-pings" role="tab" aria-selected="false" aria-controls="t7-settings-panel-pings" tabindex="-1">Пинги</button>
-                <button type="button" id="t7-settings-tab-data" role="tab" aria-selected="false" aria-controls="t7-settings-panel-data" tabindex="-1">Данные</button>
-            </div>
-
-            <div class="t7-setting-panel" id="t7-settings-panel-emotes" role="tabpanel" aria-labelledby="t7-settings-tab-emotes" tabindex="0">
-                <details class="t7-sec" open>
-                    <summary>Отображение</summary>
-                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-on"><span class="t7-toggle-track" aria-hidden="true"></span>Показывать эмоуты 7TV в чате</label>
-                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-emote-completion"><span class="t7-toggle-track" aria-hidden="true"></span>Показывать карусель эмоутов по Tab</label>
-                </details>
-
-                <details class="t7-sec" open>
-                    <summary>Канал</summary>
-                    <form class="t7-row">
-                        <label class="t7-fl">Ник стримера на Twitch<input type="text" class="t7-nick" maxlength="80" autocomplete="off" spellcheck="false"></label>
-                        <button type="submit" class="t7-b p">Загрузить</button>
-                    </form>
-                    <div class="t7-sst" role="status"></div>
-                </details>
-
-                <details class="t7-sec" open>
-                    <summary>Размер в чате</summary>
-                    <div class="t7-szb">${Object.keys(SIZES).map((k) => `<button type="button" data-sz="${k}" aria-pressed="false">${SIZES[k].label}</button>`).join('')}</div>
-                </details>
-
-                <details class="t7-sec" open>
-                    <summary>Недавние эмоуты</summary>
-                    <label class="t7-fl">Количество эмоутов в списке<input class="t7-recent-limit" type="number" min="1" max="100" step="1" inputmode="numeric"></label>
-                </details>
-            </div>
-
-            <div class="t7-setting-panel" id="t7-settings-panel-chat" role="tabpanel" aria-labelledby="t7-settings-tab-chat" tabindex="0" hidden>
-                <details class="t7-sec" open>
-                    <summary>Вкладки чата</summary>
-                    <div class="t7-chat-tab-list"></div>
-                </details>
-
-                <details class="t7-sec" open>
-                    <summary>Кнопки в чате</summary>
-                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-pastes-enabled"><span class="t7-toggle-track" aria-hidden="true"></span>Показывать кнопку паст в чате</label>
-                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-image-picker-enabled"><span class="t7-toggle-track" aria-hidden="true"></span>Показывать кнопку imgBB в чате</label>
-                </details>
-
-                <details class="t7-sec" open>
-                    <summary>Ссылки</summary>
-                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-link-encoding"><span class="t7-toggle-track" aria-hidden="true"></span>Обрабатывать ссылки при отправке и отображении</label>
-                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-image-previews"><span class="t7-toggle-track" aria-hidden="true"></span>Показывать изображения по ссылкам (imgbb; в ЛС не отправляем)</label>
-                    <div class="t7-note" role="note"><span class="t7-note-icon" aria-hidden="true">!</span><span>Используйте на свой страх и риск.</span></div>
-                </details>
-
-                <details class="t7-sec" open>
-                    <summary>Шрифт</summary>
-                    <label class="t7-fl t7-chat-font-control">Гарнитура<select class="t7-chat-font"><option value="site">Как на сайте</option><option value="nunito">Nunito</option><option value="open-sans">Open Sans</option><option value="roboto">Roboto</option><option value="lato">Lato</option><option value="montserrat">Montserrat</option><option value="custom">Свой шрифт…</option></select></label>
-                    <label class="t7-fl t7-chat-font-size-control">Размер текста<input type="range" class="t7-chat-font-size" min="11" max="22" step="1"><output class="t7-chat-font-size-value"></output></label>
-                    <div class="t7-row t7-wrap t7-chat-font-actions"><button type="button" class="t7-b" data-act="chat-font">Загрузить файл шрифта</button><button type="button" class="t7-b" data-act="chat-font-reset">Удалить свой шрифт</button><input type="file" class="t7-chat-font-file" accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf" hidden></div>
-                    <div class="t7-ping-status t7-chat-font-status" role="status"></div>
-                </details>
-            </div>
-
-            <div class="t7-setting-panel" id="t7-settings-panel-pings" role="tabpanel" aria-labelledby="t7-settings-tab-pings" tabindex="0" hidden>
-                <details class="t7-sec" open>
-                    <summary>Упоминания и фильтры</summary>
-                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-tab-completion"><span class="t7-toggle-track" aria-hidden="true"></span>Дополнять ник по Tab</label>
-                    <label class="t7-fl">Ники и варианты для пинга<textarea class="t7-ping-aliases" rows="2" placeholder="ник, nick, @ник"></textarea></label>
-                    <label class="t7-fl t7-ping-color-control">Цвет упоминаний (@ник)<input type="color" class="t7-ping-color"></label>
-                    <label class="t7-fl">Черный список ников<textarea class="t7-ping-blacklist" rows="2" placeholder="по одному нику на строку"></textarea></label>
-                    <label class="t7-fl">Игнорировать сообщения со словами или фразами<textarea class="t7-ping-stopwords" rows="2" placeholder="по одному слову или фразе на строку"></textarea></label>
-                    <label class="t7-fl">Звук пинга<select class="t7-ping-preset"><option value="bell">Колокольчик</option><option value="chime">Звон</option><option value="pop">Короткий сигнал</option><option value="custom">Свой звук</option></select></label>
-                    <label class="t7-fl t7-volume">Громкость<input class="t7-ping-volume" type="range" min="0" max="1" step="0.05"><output class="t7-volume-value"></output></label>
-                    <div class="t7-row t7-wrap">
-                        <button type="button" class="t7-b" data-act="custom-sound">Загрузить свой звук</button>
-                        <button type="button" class="t7-b" data-act="test-ping">Проверить звук</button>
-                        <input type="file" class="t7-ping-file" accept="audio/*" hidden>
-                    </div>
-                    <div class="t7-ping-status" role="status"></div>
-                </details>
-
-                <details class="t7-sec" open>
-                    <summary>Личные сообщения</summary>
-                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-dm-sound-enabled"><span class="t7-toggle-track" aria-hidden="true"></span>Звук при новом сообщении в ЛС</label>
-                    <label class="t7-fl">Звук личных сообщений<select class="t7-dm-ping-preset"><option value="bell">Колокольчик</option><option value="chime">Звон</option><option value="pop">Короткий сигнал</option><option value="custom">Свой звук для ЛС</option></select></label>
-                    <label class="t7-fl">Ники для звуковых уведомлений<textarea class="t7-dm-nick-list" rows="2" placeholder="по одному нику на строку"></textarea></label>
-                    <div class="t7-dm-nick-mode">
-                        <span class="t7-dm-nick-mode-label">Чёрный список</span>
-                        <label class="t7-toggle-switch">
-                            <input type="checkbox" class="t7-dm-nick-whitelist" role="switch" aria-label="Белый список">
-                            <span class="t7-toggle-track" aria-hidden="true"></span>
-                        </label>
-                        <span class="t7-dm-nick-mode-label">Белый список</span>
-                    </div>
-                    <div class="t7-row t7-wrap">
-                        <button type="button" class="t7-b" data-act="custom-dm-sound">Загрузить звук для ЛС</button>
-                        <button type="button" class="t7-b" data-act="test-dm-ping">Проверить звук ЛС</button>
-                        <input type="file" class="t7-dm-ping-file" accept="audio/*" hidden>
-                    </div>
-                    <div class="t7-ping-status t7-dm-ping-status" role="status"></div>
-                    <div class="t7-note">Громкость уведомлений ЛС регулируется общей настройкой громкости выше. В чёрном режиме список исключает ники; в белом — разрешает сигналы только для них.</div>
-                </details>
-            </div>
-
-            <div class="t7-setting-panel" id="t7-settings-panel-data" role="tabpanel" aria-labelledby="t7-settings-tab-data" tabindex="0" hidden>
-                <details class="t7-sec" open>
-                    <summary>Управление данными</summary>
-                    <div class="t7-row t7-wrap">
-                        <button type="button" class="t7-b" data-act="refresh">Обновить список</button>
-                        <button type="button" class="t7-b" data-act="cache">Очистить кеш картинок</button>
-                        <button type="button" class="t7-b" data-act="pos">Сбросить положение окошка</button>
-                    </div>
-                </details>
-            </div>
-        </div>`;
+    buildSettingsMarkup(el);
     // игра не должна ловить клавиши, пока печатаем в настройках
     ['keydown', 'keyup', 'keypress'].forEach((t) => el.addEventListener(t, (e) => e.stopPropagation()));
     el.addEventListener('pointerdown', (e) => { if (e.target === el) closeSettings(); });
@@ -442,7 +549,30 @@ export function openSettings() {
             const tab = CHAT_TABS.find((item) => item.id === id);
             const row = document.createElement('div');
             row.className = 't7-chat-tab-row';
-            row.innerHTML = `<span class="t7-chat-tab-name">${tab.label}</span><label class="t7-chat-tab-visible t7-toggle-switch"><input type="checkbox" data-tab-visible="${id}" ${prefs.hidden.has(id) ? '' : 'checked'} ${!prefs.hidden.has(id) && visibleCount === 1 ? 'disabled' : ''}><span class="t7-toggle-track" aria-hidden="true"></span><span>Показать</span></label><span class="t7-chat-tab-move"><button type="button" data-tab-move="up" data-tab-id="${id}" aria-label="Переместить ${tab.label} выше" title="Переместить выше" ${index === 0 ? 'disabled' : ''}>↑</button><button type="button" data-tab-move="down" data-tab-id="${id}" aria-label="Переместить ${tab.label} ниже" title="Переместить ниже" ${index === prefs.order.length - 1 ? 'disabled' : ''}>↓</button></span>`;
+            const name = createNode('span', { className: 't7-chat-tab-name' }, [tab.label]);
+            const visibility = createNode('label', { className: 't7-chat-tab-visible t7-toggle-switch' }, [
+                createNode('input', {
+                    type: 'checkbox',
+                    'data-tab-visible': id,
+                    checked: !prefs.hidden.has(id),
+                    disabled: !prefs.hidden.has(id) && visibleCount === 1
+                }),
+                createNode('span', { className: 't7-toggle-track', 'aria-hidden': 'true' }),
+                createNode('span', {}, ['Показать'])
+            ]);
+            const move = createNode('span', { className: 't7-chat-tab-move' }, [
+                createNode('button', {
+                    type: 'button', 'data-tab-move': 'up', 'data-tab-id': id,
+                    'aria-label': `Переместить ${tab.label} выше`, title: 'Переместить выше',
+                    disabled: index === 0
+                }, ['↑']),
+                createNode('button', {
+                    type: 'button', 'data-tab-move': 'down', 'data-tab-id': id,
+                    'aria-label': `Переместить ${tab.label} ниже`, title: 'Переместить ниже',
+                    disabled: index === prefs.order.length - 1
+                }, ['↓'])
+            ]);
+            row.append(name, visibility, move);
             return row;
         }));
     };

@@ -379,12 +379,57 @@ function openPop(btn) {
     pop.className = 't7-pop';
     pop.setAttribute('role', 'dialog');
     pop.setAttribute('aria-label', 'Эмоуты 7TV');
-    pop.innerHTML = `
-        <div class="t7-h"><b>7TV</b><span class="t7-hb"><button type="button" class="t7-g" aria-label="Настройки" title="Настройки">⚙</button><button type="button" class="t7-x" aria-label="Закрыть">×</button></span></div>
-        <input type="search" class="t7-q" placeholder="Поиск эмоутов" autocomplete="off" aria-label="Поиск эмоутов">
-        <div class="t7-views" role="tablist" aria-label="Списки эмоутов"><button type="button" role="tab" data-view="all" aria-selected="true">Все</button><button type="button" role="tab" data-view="favorites" aria-selected="false">Избранное</button><button type="button" role="tab" data-view="recent" aria-selected="false">Недавние</button></div>
-        <div class="t7-gr"></div>
-        <div class="t7-rs" title="Потяни, чтобы изменить размер"></div>`;
+    const header = document.createElement('div');
+    header.className = 't7-h';
+    const title = document.createElement('b');
+    title.textContent = '7TV';
+    const headerButtons = document.createElement('span');
+    headerButtons.className = 't7-hb';
+    for (const [className, label, text] of [
+        ['t7-g', 'Настройки', '⚙'],
+        ['t7-x', 'Закрыть', '×']
+    ]) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = className;
+        button.setAttribute('aria-label', label);
+        button.title = label;
+        button.textContent = text;
+        headerButtons.appendChild(button);
+    }
+    header.append(title, headerButtons);
+
+    const search = document.createElement('input');
+    search.type = 'search';
+    search.className = 't7-q';
+    search.placeholder = 'Поиск эмоутов';
+    search.autocomplete = 'off';
+    search.setAttribute('aria-label', 'Поиск эмоутов');
+
+    const views = document.createElement('div');
+    views.className = 't7-views';
+    views.setAttribute('role', 'tablist');
+    views.setAttribute('aria-label', 'Списки эмоутов');
+    for (const [id, label, selected] of [
+        ['all', 'Все', true],
+        ['favorites', 'Избранное', false],
+        ['recent', 'Недавние', false]
+    ]) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.setAttribute('role', 'tab');
+        button.dataset.view = id;
+        button.setAttribute('aria-selected', String(selected));
+        button.textContent = label;
+        views.appendChild(button);
+    }
+
+    const grid = document.createElement('div');
+    grid.className = 't7-gr';
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 't7-rs';
+    resizeHandle.title = 'Потяни, чтобы изменить размер';
+    pop.append(header, search, views, grid, resizeHandle);
     ['keydown', 'keyup', 'keypress'].forEach((t) => pop.addEventListener(t, (e) => e.stopPropagation()));
 
     setupDrag(pop);

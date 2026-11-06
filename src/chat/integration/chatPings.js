@@ -278,7 +278,11 @@ function addPingOnlyControl(room, box) {
         label = document.createElement('label');
         label.className = 't7-chat-filter';
         label.title = 'Показывать только сообщения с упоминанием';
-        label.innerHTML = '<input type="checkbox"><span>Только пинги</span>';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        const text = document.createElement('span');
+        text.textContent = 'Только пинги';
+        label.append(input, text);
         label.addEventListener('click', (e) => e.stopPropagation());
         label.querySelector('input').addEventListener('change', (e) => {
             pingOnly = e.currentTarget.checked;
@@ -294,7 +298,18 @@ function addPingOnlyControl(room, box) {
     if (!nav) {
         nav = document.createElement('span');
         nav.className = 't7-ping-nav';
-        nav.innerHTML = '<button type="button" data-direction="older" title="Показать более старые пинги" aria-label="Показать более старые пинги">‹</button><button type="button" data-direction="newer" title="Показать более новые пинги" aria-label="Показать более новые пинги">›</button>';
+        for (const [direction, title, symbol] of [
+            ['older', 'Показать более старые пинги', '‹'],
+            ['newer', 'Показать более новые пинги', '›']
+        ]) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.dataset.direction = direction;
+            button.title = title;
+            button.setAttribute('aria-label', title);
+            button.textContent = symbol;
+            nav.appendChild(button);
+        }
         nav.addEventListener('click', (e) => {
             const button = e.target.closest('button[data-direction]');
             if (!button) return;

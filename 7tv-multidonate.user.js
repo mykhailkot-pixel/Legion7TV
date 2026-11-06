@@ -688,7 +688,21 @@
     tooltip.id = "t7-emote-tooltip";
     tooltip.setAttribute("role", "tooltip");
     tooltip.hidden = true;
-    tooltip.innerHTML = '<div class="t7-tip-preview"><img alt=""></div><div class="t7-tip-info"><strong class="t7-tip-name"></strong><div class="t7-tip-author"></div><div class="t7-tip-type"></div></div>';
+    const preview = document.createElement("div");
+    preview.className = "t7-tip-preview";
+    const image = document.createElement("img");
+    image.alt = "";
+    preview.appendChild(image);
+    const info = document.createElement("div");
+    info.className = "t7-tip-info";
+    const name = document.createElement("strong");
+    name.className = "t7-tip-name";
+    const author = document.createElement("div");
+    author.className = "t7-tip-author";
+    const type = document.createElement("div");
+    type.className = "t7-tip-type";
+    info.append(name, author, type);
+    tooltip.append(preview, info);
     document.body.appendChild(tooltip);
     return tooltip;
   }
@@ -2573,6 +2587,267 @@
     const e = st.set && st.set.querySelector(".t7-sst");
     if (e) e.textContent = t;
   }
+  function createNode(tag, attributes = {}, children = []) {
+    const node = document.createElement(tag);
+    for (const [name, value] of Object.entries(attributes)) {
+      if (name === "className") node.className = value;
+      else if (name in node && !name.startsWith("aria-") && !name.startsWith("data-")) node[name] = value;
+      else node.setAttribute(name, value);
+    }
+    for (const child of children) {
+      node.appendChild(typeof child === "string" ? document.createTextNode(child) : child);
+    }
+    return node;
+  }
+  function settingsSection(title, ...children) {
+    return createNode("details", { className: "t7-sec", open: true }, [
+      createNode("summary", {}, [title]),
+      ...children
+    ]);
+  }
+  function settingsField(title, control, className = "t7-fl") {
+    return createNode("label", { className }, [title, control]);
+  }
+  function settingsToggle(className, title) {
+    return createNode("label", { className: "t7-chk t7-toggle-switch" }, [
+      createNode("input", { type: "checkbox", className }),
+      createNode("span", { className: "t7-toggle-track", "aria-hidden": "true" }),
+      title
+    ]);
+  }
+  function settingsButton(title, action) {
+    return createNode("button", { type: "button", className: "t7-b", "data-act": action }, [title]);
+  }
+  function buildSettingsMarkup(root) {
+    const dialog = createNode("div", {
+      className: "t7-sw",
+      role: "dialog",
+      "aria-modal": "true",
+      "aria-label": "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 7TV"
+    });
+    const header = createNode("div", { className: "t7-sth" }, [
+      createNode("b", {}, ["\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 7TV"]),
+      createNode("button", { type: "button", className: "t7-x", "aria-label": "\u0417\u0430\u043A\u0440\u044B\u0442\u044C" }, ["\xD7"])
+    ]);
+    const tabs = createNode("div", {
+      className: "t7-settings-tabs",
+      role: "tablist",
+      "aria-label": "\u0420\u0430\u0437\u0434\u0435\u043B\u044B \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A"
+    });
+    const tabNames = [["emotes", "\u042D\u043C\u043E\u0443\u0442\u044B"], ["chat", "\u0427\u0430\u0442"], ["pings", "\u041F\u0438\u043D\u0433\u0438"], ["data", "\u0414\u0430\u043D\u043D\u044B\u0435"]];
+    for (const [id, title] of tabNames) {
+      tabs.appendChild(createNode("button", {
+        type: "button",
+        id: `t7-settings-tab-${id}`,
+        role: "tab",
+        "aria-selected": String(id === "emotes"),
+        "aria-controls": `t7-settings-panel-${id}`,
+        tabindex: id === "emotes" ? "0" : "-1"
+      }, [title]));
+    }
+    const panel = (id) => createNode("div", {
+      className: "t7-setting-panel",
+      id: `t7-settings-panel-${id}`,
+      role: "tabpanel",
+      "aria-labelledby": `t7-settings-tab-${id}`,
+      tabindex: "0",
+      hidden: id !== "emotes"
+    });
+    const emotesPanel = panel("emotes");
+    emotesPanel.append(
+      settingsSection(
+        "\u041E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435",
+        settingsToggle("t7-on", "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u044D\u043C\u043E\u0443\u0442\u044B 7TV \u0432 \u0447\u0430\u0442\u0435"),
+        settingsToggle("t7-emote-completion", "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u043A\u0430\u0440\u0443\u0441\u0435\u043B\u044C \u044D\u043C\u043E\u0443\u0442\u043E\u0432 \u043F\u043E Tab")
+      ),
+      settingsSection(
+        "\u041A\u0430\u043D\u0430\u043B",
+        createNode("form", { className: "t7-row" }, [
+          settingsField("\u041D\u0438\u043A \u0441\u0442\u0440\u0438\u043C\u0435\u0440\u0430 \u043D\u0430 Twitch", createNode("input", {
+            type: "text",
+            className: "t7-nick",
+            maxlength: "80",
+            autocomplete: "off",
+            spellcheck: false
+          })),
+          createNode("button", { type: "submit", className: "t7-b p" }, ["\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C"])
+        ]),
+        createNode("div", { className: "t7-sst", role: "status" })
+      ),
+      settingsSection(
+        "\u0420\u0430\u0437\u043C\u0435\u0440 \u0432 \u0447\u0430\u0442\u0435",
+        createNode("div", { className: "t7-szb" }, Object.keys(SIZES).map(
+          (size) => createNode("button", {
+            type: "button",
+            "data-sz": size,
+            "aria-pressed": "false"
+          }, [SIZES[size].label])
+        ))
+      ),
+      settingsSection(
+        "\u041D\u0435\u0434\u0430\u0432\u043D\u0438\u0435 \u044D\u043C\u043E\u0443\u0442\u044B",
+        settingsField("\u041A\u043E\u043B\u0438\u0447\u0435\u0441\u0442\u0432\u043E \u044D\u043C\u043E\u0443\u0442\u043E\u0432 \u0432 \u0441\u043F\u0438\u0441\u043A\u0435", createNode("input", {
+          className: "t7-recent-limit",
+          type: "number",
+          min: "1",
+          max: "100",
+          step: "1",
+          inputmode: "numeric"
+        }))
+      )
+    );
+    const chatPanel = panel("chat");
+    chatPanel.append(
+      settingsSection("\u0412\u043A\u043B\u0430\u0434\u043A\u0438 \u0447\u0430\u0442\u0430", createNode("div", { className: "t7-chat-tab-list" })),
+      settingsSection(
+        "\u041A\u043D\u043E\u043F\u043A\u0438 \u0432 \u0447\u0430\u0442\u0435",
+        settingsToggle("t7-pastes-enabled", "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u043A\u043D\u043E\u043F\u043A\u0443 \u043F\u0430\u0441\u0442 \u0432 \u0447\u0430\u0442\u0435"),
+        settingsToggle("t7-image-picker-enabled", "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u043A\u043D\u043E\u043F\u043A\u0443 imgBB \u0432 \u0447\u0430\u0442\u0435")
+      ),
+      settingsSection(
+        "\u0421\u0441\u044B\u043B\u043A\u0438",
+        settingsToggle("t7-link-encoding", "\u041E\u0431\u0440\u0430\u0431\u0430\u0442\u044B\u0432\u0430\u0442\u044C \u0441\u0441\u044B\u043B\u043A\u0438 \u043F\u0440\u0438 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0435 \u0438 \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0438"),
+        settingsToggle("t7-image-previews", "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F \u043F\u043E \u0441\u0441\u044B\u043B\u043A\u0430\u043C (imgbb; \u0432 \u041B\u0421 \u043D\u0435 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u043C)"),
+        createNode("div", { className: "t7-note", role: "note" }, [
+          createNode("span", { className: "t7-note-icon", "aria-hidden": "true" }, ["!"]),
+          createNode("span", {}, ["\u0418\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439\u0442\u0435 \u043D\u0430 \u0441\u0432\u043E\u0439 \u0441\u0442\u0440\u0430\u0445 \u0438 \u0440\u0438\u0441\u043A."])
+        ])
+      ),
+      settingsSection(
+        "\u0428\u0440\u0438\u0444\u0442",
+        settingsField("\u0413\u0430\u0440\u043D\u0438\u0442\u0443\u0440\u0430", createNode("select", { className: "t7-chat-font" }, [
+          ["site", "\u041A\u0430\u043A \u043D\u0430 \u0441\u0430\u0439\u0442\u0435"],
+          ["nunito", "Nunito"],
+          ["open-sans", "Open Sans"],
+          ["roboto", "Roboto"],
+          ["lato", "Lato"],
+          ["montserrat", "Montserrat"],
+          ["custom", "\u0421\u0432\u043E\u0439 \u0448\u0440\u0438\u0444\u0442\u2026"]
+        ].map(([value, title]) => createNode("option", { value }, [title]))), "t7-fl t7-chat-font-control"),
+        createNode("label", { className: "t7-fl t7-chat-font-size-control" }, [
+          "\u0420\u0430\u0437\u043C\u0435\u0440 \u0442\u0435\u043A\u0441\u0442\u0430",
+          createNode("input", {
+            type: "range",
+            className: "t7-chat-font-size",
+            min: "11",
+            max: "22",
+            step: "1"
+          }),
+          createNode("output", { className: "t7-chat-font-size-value" })
+        ]),
+        createNode("div", { className: "t7-row t7-wrap t7-chat-font-actions" }, [
+          settingsButton("\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0444\u0430\u0439\u043B \u0448\u0440\u0438\u0444\u0442\u0430", "chat-font"),
+          settingsButton("\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0441\u0432\u043E\u0439 \u0448\u0440\u0438\u0444\u0442", "chat-font-reset"),
+          createNode("input", {
+            type: "file",
+            className: "t7-chat-font-file",
+            accept: ".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf",
+            hidden: true
+          })
+        ]),
+        createNode("div", { className: "t7-ping-status t7-chat-font-status", role: "status" })
+      )
+    );
+    const pingsPanel = panel("pings");
+    const pingPreset = createNode("select", { className: "t7-ping-preset" }, [
+      ["bell", "\u041A\u043E\u043B\u043E\u043A\u043E\u043B\u044C\u0447\u0438\u043A"],
+      ["chime", "\u0417\u0432\u043E\u043D"],
+      ["pop", "\u041A\u043E\u0440\u043E\u0442\u043A\u0438\u0439 \u0441\u0438\u0433\u043D\u0430\u043B"],
+      ["custom", "\u0421\u0432\u043E\u0439 \u0437\u0432\u0443\u043A"]
+    ].map(([value, title]) => createNode("option", { value }, [title])));
+    const dmPreset = createNode("select", { className: "t7-dm-ping-preset" }, [
+      ["bell", "\u041A\u043E\u043B\u043E\u043A\u043E\u043B\u044C\u0447\u0438\u043A"],
+      ["chime", "\u0417\u0432\u043E\u043D"],
+      ["pop", "\u041A\u043E\u0440\u043E\u0442\u043A\u0438\u0439 \u0441\u0438\u0433\u043D\u0430\u043B"],
+      ["custom", "\u0421\u0432\u043E\u0439 \u0437\u0432\u0443\u043A \u0434\u043B\u044F \u041B\u0421"]
+    ].map(([value, title]) => createNode("option", { value }, [title])));
+    pingsPanel.append(
+      settingsSection(
+        "\u0423\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u044F \u0438 \u0444\u0438\u043B\u044C\u0442\u0440\u044B",
+        settingsToggle("t7-tab-completion", "\u0414\u043E\u043F\u043E\u043B\u043D\u044F\u0442\u044C \u043D\u0438\u043A \u043F\u043E Tab"),
+        settingsField("\u041D\u0438\u043A\u0438 \u0438 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u044B \u0434\u043B\u044F \u043F\u0438\u043D\u0433\u0430", createNode("textarea", {
+          className: "t7-ping-aliases",
+          rows: "2",
+          placeholder: "\u043D\u0438\u043A, nick, @\u043D\u0438\u043A"
+        })),
+        settingsField("\u0426\u0432\u0435\u0442 \u0443\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u0439 (@\u043D\u0438\u043A)", createNode("input", {
+          type: "color",
+          className: "t7-ping-color"
+        }), "t7-fl t7-ping-color-control"),
+        settingsField("\u0427\u0435\u0440\u043D\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A \u043D\u0438\u043A\u043E\u0432", createNode("textarea", {
+          className: "t7-ping-blacklist",
+          rows: "2",
+          placeholder: "\u043F\u043E \u043E\u0434\u043D\u043E\u043C\u0443 \u043D\u0438\u043A\u0443 \u043D\u0430 \u0441\u0442\u0440\u043E\u043A\u0443"
+        })),
+        settingsField("\u0418\u0433\u043D\u043E\u0440\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0441\u043E \u0441\u043B\u043E\u0432\u0430\u043C\u0438 \u0438\u043B\u0438 \u0444\u0440\u0430\u0437\u0430\u043C\u0438", createNode("textarea", {
+          className: "t7-ping-stopwords",
+          rows: "2",
+          placeholder: "\u043F\u043E \u043E\u0434\u043D\u043E\u043C\u0443 \u0441\u043B\u043E\u0432\u0443 \u0438\u043B\u0438 \u0444\u0440\u0430\u0437\u0435 \u043D\u0430 \u0441\u0442\u0440\u043E\u043A\u0443"
+        })),
+        settingsField("\u0417\u0432\u0443\u043A \u043F\u0438\u043D\u0433\u0430", pingPreset),
+        createNode("label", { className: "t7-fl t7-volume" }, [
+          "\u0413\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u044C",
+          createNode("input", {
+            className: "t7-ping-volume",
+            type: "range",
+            min: "0",
+            max: "1",
+            step: "0.05"
+          }),
+          createNode("output", { className: "t7-volume-value" })
+        ]),
+        createNode("div", { className: "t7-row t7-wrap" }, [
+          settingsButton("\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0441\u0432\u043E\u0439 \u0437\u0432\u0443\u043A", "custom-sound"),
+          settingsButton("\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0437\u0432\u0443\u043A", "test-ping"),
+          createNode("input", { type: "file", className: "t7-ping-file", accept: "audio/*", hidden: true })
+        ]),
+        createNode("div", { className: "t7-ping-status", role: "status" })
+      ),
+      settingsSection(
+        "\u041B\u0438\u0447\u043D\u044B\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F",
+        settingsToggle("t7-dm-sound-enabled", "\u0417\u0432\u0443\u043A \u043F\u0440\u0438 \u043D\u043E\u0432\u043E\u043C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0438 \u0432 \u041B\u0421"),
+        settingsField("\u0417\u0432\u0443\u043A \u043B\u0438\u0447\u043D\u044B\u0445 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0439", dmPreset),
+        settingsField("\u041D\u0438\u043A\u0438 \u0434\u043B\u044F \u0437\u0432\u0443\u043A\u043E\u0432\u044B\u0445 \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u0439", createNode("textarea", {
+          className: "t7-dm-nick-list",
+          rows: "2",
+          placeholder: "\u043F\u043E \u043E\u0434\u043D\u043E\u043C\u0443 \u043D\u0438\u043A\u0443 \u043D\u0430 \u0441\u0442\u0440\u043E\u043A\u0443"
+        })),
+        createNode("div", { className: "t7-dm-nick-mode" }, [
+          createNode("span", { className: "t7-dm-nick-mode-label" }, ["\u0427\u0451\u0440\u043D\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A"]),
+          createNode("label", { className: "t7-toggle-switch" }, [
+            createNode("input", {
+              type: "checkbox",
+              className: "t7-dm-nick-whitelist",
+              role: "switch",
+              "aria-label": "\u0411\u0435\u043B\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A"
+            }),
+            createNode("span", { className: "t7-toggle-track", "aria-hidden": "true" })
+          ]),
+          createNode("span", { className: "t7-dm-nick-mode-label" }, ["\u0411\u0435\u043B\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A"])
+        ]),
+        createNode("div", { className: "t7-row t7-wrap" }, [
+          settingsButton("\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0437\u0432\u0443\u043A \u0434\u043B\u044F \u041B\u0421", "custom-dm-sound"),
+          settingsButton("\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0437\u0432\u0443\u043A \u041B\u0421", "test-dm-ping"),
+          createNode("input", { type: "file", className: "t7-dm-ping-file", accept: "audio/*", hidden: true })
+        ]),
+        createNode("div", { className: "t7-ping-status t7-dm-ping-status", role: "status" }),
+        createNode("div", { className: "t7-note" }, [
+          "\u0413\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u044C \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u0439 \u041B\u0421 \u0440\u0435\u0433\u0443\u043B\u0438\u0440\u0443\u0435\u0442\u0441\u044F \u043E\u0431\u0449\u0435\u0439 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u043E\u0439 \u0433\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u0438 \u0432\u044B\u0448\u0435. \u0412 \u0447\u0451\u0440\u043D\u043E\u043C \u0440\u0435\u0436\u0438\u043C\u0435 \u0441\u043F\u0438\u0441\u043E\u043A \u0438\u0441\u043A\u043B\u044E\u0447\u0430\u0435\u0442 \u043D\u0438\u043A\u0438; \u0432 \u0431\u0435\u043B\u043E\u043C \u2014 \u0440\u0430\u0437\u0440\u0435\u0448\u0430\u0435\u0442 \u0441\u0438\u0433\u043D\u0430\u043B\u044B \u0442\u043E\u043B\u044C\u043A\u043E \u0434\u043B\u044F \u043D\u0438\u0445."
+        ])
+      )
+    );
+    const dataPanel = panel("data");
+    dataPanel.append(settingsSection(
+      "\u0423\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435 \u0434\u0430\u043D\u043D\u044B\u043C\u0438",
+      createNode("div", { className: "t7-row t7-wrap" }, [
+        settingsButton("\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C \u0441\u043F\u0438\u0441\u043E\u043A", "refresh"),
+        settingsButton("\u041E\u0447\u0438\u0441\u0442\u0438\u0442\u044C \u043A\u0435\u0448 \u043A\u0430\u0440\u0442\u0438\u043D\u043E\u043A", "cache"),
+        settingsButton("\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u043E\u043A\u043E\u0448\u043A\u0430", "pos")
+      ])
+    ));
+    dialog.append(header, tabs, emotesPanel, chatPanel, pingsPanel, dataPanel);
+    root.appendChild(dialog);
+  }
   function onKey(e) {
     if (e.key === "Escape" && st.set) {
       e.stopPropagation();
@@ -2590,112 +2865,7 @@
     const el = document.createElement("div");
     st.set = el;
     el.className = "t7-set";
-    el.innerHTML = `
-        <div class="t7-sw" role="dialog" aria-modal="true" aria-label="\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 7TV">
-            <div class="t7-sth"><b>\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 7TV</b><button type="button" class="t7-x" aria-label="\u0417\u0430\u043A\u0440\u044B\u0442\u044C">\xD7</button></div>
-            <div class="t7-settings-tabs" role="tablist" aria-label="\u0420\u0430\u0437\u0434\u0435\u043B\u044B \u043D\u0430\u0441\u0442\u0440\u043E\u0435\u043A">
-                <button type="button" id="t7-settings-tab-emotes" role="tab" aria-selected="true" aria-controls="t7-settings-panel-emotes" tabindex="0">\u042D\u043C\u043E\u0443\u0442\u044B</button>
-                <button type="button" id="t7-settings-tab-chat" role="tab" aria-selected="false" aria-controls="t7-settings-panel-chat" tabindex="-1">\u0427\u0430\u0442</button>
-                <button type="button" id="t7-settings-tab-pings" role="tab" aria-selected="false" aria-controls="t7-settings-panel-pings" tabindex="-1">\u041F\u0438\u043D\u0433\u0438</button>
-                <button type="button" id="t7-settings-tab-data" role="tab" aria-selected="false" aria-controls="t7-settings-panel-data" tabindex="-1">\u0414\u0430\u043D\u043D\u044B\u0435</button>
-            </div>
-            <div class="t7-setting-panel" id="t7-settings-panel-emotes" role="tabpanel" aria-labelledby="t7-settings-tab-emotes" tabindex="0">
-                <details class="t7-sec" open>
-                    <summary>\u041E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0435</summary>
-                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-on"><span class="t7-toggle-track" aria-hidden="true"></span>\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u044D\u043C\u043E\u0443\u0442\u044B 7TV \u0432 \u0447\u0430\u0442\u0435</label>
-                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-emote-completion"><span class="t7-toggle-track" aria-hidden="true"></span>\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u043A\u0430\u0440\u0443\u0441\u0435\u043B\u044C \u044D\u043C\u043E\u0443\u0442\u043E\u0432 \u043F\u043E Tab</label>
-                </details>
-                <details class="t7-sec" open>
-                    <summary>\u041A\u0430\u043D\u0430\u043B</summary>
-                    <form class="t7-row">
-                        <label class="t7-fl">\u041D\u0438\u043A \u0441\u0442\u0440\u0438\u043C\u0435\u0440\u0430 \u043D\u0430 Twitch<input type="text" class="t7-nick" maxlength="80" autocomplete="off" spellcheck="false"></label>
-                        <button type="submit" class="t7-b p">\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C</button>
-                    </form>
-                    <div class="t7-sst" role="status"></div>
-                </details>
-                <details class="t7-sec" open>
-                    <summary>\u0420\u0430\u0437\u043C\u0435\u0440 \u0432 \u0447\u0430\u0442\u0435</summary>
-                    <div class="t7-szb">${Object.keys(SIZES).map((k) => `<button type="button" data-sz="${k}" aria-pressed="false">${SIZES[k].label}</button>`).join("")}</div>
-                </details>
-                <details class="t7-sec" open>
-                    <summary>\u041D\u0435\u0434\u0430\u0432\u043D\u0438\u0435 \u044D\u043C\u043E\u0443\u0442\u044B</summary>
-                    <label class="t7-fl">\u041A\u043E\u043B\u0438\u0447\u0435\u0441\u0442\u0432\u043E \u044D\u043C\u043E\u0443\u0442\u043E\u0432 \u0432 \u0441\u043F\u0438\u0441\u043A\u0435<input class="t7-recent-limit" type="number" min="1" max="100" step="1" inputmode="numeric"></label>
-                </details>
-            </div>
-            <div class="t7-setting-panel" id="t7-settings-panel-chat" role="tabpanel" aria-labelledby="t7-settings-tab-chat" tabindex="0" hidden>
-                <details class="t7-sec" open>
-                    <summary>\u0412\u043A\u043B\u0430\u0434\u043A\u0438 \u0447\u0430\u0442\u0430</summary>
-                    <div class="t7-chat-tab-list"></div>
-                </details>
-                <details class="t7-sec" open>
-                    <summary>\u041A\u043D\u043E\u043F\u043A\u0438 \u0432 \u0447\u0430\u0442\u0435</summary>
-                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-pastes-enabled"><span class="t7-toggle-track" aria-hidden="true"></span>\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u043A\u043D\u043E\u043F\u043A\u0443 \u043F\u0430\u0441\u0442 \u0432 \u0447\u0430\u0442\u0435</label>
-                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-image-picker-enabled"><span class="t7-toggle-track" aria-hidden="true"></span>\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u043A\u043D\u043E\u043F\u043A\u0443 imgBB \u0432 \u0447\u0430\u0442\u0435</label>
-                </details>
-                <details class="t7-sec" open>
-                    <summary>\u0421\u0441\u044B\u043B\u043A\u0438</summary>
-                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-link-encoding"><span class="t7-toggle-track" aria-hidden="true"></span>\u041E\u0431\u0440\u0430\u0431\u0430\u0442\u044B\u0432\u0430\u0442\u044C \u0441\u0441\u044B\u043B\u043A\u0438 \u043F\u0440\u0438 \u043E\u0442\u043F\u0440\u0430\u0432\u043A\u0435 \u0438 \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u0438</label>
-                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-image-previews"><span class="t7-toggle-track" aria-hidden="true"></span>\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u0438\u0437\u043E\u0431\u0440\u0430\u0436\u0435\u043D\u0438\u044F \u043F\u043E \u0441\u0441\u044B\u043B\u043A\u0430\u043C (imgbb; \u0432 \u041B\u0421 \u043D\u0435 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u0435\u043C)</label>
-                    <div class="t7-note" role="note"><span class="t7-note-icon" aria-hidden="true">!</span><span>\u0418\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439\u0442\u0435 \u043D\u0430 \u0441\u0432\u043E\u0439 \u0441\u0442\u0440\u0430\u0445 \u0438 \u0440\u0438\u0441\u043A.</span></div>
-                </details>
-                <details class="t7-sec" open>
-                    <summary>\u0428\u0440\u0438\u0444\u0442</summary>
-                    <label class="t7-fl t7-chat-font-control">\u0413\u0430\u0440\u043D\u0438\u0442\u0443\u0440\u0430<select class="t7-chat-font"><option value="site">\u041A\u0430\u043A \u043D\u0430 \u0441\u0430\u0439\u0442\u0435</option><option value="nunito">Nunito</option><option value="open-sans">Open Sans</option><option value="roboto">Roboto</option><option value="lato">Lato</option><option value="montserrat">Montserrat</option><option value="custom">\u0421\u0432\u043E\u0439 \u0448\u0440\u0438\u0444\u0442\u2026</option></select></label>
-                    <label class="t7-fl t7-chat-font-size-control">\u0420\u0430\u0437\u043C\u0435\u0440 \u0442\u0435\u043A\u0441\u0442\u0430<input type="range" class="t7-chat-font-size" min="11" max="22" step="1"><output class="t7-chat-font-size-value"></output></label>
-                    <div class="t7-row t7-wrap t7-chat-font-actions"><button type="button" class="t7-b" data-act="chat-font">\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0444\u0430\u0439\u043B \u0448\u0440\u0438\u0444\u0442\u0430</button><button type="button" class="t7-b" data-act="chat-font-reset">\u0423\u0434\u0430\u043B\u0438\u0442\u044C \u0441\u0432\u043E\u0439 \u0448\u0440\u0438\u0444\u0442</button><input type="file" class="t7-chat-font-file" accept=".woff2,.woff,.ttf,.otf,font/woff2,font/woff,font/ttf,font/otf" hidden></div>
-                    <div class="t7-ping-status t7-chat-font-status" role="status"></div>
-                </details>
-            </div>
-            <div class="t7-setting-panel" id="t7-settings-panel-pings" role="tabpanel" aria-labelledby="t7-settings-tab-pings" tabindex="0" hidden>
-                <details class="t7-sec" open>
-                    <summary>\u0423\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u044F \u0438 \u0444\u0438\u043B\u044C\u0442\u0440\u044B</summary>
-                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-tab-completion"><span class="t7-toggle-track" aria-hidden="true"></span>\u0414\u043E\u043F\u043E\u043B\u043D\u044F\u0442\u044C \u043D\u0438\u043A \u043F\u043E Tab</label>
-                    <label class="t7-fl">\u041D\u0438\u043A\u0438 \u0438 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u044B \u0434\u043B\u044F \u043F\u0438\u043D\u0433\u0430<textarea class="t7-ping-aliases" rows="2" placeholder="\u043D\u0438\u043A, nick, @\u043D\u0438\u043A"></textarea></label>
-                    <label class="t7-fl t7-ping-color-control">\u0426\u0432\u0435\u0442 \u0443\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u0439 (@\u043D\u0438\u043A)<input type="color" class="t7-ping-color"></label>
-                    <label class="t7-fl">\u0427\u0435\u0440\u043D\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A \u043D\u0438\u043A\u043E\u0432<textarea class="t7-ping-blacklist" rows="2" placeholder="\u043F\u043E \u043E\u0434\u043D\u043E\u043C\u0443 \u043D\u0438\u043A\u0443 \u043D\u0430 \u0441\u0442\u0440\u043E\u043A\u0443"></textarea></label>
-                    <label class="t7-fl">\u0418\u0433\u043D\u043E\u0440\u0438\u0440\u043E\u0432\u0430\u0442\u044C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0441\u043E \u0441\u043B\u043E\u0432\u0430\u043C\u0438 \u0438\u043B\u0438 \u0444\u0440\u0430\u0437\u0430\u043C\u0438<textarea class="t7-ping-stopwords" rows="2" placeholder="\u043F\u043E \u043E\u0434\u043D\u043E\u043C\u0443 \u0441\u043B\u043E\u0432\u0443 \u0438\u043B\u0438 \u0444\u0440\u0430\u0437\u0435 \u043D\u0430 \u0441\u0442\u0440\u043E\u043A\u0443"></textarea></label>
-                    <label class="t7-fl">\u0417\u0432\u0443\u043A \u043F\u0438\u043D\u0433\u0430<select class="t7-ping-preset"><option value="bell">\u041A\u043E\u043B\u043E\u043A\u043E\u043B\u044C\u0447\u0438\u043A</option><option value="chime">\u0417\u0432\u043E\u043D</option><option value="pop">\u041A\u043E\u0440\u043E\u0442\u043A\u0438\u0439 \u0441\u0438\u0433\u043D\u0430\u043B</option><option value="custom">\u0421\u0432\u043E\u0439 \u0437\u0432\u0443\u043A</option></select></label>
-                    <label class="t7-fl t7-volume">\u0413\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u044C<input class="t7-ping-volume" type="range" min="0" max="1" step="0.05"><output class="t7-volume-value"></output></label>
-                    <div class="t7-row t7-wrap">
-                        <button type="button" class="t7-b" data-act="custom-sound">\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0441\u0432\u043E\u0439 \u0437\u0432\u0443\u043A</button>
-                        <button type="button" class="t7-b" data-act="test-ping">\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0437\u0432\u0443\u043A</button>
-                        <input type="file" class="t7-ping-file" accept="audio/*" hidden>
-                    </div>
-                    <div class="t7-ping-status" role="status"></div>
-                </details>
-                <details class="t7-sec" open>
-                    <summary>\u041B\u0438\u0447\u043D\u044B\u0435 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F</summary>
-                    <label class="t7-chk t7-toggle-switch"><input type="checkbox" class="t7-dm-sound-enabled"><span class="t7-toggle-track" aria-hidden="true"></span>\u0417\u0432\u0443\u043A \u043F\u0440\u0438 \u043D\u043E\u0432\u043E\u043C \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0438 \u0432 \u041B\u0421</label>
-                    <label class="t7-fl">\u0417\u0432\u0443\u043A \u043B\u0438\u0447\u043D\u044B\u0445 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0439<select class="t7-dm-ping-preset"><option value="bell">\u041A\u043E\u043B\u043E\u043A\u043E\u043B\u044C\u0447\u0438\u043A</option><option value="chime">\u0417\u0432\u043E\u043D</option><option value="pop">\u041A\u043E\u0440\u043E\u0442\u043A\u0438\u0439 \u0441\u0438\u0433\u043D\u0430\u043B</option><option value="custom">\u0421\u0432\u043E\u0439 \u0437\u0432\u0443\u043A \u0434\u043B\u044F \u041B\u0421</option></select></label>
-                    <label class="t7-fl">\u041D\u0438\u043A\u0438 \u0434\u043B\u044F \u0437\u0432\u0443\u043A\u043E\u0432\u044B\u0445 \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u0439<textarea class="t7-dm-nick-list" rows="2" placeholder="\u043F\u043E \u043E\u0434\u043D\u043E\u043C\u0443 \u043D\u0438\u043A\u0443 \u043D\u0430 \u0441\u0442\u0440\u043E\u043A\u0443"></textarea></label>
-                    <div class="t7-dm-nick-mode">
-                        <span class="t7-dm-nick-mode-label">\u0427\u0451\u0440\u043D\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A</span>
-                        <label class="t7-toggle-switch">
-                            <input type="checkbox" class="t7-dm-nick-whitelist" role="switch" aria-label="\u0411\u0435\u043B\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A">
-                            <span class="t7-toggle-track" aria-hidden="true"></span>
-                        </label>
-                        <span class="t7-dm-nick-mode-label">\u0411\u0435\u043B\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A</span>
-                    </div>
-                    <div class="t7-row t7-wrap">
-                        <button type="button" class="t7-b" data-act="custom-dm-sound">\u0417\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0437\u0432\u0443\u043A \u0434\u043B\u044F \u041B\u0421</button>
-                        <button type="button" class="t7-b" data-act="test-dm-ping">\u041F\u0440\u043E\u0432\u0435\u0440\u0438\u0442\u044C \u0437\u0432\u0443\u043A \u041B\u0421</button>
-                        <input type="file" class="t7-dm-ping-file" accept="audio/*" hidden>
-                    </div>
-                    <div class="t7-ping-status t7-dm-ping-status" role="status"></div>
-                    <div class="t7-note">\u0413\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u044C \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u0439 \u041B\u0421 \u0440\u0435\u0433\u0443\u043B\u0438\u0440\u0443\u0435\u0442\u0441\u044F \u043E\u0431\u0449\u0435\u0439 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u043E\u0439 \u0433\u0440\u043E\u043C\u043A\u043E\u0441\u0442\u0438 \u0432\u044B\u0448\u0435. \u0412 \u0447\u0451\u0440\u043D\u043E\u043C \u0440\u0435\u0436\u0438\u043C\u0435 \u0441\u043F\u0438\u0441\u043E\u043A \u0438\u0441\u043A\u043B\u044E\u0447\u0430\u0435\u0442 \u043D\u0438\u043A\u0438; \u0432 \u0431\u0435\u043B\u043E\u043C \u2014 \u0440\u0430\u0437\u0440\u0435\u0448\u0430\u0435\u0442 \u0441\u0438\u0433\u043D\u0430\u043B\u044B \u0442\u043E\u043B\u044C\u043A\u043E \u0434\u043B\u044F \u043D\u0438\u0445.</div>
-                </details>
-            </div>
-            <div class="t7-setting-panel" id="t7-settings-panel-data" role="tabpanel" aria-labelledby="t7-settings-tab-data" tabindex="0" hidden>
-                <details class="t7-sec" open>
-                    <summary>\u0423\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435 \u0434\u0430\u043D\u043D\u044B\u043C\u0438</summary>
-                    <div class="t7-row t7-wrap">
-                        <button type="button" class="t7-b" data-act="refresh">\u041E\u0431\u043D\u043E\u0432\u0438\u0442\u044C \u0441\u043F\u0438\u0441\u043E\u043A</button>
-                        <button type="button" class="t7-b" data-act="cache">\u041E\u0447\u0438\u0441\u0442\u0438\u0442\u044C \u043A\u0435\u0448 \u043A\u0430\u0440\u0442\u0438\u043D\u043E\u043A</button>
-                        <button type="button" class="t7-b" data-act="pos">\u0421\u0431\u0440\u043E\u0441\u0438\u0442\u044C \u043F\u043E\u043B\u043E\u0436\u0435\u043D\u0438\u0435 \u043E\u043A\u043E\u0448\u043A\u0430</button>
-                    </div>
-                </details>
-            </div>
-        </div>`;
+    buildSettingsMarkup(el);
     ["keydown", "keyup", "keypress"].forEach((t) => el.addEventListener(t, (e) => e.stopPropagation()));
     el.addEventListener("pointerdown", (e) => {
       if (e.target === el) closeSettings();
@@ -2908,7 +3078,36 @@
         const tab = CHAT_TABS.find((item) => item.id === id);
         const row = document.createElement("div");
         row.className = "t7-chat-tab-row";
-        row.innerHTML = `<span class="t7-chat-tab-name">${tab.label}</span><label class="t7-chat-tab-visible t7-toggle-switch"><input type="checkbox" data-tab-visible="${id}" ${prefs.hidden.has(id) ? "" : "checked"} ${!prefs.hidden.has(id) && visibleCount === 1 ? "disabled" : ""}><span class="t7-toggle-track" aria-hidden="true"></span><span>\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C</span></label><span class="t7-chat-tab-move"><button type="button" data-tab-move="up" data-tab-id="${id}" aria-label="\u041F\u0435\u0440\u0435\u043C\u0435\u0441\u0442\u0438\u0442\u044C ${tab.label} \u0432\u044B\u0448\u0435" title="\u041F\u0435\u0440\u0435\u043C\u0435\u0441\u0442\u0438\u0442\u044C \u0432\u044B\u0448\u0435" ${index === 0 ? "disabled" : ""}>\u2191</button><button type="button" data-tab-move="down" data-tab-id="${id}" aria-label="\u041F\u0435\u0440\u0435\u043C\u0435\u0441\u0442\u0438\u0442\u044C ${tab.label} \u043D\u0438\u0436\u0435" title="\u041F\u0435\u0440\u0435\u043C\u0435\u0441\u0442\u0438\u0442\u044C \u043D\u0438\u0436\u0435" ${index === prefs.order.length - 1 ? "disabled" : ""}>\u2193</button></span>`;
+        const name = createNode("span", { className: "t7-chat-tab-name" }, [tab.label]);
+        const visibility = createNode("label", { className: "t7-chat-tab-visible t7-toggle-switch" }, [
+          createNode("input", {
+            type: "checkbox",
+            "data-tab-visible": id,
+            checked: !prefs.hidden.has(id),
+            disabled: !prefs.hidden.has(id) && visibleCount === 1
+          }),
+          createNode("span", { className: "t7-toggle-track", "aria-hidden": "true" }),
+          createNode("span", {}, ["\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C"])
+        ]);
+        const move = createNode("span", { className: "t7-chat-tab-move" }, [
+          createNode("button", {
+            type: "button",
+            "data-tab-move": "up",
+            "data-tab-id": id,
+            "aria-label": `\u041F\u0435\u0440\u0435\u043C\u0435\u0441\u0442\u0438\u0442\u044C ${tab.label} \u0432\u044B\u0448\u0435`,
+            title: "\u041F\u0435\u0440\u0435\u043C\u0435\u0441\u0442\u0438\u0442\u044C \u0432\u044B\u0448\u0435",
+            disabled: index === 0
+          }, ["\u2191"]),
+          createNode("button", {
+            type: "button",
+            "data-tab-move": "down",
+            "data-tab-id": id,
+            "aria-label": `\u041F\u0435\u0440\u0435\u043C\u0435\u0441\u0442\u0438\u0442\u044C ${tab.label} \u043D\u0438\u0436\u0435`,
+            title: "\u041F\u0435\u0440\u0435\u043C\u0435\u0441\u0442\u0438\u0442\u044C \u043D\u0438\u0436\u0435",
+            disabled: index === prefs.order.length - 1
+          }, ["\u2193"])
+        ]);
+        row.append(name, visibility, move);
         return row;
       }));
     };
@@ -3332,12 +3531,54 @@
     pop.className = "t7-pop";
     pop.setAttribute("role", "dialog");
     pop.setAttribute("aria-label", "\u042D\u043C\u043E\u0443\u0442\u044B 7TV");
-    pop.innerHTML = `
-        <div class="t7-h"><b>7TV</b><span class="t7-hb"><button type="button" class="t7-g" aria-label="\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438" title="\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438">\u2699</button><button type="button" class="t7-x" aria-label="\u0417\u0430\u043A\u0440\u044B\u0442\u044C">\xD7</button></span></div>
-        <input type="search" class="t7-q" placeholder="\u041F\u043E\u0438\u0441\u043A \u044D\u043C\u043E\u0443\u0442\u043E\u0432" autocomplete="off" aria-label="\u041F\u043E\u0438\u0441\u043A \u044D\u043C\u043E\u0443\u0442\u043E\u0432">
-        <div class="t7-views" role="tablist" aria-label="\u0421\u043F\u0438\u0441\u043A\u0438 \u044D\u043C\u043E\u0443\u0442\u043E\u0432"><button type="button" role="tab" data-view="all" aria-selected="true">\u0412\u0441\u0435</button><button type="button" role="tab" data-view="favorites" aria-selected="false">\u0418\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u0435</button><button type="button" role="tab" data-view="recent" aria-selected="false">\u041D\u0435\u0434\u0430\u0432\u043D\u0438\u0435</button></div>
-        <div class="t7-gr"></div>
-        <div class="t7-rs" title="\u041F\u043E\u0442\u044F\u043D\u0438, \u0447\u0442\u043E\u0431\u044B \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0440\u0430\u0437\u043C\u0435\u0440"></div>`;
+    const header = document.createElement("div");
+    header.className = "t7-h";
+    const title = document.createElement("b");
+    title.textContent = "7TV";
+    const headerButtons = document.createElement("span");
+    headerButtons.className = "t7-hb";
+    for (const [className, label, text] of [
+      ["t7-g", "\u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438", "\u2699"],
+      ["t7-x", "\u0417\u0430\u043A\u0440\u044B\u0442\u044C", "\xD7"]
+    ]) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = className;
+      button.setAttribute("aria-label", label);
+      button.title = label;
+      button.textContent = text;
+      headerButtons.appendChild(button);
+    }
+    header.append(title, headerButtons);
+    const search = document.createElement("input");
+    search.type = "search";
+    search.className = "t7-q";
+    search.placeholder = "\u041F\u043E\u0438\u0441\u043A \u044D\u043C\u043E\u0443\u0442\u043E\u0432";
+    search.autocomplete = "off";
+    search.setAttribute("aria-label", "\u041F\u043E\u0438\u0441\u043A \u044D\u043C\u043E\u0443\u0442\u043E\u0432");
+    const views = document.createElement("div");
+    views.className = "t7-views";
+    views.setAttribute("role", "tablist");
+    views.setAttribute("aria-label", "\u0421\u043F\u0438\u0441\u043A\u0438 \u044D\u043C\u043E\u0443\u0442\u043E\u0432");
+    for (const [id, label, selected] of [
+      ["all", "\u0412\u0441\u0435", true],
+      ["favorites", "\u0418\u0437\u0431\u0440\u0430\u043D\u043D\u043E\u0435", false],
+      ["recent", "\u041D\u0435\u0434\u0430\u0432\u043D\u0438\u0435", false]
+    ]) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.setAttribute("role", "tab");
+      button.dataset.view = id;
+      button.setAttribute("aria-selected", String(selected));
+      button.textContent = label;
+      views.appendChild(button);
+    }
+    const grid = document.createElement("div");
+    grid.className = "t7-gr";
+    const resizeHandle = document.createElement("div");
+    resizeHandle.className = "t7-rs";
+    resizeHandle.title = "\u041F\u043E\u0442\u044F\u043D\u0438, \u0447\u0442\u043E\u0431\u044B \u0438\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u0440\u0430\u0437\u043C\u0435\u0440";
+    pop.append(header, search, views, grid, resizeHandle);
     ["keydown", "keyup", "keypress"].forEach((t) => pop.addEventListener(t, (e) => e.stopPropagation()));
     setupDrag2(pop);
     setupResize(pop);
@@ -4323,7 +4564,11 @@
       label = document.createElement("label");
       label.className = "t7-chat-filter";
       label.title = "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u0442\u043E\u043B\u044C\u043A\u043E \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0441 \u0443\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u0435\u043C";
-      label.innerHTML = '<input type="checkbox"><span>\u0422\u043E\u043B\u044C\u043A\u043E \u043F\u0438\u043D\u0433\u0438</span>';
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      const text = document.createElement("span");
+      text.textContent = "\u0422\u043E\u043B\u044C\u043A\u043E \u043F\u0438\u043D\u0433\u0438";
+      label.append(input, text);
       label.addEventListener("click", (e) => e.stopPropagation());
       label.querySelector("input").addEventListener("change", (e) => {
         pingOnly = e.currentTarget.checked;
@@ -4338,7 +4583,18 @@
     if (!nav) {
       nav = document.createElement("span");
       nav.className = "t7-ping-nav";
-      nav.innerHTML = '<button type="button" data-direction="older" title="\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0431\u043E\u043B\u0435\u0435 \u0441\u0442\u0430\u0440\u044B\u0435 \u043F\u0438\u043D\u0433\u0438" aria-label="\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0431\u043E\u043B\u0435\u0435 \u0441\u0442\u0430\u0440\u044B\u0435 \u043F\u0438\u043D\u0433\u0438">\u2039</button><button type="button" data-direction="newer" title="\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0431\u043E\u043B\u0435\u0435 \u043D\u043E\u0432\u044B\u0435 \u043F\u0438\u043D\u0433\u0438" aria-label="\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0431\u043E\u043B\u0435\u0435 \u043D\u043E\u0432\u044B\u0435 \u043F\u0438\u043D\u0433\u0438">\u203A</button>';
+      for (const [direction, title, symbol] of [
+        ["older", "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0431\u043E\u043B\u0435\u0435 \u0441\u0442\u0430\u0440\u044B\u0435 \u043F\u0438\u043D\u0433\u0438", "\u2039"],
+        ["newer", "\u041F\u043E\u043A\u0430\u0437\u0430\u0442\u044C \u0431\u043E\u043B\u0435\u0435 \u043D\u043E\u0432\u044B\u0435 \u043F\u0438\u043D\u0433\u0438", "\u203A"]
+      ]) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.direction = direction;
+        button.title = title;
+        button.setAttribute("aria-label", title);
+        button.textContent = symbol;
+        nav.appendChild(button);
+      }
       nav.addEventListener("click", (e) => {
         const button = e.target.closest("button[data-direction]");
         if (!button) return;
