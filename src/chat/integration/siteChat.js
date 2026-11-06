@@ -96,10 +96,7 @@ function wrapInst(raw, K, room) {
                     paint(room);
                     if (isPingOnly()) refreshPingArchive(room);
                 };
-                const o = chatOf(room);
-                const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
-                if (list) chatScroller.keep(list, enter);
-                else enter();
+                enter();
                 return;
             }
             const enter = () => {
@@ -113,18 +110,11 @@ function wrapInst(raw, K, room) {
                 paint(room);
                 if (isPingOnly()) refreshPingArchive(room);
             };
-            const o = chatOf(room);
-            const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
-            if (list) chatScroller.keep(list, enter);
-            else enter();
+            enter();
         },
         apply(d, rm) {
             if (unified) {
-                const apply = () => raw.apply(d, rm);
-                const o = chatOf(room);
-                const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
-                if (list) chatScroller.keep(list, apply);
-                else apply();
+                raw.apply(d, rm);
                 if (d && Array.isArray(d.chat)) countPings(room, d.chat);
                 if (d && Array.isArray(d.chatDel)) {
                     removePingArchiveMessages(room, d.chatDel.map(String));
@@ -132,11 +122,7 @@ function wrapInst(raw, K, room) {
                 if (isPingOnly()) refreshPingArchive(room);
                 return;
             }
-            const apply = () => raw.apply(d);
-            const o = room === 'mine' && chatOf(room);
-            const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
-            if (list) chatScroller.keep(list, apply);
-            else apply();
+            raw.apply(d);
             if (d && d.chat) countPings(room, d.chat);
             if (isPingOnly()) refreshPingArchive(room);
         }

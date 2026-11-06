@@ -1283,13 +1283,14 @@
   var scrollStates = /* @__PURE__ */ new WeakMap();
   var keyedScrollStates = /* @__PURE__ */ new Map();
   var SCROLL_CORRECTION_THRESHOLD = 0.5;
+  var END_INTENT_THRESHOLD = 40;
   var started = false;
   function getContainer(element) {
     return element && element.closest ? element.closest(scrollListSelector) : null;
   }
   function isAtEnd(list) {
     const maxScroll = list.scrollHeight - list.clientHeight;
-    return maxScroll - list.scrollTop <= SCROLL_CORRECTION_THRESHOLD;
+    return maxScroll - list.scrollTop <= END_INTENT_THRESHOLD;
   }
   function updateAtEnd(list, state) {
     if (list.scrollHeight > list.clientHeight) state.atEnd = isAtEnd(list);
@@ -1400,6 +1401,7 @@
       if (!list.isConnected) return;
       const anchor = visibleAnchor(list, state);
       if (list.matches(SEL.chatList)) {
+        if (state.atEnd) scrollToEnd(list);
         refreshRows(list, state);
         savePosition(list, state);
         return;
@@ -1417,6 +1419,7 @@
     state.mutationObserver = new MutationObserver((records) => {
       if (!list.isConnected || !records.some((record) => record.type === "childList" && record.target === list)) return;
       if (list.matches(SEL.chatList)) {
+        if (state.atEnd) scrollToEnd(list);
         refreshRows(list, state);
         savePosition(list, state);
         return;
@@ -4550,10 +4553,7 @@
             paint(room);
             if (isPingOnly()) refreshPingArchive(room);
           };
-          const o2 = chatOf(room);
-          const list2 = o2 && o2.S.el && o2.S.el.querySelector(SEL.chatList);
-          if (list2) chatScroller.keep(list2, enter2);
-          else enter2();
+          enter2();
           return;
         }
         const enter = () => {
@@ -4567,18 +4567,11 @@
           paint(room);
           if (isPingOnly()) refreshPingArchive(room);
         };
-        const o = chatOf(room);
-        const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
-        if (list) chatScroller.keep(list, enter);
-        else enter();
+        enter();
       },
       apply(d, rm) {
         if (unified) {
-          const apply2 = () => raw.apply(d, rm);
-          const o2 = chatOf(room);
-          const list2 = o2 && o2.S.el && o2.S.el.querySelector(SEL.chatList);
-          if (list2) chatScroller.keep(list2, apply2);
-          else apply2();
+          raw.apply(d, rm);
           if (d && Array.isArray(d.chat)) countPings(room, d.chat);
           if (d && Array.isArray(d.chatDel)) {
             removePingArchiveMessages(room, d.chatDel.map(String));
@@ -4586,11 +4579,7 @@
           if (isPingOnly()) refreshPingArchive(room);
           return;
         }
-        const apply = () => raw.apply(d);
-        const o = room === "mine" && chatOf(room);
-        const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
-        if (list) chatScroller.keep(list, apply);
-        else apply();
+        raw.apply(d);
         if (d && d.chat) countPings(room, d.chat);
         if (isPingOnly()) refreshPingArchive(room);
       }

@@ -4,6 +4,7 @@ const scrollListSelector = `${SEL.chatList}, .dm-l`;
 const scrollStates = new WeakMap();
 const keyedScrollStates = new Map();
 const SCROLL_CORRECTION_THRESHOLD = 0.5;
+const END_INTENT_THRESHOLD = 40;
 let started = false;
 
 function getContainer(element) {
@@ -12,7 +13,7 @@ function getContainer(element) {
 
 function isAtEnd(list) {
     const maxScroll = list.scrollHeight - list.clientHeight;
-    return maxScroll - list.scrollTop <= SCROLL_CORRECTION_THRESHOLD;
+    return maxScroll - list.scrollTop <= END_INTENT_THRESHOLD;
 }
 
 function updateAtEnd(list, state) {
@@ -136,6 +137,7 @@ function observeSizeChanges(list, state) {
         if (!list.isConnected) return;
         const anchor = visibleAnchor(list, state);
         if (list.matches(SEL.chatList)) {
+            if (state.atEnd) scrollToEnd(list);
             refreshRows(list, state);
             savePosition(list, state);
             return;
@@ -156,6 +158,7 @@ function observeListChanges(list, state) {
             record.type === 'childList' && record.target === list)) return;
 
         if (list.matches(SEL.chatList)) {
+            if (state.atEnd) scrollToEnd(list);
             refreshRows(list, state);
             savePosition(list, state);
             return;
