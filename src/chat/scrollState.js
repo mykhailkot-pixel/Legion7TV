@@ -52,7 +52,8 @@ function getState(list) {
             resizeObserver: null,
             mutationObserver: null,
             lastScrollTop: list.scrollTop,
-            userScrollVersion: 0
+            userScrollVersion: 0,
+            userScrollUntil: 0
         };
         scrollStates.set(list, state);
     }
@@ -63,7 +64,13 @@ function markUserScroll(event) {
     const list = getContainer(event.target);
     if (list) {
         const state = getState(list);
-        state.userScrollVersion++;
+        const version = ++state.userScrollVersion;
+        state.userScrollUntil = performance.now() + 250;
+        requestAnimationFrame(() => {
+            if (!list.isConnected || state.userScrollVersion !== version) return;
+            updateAtEnd(list, state);
+            savePosition(list, state);
+        });
     }
 }
 
@@ -86,12 +93,41 @@ function refreshRows(list, state) {
 }
 
 function visibleAnchor(list, state) {
+    let index = 0;
     for (const [row, geometry] of state.rows) {
         if (geometry.top + geometry.height > 0 && geometry.top < list.clientHeight) {
-            return { row, top: geometry.top };
+            return { row, id: row.dataset.mid || '', top: geometry.top, index };
         }
+        index++;
     }
     return null;
+}
+
+function findAnchorRow(list, state, anchor) {
+    if (anchor.row.isConnected && list.contains(anchor.row)) return anchor.row;
+    const rows = [...list.children].filter((child) => child.tagName === 'LI');
+    if (anchor.id) {
+        const match = rows.find((row) => row.dataset.mid === anchor.id);
+        if (match) return match;
+    }
+
+    const previousRows = [...state.rows.keys()];
+    for (let i = anchor.index + 1; i < previousRows.length; i++) {
+        if (previousRows[i].isConnected && list.contains(previousRows[i])) return previousRows[i];
+    }
+    for (let i = anchor.index - 1; i >= 0; i--) {
+        if (previousRows[i].isConnected && list.contains(previousRows[i])) return previousRows[i];
+    }
+    return rows[Math.min(anchor.index, rows.length - 1)] || null;
+}
+
+function restoreAnchor(list, state, anchor) {
+    if (!anchor) return;
+    const row = findAnchorRow(list, state, anchor);
+    if (!row) return;
+    const delta = row.getBoundingClientRect().top
+        - list.getBoundingClientRect().top - anchor.top;
+    if (Math.abs(delta) > SCROLL_CORRECTION_THRESHOLD) list.scrollTop += delta;
 }
 
 function observeSizeChanges(list, state) {
@@ -100,24 +136,13 @@ function observeSizeChanges(list, state) {
         if (!list.isConnected) return;
         const anchor = visibleAnchor(list, state);
         if (list.matches(SEL.chatList)) {
-            if (!state.atEnd && anchor && anchor.row.isConnected) {
-                const listTop = list.getBoundingClientRect().top;
-                const currentTop = anchor.row.getBoundingClientRect().top - listTop;
-                const delta = currentTop - anchor.top;
-                if (Math.abs(delta) > SCROLL_CORRECTION_THRESHOLD) list.scrollTop += delta;
-            }
             refreshRows(list, state);
             savePosition(list, state);
             return;
         }
         if (state.atEnd) {
             scrollToEnd(list);
-        } else if (anchor && anchor.row.isConnected) {
-            const listTop = list.getBoundingClientRect().top;
-            const currentTop = anchor.row.getBoundingClientRect().top - listTop;
-            const delta = currentTop - anchor.top;
-            if (Math.abs(delta) > SCROLL_CORRECTION_THRESHOLD) list.scrollTop += delta;
-        }
+        } else restoreAnchor(list, state, anchor);
         refreshRows(list, state);
         savePosition(list, state);
     });
@@ -132,7 +157,6 @@ function observeListChanges(list, state) {
 
         if (list.matches(SEL.chatList)) {
             refreshRows(list, state);
-            state.atEnd = isAtEnd(list);
             savePosition(list, state);
             return;
         }
@@ -140,18 +164,7 @@ function observeListChanges(list, state) {
         const anchor = state.atEnd ? null : visibleAnchor(list, state);
         if (state.atEnd) {
             scrollToEnd(list);
-        } else if (anchor) {
-            const row = anchor.row.isConnected ? anchor.row
-                : [...state.rows.keys()].find((item) => item.isConnected
-                    && item.getBoundingClientRect().bottom > list.getBoundingClientRect().top + 1);
-            if (row) {
-                const delta = row.getBoundingClientRect().top
-                    - list.getBoundingClientRect().top - (row === anchor.row
-                        ? anchor.top
-                        : state.rows.get(row).top);
-                if (Math.abs(delta) > SCROLL_CORRECTION_THRESHOLD) list.scrollTop += delta;
-            }
-        }
+        } else restoreAnchor(list, state, anchor);
         refreshRows(list, state);
         savePosition(list, state);
     });
@@ -164,6 +177,10 @@ export const chatScroller = {
         started = true;
         document.addEventListener('wheel', markUserScroll, { capture: true, passive: true });
         document.addEventListener('touchmove', markUserScroll, { capture: true, passive: true });
+        document.addEventListener('pointerdown', markUserScroll, { capture: true, passive: true });
+        document.addEventListener('pointermove', (event) => {
+            if (event.buttons) markUserScroll(event);
+        }, { capture: true, passive: true });
         document.addEventListener('keydown', (event) => {
             if (!['ArrowDown', 'ArrowUp', 'End', 'Home', 'PageDown', 'PageUp', ' '].includes(event.key)) return;
             const target = event.target;
@@ -177,7 +194,8 @@ export const chatScroller = {
                 const delta = list.scrollTop - state.lastScrollTop;
                 for (const geometry of state.rows.values()) geometry.top -= delta;
                 state.lastScrollTop = list.scrollTop;
-                updateAtEnd(list, state);
+                if (!list.matches(SEL.chatList)
+                    || performance.now() <= state.userScrollUntil) updateAtEnd(list, state);
                 savePosition(list, state);
             }
         }, true);
@@ -189,7 +207,7 @@ export const chatScroller = {
 
     captureEndIntent(list) {
         const state = getState(list);
-        return { atEnd: state.atEnd || isAtEnd(list), userScrollVersion: state.userScrollVersion };
+        return { atEnd: state.atEnd, userScrollVersion: state.userScrollVersion };
     },
 
     settleAtEnd(list, intent) {
@@ -221,7 +239,7 @@ export const chatScroller = {
 
     keep(list, mutate) {
         const state = getState(list);
-        const atEnd = list.matches(SEL.chatList) ? isAtEnd(list) : state.atEnd;
+        const atEnd = isAtEnd(list);
         state.atEnd = atEnd;
         const scrollTop = list.scrollTop;
         let anchor = null;
@@ -255,7 +273,6 @@ export const chatScroller = {
         } else {
             list.scrollTop = scrollTop;
         }
-        if (list.matches(SEL.chatList)) state.atEnd = isAtEnd(list);
         refreshRows(list, state);
         savePosition(list, state);
     },

@@ -534,30 +534,46 @@ function wrapInst(raw, K, room) {
         init() { raw.init(); setupTabs(K); pingBind(room); },
         enter(r, rm) {
             if (unified) {
-                raw.enter(r, rm);
-                if (r && Array.isArray(r.chat)) rememberPingMessages(room, r.chat);
-                rooms[room].pings = {};
-                setupTabs(K);
-                pingBind(room);
-                paint(room);
-                if (pingOnly) refreshPingArchive(room);
+                const enter = () => {
+                    raw.enter(r, rm);
+                    if (r && Array.isArray(r.chat)) rememberPingMessages(room, r.chat);
+                    rooms[room].pings = {};
+                    setupTabs(K);
+                    pingBind(room);
+                    paint(room);
+                    if (pingOnly) refreshPingArchive(room);
+                };
+                const o = chatOf(room);
+                const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
+                if (list) chatScroller.keep(list, enter);
+                else enter();
                 return;
             }
-            if (pingOnly) stripArchivedPings(room);
-            const entered = r && Array.isArray(r.chat) && mine ? { ...r, chat: r.chat.map(tagMn) } : r;
-            raw.enter(entered);
-            rooms[room].injectedPings.clear();
-            if (entered && Array.isArray(entered.chat)) rememberPingMessages(room, entered.chat);
-            setupTabs(K);
-            rooms[room].pings = {};
-            pingBind(room);
-            paint(room);
-            selectTab(K, mine ? 'mn' : 'g');
-            if (pingOnly) refreshPingArchive(room);
+            const enter = () => {
+                if (pingOnly) stripArchivedPings(room);
+                const entered = r && Array.isArray(r.chat) && mine ? { ...r, chat: r.chat.map(tagMn) } : r;
+                raw.enter(entered);
+                rooms[room].injectedPings.clear();
+                if (entered && Array.isArray(entered.chat)) rememberPingMessages(room, entered.chat);
+                setupTabs(K);
+                rooms[room].pings = {};
+                pingBind(room);
+                paint(room);
+                selectTab(K, mine ? 'mn' : 'g');
+                if (pingOnly) refreshPingArchive(room);
+            };
+            const o = chatOf(room);
+            const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
+            if (list) chatScroller.keep(list, enter);
+            else enter();
         },
         apply(d, rm) {
             if (unified) {
-                raw.apply(d, rm);
+                const apply = () => raw.apply(d, rm);
+                const o = chatOf(room);
+                const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
+                if (list) chatScroller.keep(list, apply);
+                else apply();
                 if (d && Array.isArray(d.chat)) countPings(room, d.chat);
                 if (d && Array.isArray(d.chatDel)) {
                     const deleted = new Set(d.chatDel.map(String));
