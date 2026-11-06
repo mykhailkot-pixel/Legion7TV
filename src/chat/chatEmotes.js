@@ -15,14 +15,13 @@ function makeImg(name, em, cls) {
     const resolution = SIZES[S.size].n;
     const url = urlFor(em, resolution);
     const knownRatio = em.r || emoteAspectRatios.get(url);
+    if (cls === 't7-e') img.style.setProperty('--t7-r', String(Math.max(1, knownRatio || 1)));
     if (loadedEmoteImages.has(url)) img.dataset.loaded = '1';
-    if (cls === 't7-e' && knownRatio) img.style.aspectRatio = String(knownRatio);
     img.addEventListener('load', () => {
         loadedEmoteImages.add(url);
         if (cls === 't7-e' && img.naturalHeight) {
             const ratio = img.naturalWidth / img.naturalHeight;
             emoteAspectRatios.set(url, ratio);
-            if (!em.r) img.style.aspectRatio = String(ratio);
         }
         img.dataset.loaded = '1';
     });

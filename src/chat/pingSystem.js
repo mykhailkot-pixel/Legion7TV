@@ -3,6 +3,7 @@ import { EV, STORE, emit } from '../core/consts.js';
 
 const CONFIG_KEY = STORE.pingConfig;
 const PRESETS = new Set(['bell', 'chime', 'pop', 'custom']);
+const MAX_CUSTOM_SOUND_SIZE = 20 * 1024 * 1024;
 const DEFAULTS = {
     volume: 0.5,
     selectedPreset: 'bell',
@@ -175,7 +176,7 @@ class PingSystem {
     saveCustomSound(file, isDm = false) {
         return new Promise((resolve, reject) => {
             if (!file || !file.type.startsWith('audio/')) return reject(new Error('Выберите аудиофайл'));
-            if (file.size > 2 * 1024 * 1024) return reject(new Error('Размер файла должен быть не больше 2 МБ'));
+            if (file.size > MAX_CUSTOM_SOUND_SIZE) return reject(new Error('Размер файла должен быть не больше 20 МБ'));
             const reader = new FileReader();
             reader.onload = () => {
                 if (isDm) {

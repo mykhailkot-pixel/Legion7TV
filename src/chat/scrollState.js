@@ -52,7 +52,6 @@ function getState(list) {
             resizeObserver: null,
             mutationObserver: null,
             lastScrollTop: list.scrollTop,
-            userScrollUntil: 0,
             userScrollVersion: 0
         };
         scrollStates.set(list, state);
@@ -64,7 +63,6 @@ function markUserScroll(event) {
     const list = getContainer(event.target);
     if (list) {
         const state = getState(list);
-        state.userScrollUntil = performance.now() + 300;
         state.userScrollVersion++;
     }
 }
@@ -75,12 +73,12 @@ function refreshRows(list, state) {
     const rows = new Set([...list.children].filter((child) => child.tagName === 'LI'));
     for (const row of state.rows.keys()) {
         if (!rows.has(row)) {
-            state.resizeObserver.unobserve(row);
+            if (state.resizeObserver) state.resizeObserver.unobserve(row);
             state.rows.delete(row);
         }
     }
     for (const row of rows) {
-        if (!state.rows.has(row)) state.resizeObserver.observe(row);
+        if (!state.rows.has(row) && state.resizeObserver) state.resizeObserver.observe(row);
         const rect = row.getBoundingClientRect();
         state.rows.set(row, { top: rect.top - listRect.top, height: rect.height });
     }
@@ -101,6 +99,17 @@ function observeSizeChanges(list, state) {
     state.resizeObserver = new ResizeObserver(() => {
         if (!list.isConnected) return;
         const anchor = visibleAnchor(list, state);
+        if (list.matches(SEL.chatList)) {
+            if (!state.atEnd && anchor && anchor.row.isConnected) {
+                const listTop = list.getBoundingClientRect().top;
+                const currentTop = anchor.row.getBoundingClientRect().top - listTop;
+                const delta = currentTop - anchor.top;
+                if (Math.abs(delta) > SCROLL_CORRECTION_THRESHOLD) list.scrollTop += delta;
+            }
+            refreshRows(list, state);
+            savePosition(list, state);
+            return;
+        }
         if (state.atEnd) {
             scrollToEnd(list);
         } else if (anchor && anchor.row.isConnected) {
@@ -112,6 +121,7 @@ function observeSizeChanges(list, state) {
         refreshRows(list, state);
         savePosition(list, state);
     });
+    state.resizeObserver.observe(list);
 }
 
 function observeListChanges(list, state) {
@@ -119,6 +129,13 @@ function observeListChanges(list, state) {
     state.mutationObserver = new MutationObserver((records) => {
         if (!list.isConnected || !records.some((record) =>
             record.type === 'childList' && record.target === list)) return;
+
+        if (list.matches(SEL.chatList)) {
+            refreshRows(list, state);
+            state.atEnd = isAtEnd(list);
+            savePosition(list, state);
+            return;
+        }
 
         const anchor = state.atEnd ? null : visibleAnchor(list, state);
         if (state.atEnd) {
@@ -160,7 +177,7 @@ export const chatScroller = {
                 const delta = list.scrollTop - state.lastScrollTop;
                 for (const geometry of state.rows.values()) geometry.top -= delta;
                 state.lastScrollTop = list.scrollTop;
-                if (performance.now() <= state.userScrollUntil) updateAtEnd(list, state);
+                updateAtEnd(list, state);
                 savePosition(list, state);
             }
         }, true);
@@ -204,7 +221,8 @@ export const chatScroller = {
 
     keep(list, mutate) {
         const state = getState(list);
-        const atEnd = state.atEnd;
+        const atEnd = list.matches(SEL.chatList) ? isAtEnd(list) : state.atEnd;
+        state.atEnd = atEnd;
         const scrollTop = list.scrollTop;
         let anchor = null;
         if (!atEnd) {
@@ -237,6 +255,7 @@ export const chatScroller = {
         } else {
             list.scrollTop = scrollTop;
         }
+        if (list.matches(SEL.chatList)) state.atEnd = isAtEnd(list);
         refreshRows(list, state);
         savePosition(list, state);
     },

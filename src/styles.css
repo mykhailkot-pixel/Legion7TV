@@ -3,8 +3,8 @@
 .t7-e {
     display: block;
     height: var(--t7-h, 1.9em);
-    width: auto;
-    min-width: var(--t7-h, 1.9em);
+    width: calc(var(--t7-h, 1.9em) * var(--t7-r, 1));
+    object-fit: contain;
 }
 .t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:var(--t7-h,1.9em);width:auto;pointer-events:none}
 .t7-e:not([data-loaded]),.t7-zw:not([data-loaded]){visibility:hidden}
@@ -278,6 +278,7 @@ form.cy-chat-f>.t7-banword-warning[hidden]{display:none}
 .cy-chat-l>li.t7-filtered{font-style:italic}
 .cy-chat-l>li>.t7-filter-label{display:inline-block;margin-right:5px;padding:2px 6px;border-radius:4px;background:rgba(255,201,77,.14);color:#ffca66;font-size:13px;font-weight:700;white-space:nowrap}
 .cy-chat-l>li.t7-filtered>:not(.t7-filter-label){display:none!important}
+.mn .cy-chat-l,.mn .cy-chat-l li,.mn .cy-chat-l li *{-webkit-user-select:text!important;user-select:text!important}
 
 .cy-chat-l a.t7-link{color:#8edbff;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .cy-chat-tabs>button[data-tab][hidden]{display:none!important}
