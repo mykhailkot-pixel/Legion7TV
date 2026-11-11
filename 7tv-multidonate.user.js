@@ -12,7 +12,6 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
-// @grant        unsafeWindow
 // @run-at       document-start
 // @connect      7tv.io
 // @connect      cdn.7tv.app
@@ -25,7 +24,7 @@
 // @license      MIT
 // ==/UserScript==
 (() => {
-  var styles_default = '.t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}\r\n.t7-e {\r\n    display: block;\r\n    height: var(--t7-h, 1.9em);\r\n    width: calc(var(--t7-h, 1.9em) * var(--t7-r, 1));\r\n    object-fit: contain;\r\n}\r\n.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:var(--t7-h,1.9em);width:auto;pointer-events:none}\r\n.t7-e:not([data-loaded]),.t7-zw:not([data-loaded]){visibility:hidden}\r\n.t7-spoiler{padding:0 3px;border-radius:4px;background:#c7c9ce;color:transparent!important;cursor:pointer;transition:background-color .12s ease,color .12s ease}\r\n.t7-spoiler:not(.t7-spoiler-revealed) img{visibility:hidden}\r\n.t7-spoiler:not(.t7-spoiler-revealed) *{color:transparent!important;text-shadow:none!important}\r\n.t7-spoiler.t7-spoiler-revealed{padding:0;border-radius:0;background:transparent;color:inherit!important;cursor:inherit;transition:none}\r\n.t7-spoiler:focus-visible{outline:2px solid rgba(255,201,77,.75);outline-offset:2px}\r\n\r\n.t7-tip{position:fixed;z-index:2147483200;display:flex;flex-direction:column;align-items:center;width:min(210px,calc(100vw - 16px));overflow:hidden;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:#201d2b;color:#f4f1fb;box-shadow:0 5px 20px rgba(0,0,0,.55);font:14px/1.3 Arial,sans-serif;text-align:center;pointer-events:none}\r\n.t7-tip[hidden]{display:none!important}\r\n.t7-tip-preview{display:grid;place-items:center;width:100%;height:132px;background:linear-gradient(135deg,#302c3c,#171522)}\r\n.t7-tip-preview img{max-width:100%;max-height:100%;object-fit:contain}\r\n.t7-tip-preview img.t7-tip-loading{visibility:hidden}\r\n.t7-tip-info{display:flex;flex-direction:column;align-items:center;gap:7px;width:100%;padding:10px 8px 8px;overflow-wrap:anywhere}\r\n.t7-tip-name{display:flex;align-items:center;justify-content:center;gap:6px;font-size:17px;font-weight:700}\r\n.t7-tip-logo{display:inline-grid;place-items:center;width:25px;height:20px;border-radius:3px;background:#7136d8;color:#fff;font:bold 10px/1 Arial,sans-serif}\r\n.t7-tip-author{font-size:16px}\r\n.t7-tip-author span{color:#e89a00}\r\n.t7-tip-type{font-size:16px;font-weight:700}\r\n.t7-image-link{display:inline-flex;flex-direction:column;align-items:flex-start;gap:4px;max-width:100%;vertical-align:top;font-size:0;line-height:0;text-decoration:none}\r\n.t7-image-preview{display:block;width:auto;height:auto;max-width:min(100%,400px);max-height:300px;object-fit:contain;border-radius:4px}\r\n\r\n\r\nform.cy-chat-f .t7-btn{\r\n    flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;\r\n    box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f .t7-btn:hover{background:rgb(165,100,255)}\r\nform.dm-f .t7-pastes-btn{flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;font:700 11px/1 system-ui,sans-serif;white-space:nowrap;cursor:pointer}\r\nform.dm-f .t7-pastes-btn:hover{background:rgb(165,100,255)}\r\nform.cy-chat-f .t7-pastes-btn[hidden],form.dm-f .t7-pastes-btn[hidden],form.cy-chat-f .t7-images-btn[hidden],form.dm-f .t7-images-btn[hidden]{display:none!important}\r\nform.cy-chat-f{position:relative}\r\nform.cy-chat-f>.t7-ping-menu{position:absolute;left:auto;right:0;bottom:calc(100% + 5px);z-index:20;display:flex;flex-direction:column;width:min(210px,calc(100vw - 24px));max-height:132px;overflow-y:auto;padding:3px;border:1px solid rgba(255,255,255,.16);border-radius:6px;background:rgba(24,24,32,.88);box-shadow:0 5px 14px rgba(0,0,0,.28);backdrop-filter:blur(5px)}\r\nform.cy-chat-f>.t7-ping-menu[hidden]{display:none}\r\nform.cy-chat-f>.t7-ping-menu>.t7-ping-option{display:block;flex:none;width:100%;min-width:0;min-height:0;height:auto;margin:0;padding:4px 8px;border:0;border-radius:4px;background:transparent;color:#eee;text-align:left;text-transform:none;font:12px/1.25 system-ui,sans-serif;box-shadow:none}\r\nform.cy-chat-f>.t7-ping-menu>.t7-ping-option:hover,form.cy-chat-f>.t7-ping-menu>.t7-ping-option:focus-visible{background:rgba(255,255,255,.12);color:#fff;outline:none}\r\nform.cy-chat-f>.t7-emote-menu,form.dm-f>.t7-emote-menu{position:absolute;left:0;right:0;bottom:calc(100% + 5px);z-index:20;box-sizing:border-box;display:flex;align-items:center;gap:4px;width:min(620px,calc(100vw - 24px));max-width:100%;padding:5px;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:rgba(24,24,32,.94);box-shadow:0 5px 14px rgba(0,0,0,.32);backdrop-filter:blur(6px)}\r\nform.cy-chat-f>.t7-emote-menu[hidden],form.dm-f>.t7-emote-menu[hidden]{display:none}\r\n.t7-emote-strip{display:flex;flex:1;gap:4px;min-width:0;overflow:hidden}\r\n.t7-emote-nav,.t7-emote-option{flex:none;min-width:0;height:auto;margin:0;border:0;border-radius:5px;background:transparent;color:#eee;box-shadow:none;text-transform:none;cursor:pointer}\r\n.t7-emote-nav{width:24px;padding:4px;font:20px/1 system-ui,sans-serif}\r\n.t7-emote-nav:hover:not(:disabled),.t7-emote-option:hover{background:rgba(255,255,255,.14);color:#fff}\r\n.t7-emote-option:focus-visible{outline:2px solid rgba(255,201,77,.75);outline-offset:-2px}\r\n.t7-emote-option[aria-selected=true]{box-shadow:inset 0 -2px #ffc94d}\r\n.t7-emote-nav:disabled{opacity:.35;cursor:default}\r\n.t7-emote-option{display:flex;flex:1 1 62px;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:58px;min-height:56px;padding:1.5px;font:9px/1.15 system-ui,sans-serif}\r\n.t7-emote-option img{width:26px;height:26px;object-fit:contain}\r\n.t7-emote-option span{display:block;width:9ch;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;font-size:8px}\r\nform.cy-chat-f>.t7-emote-menu .t7-emote-option,form.dm-f>.t7-emote-menu .t7-emote-option{box-sizing:border-box;min-height:56px!important;height:auto!important;margin:0!important;padding:1.5px!important}\r\nform.cy-chat-f>.t7-banword-warning{position:absolute;left:0;right:0;bottom:calc(100% + 5px);z-index:21;padding:7px 9px;border:1px solid rgba(255,201,77,.38);border-left:3px solid #ffc94d;border-radius:4px;background:rgba(24,24,32,.96);color:#f2dda0;font:12px/1.35 system-ui,sans-serif;box-shadow:0 5px 14px rgba(0,0,0,.28)}\r\nform.cy-chat-f>.t7-banword-warning[hidden]{display:none}\r\n.t7-paste-overlay{position:fixed;inset:0;z-index:2147483100;display:grid;place-items:center;padding:12px;background:rgba(0,0,0,.58);font:13px/1.35 system-ui,sans-serif}\r\n.t7-paste-dialog{display:flex;flex-direction:column;gap:10px;width:min(440px,100%);max-height:min(620px,90vh);overflow-y:auto;padding:12px;border:1px solid rgba(255,255,255,.18);border-radius:8px;background:#1b1b24;color:#eee;box-shadow:0 10px 32px rgba(0,0,0,.48)}\r\n.t7-paste-header,.t7-paste-row,.t7-paste-actions{display:flex;align-items:center;gap:6px}\r\n.t7-paste-header{justify-content:space-between;font-size:15px}\r\n.t7-paste-list{display:flex;flex-direction:column;gap:4px;min-height:36px;overflow-y:auto}\r\n.t7-paste-item,.t7-paste-edit,.t7-paste-delete,.t7-paste-close,.t7-paste-primary,.t7-paste-secondary{border:1px solid rgba(255,255,255,.18);border-radius:4px;background:#101018;color:#eee;cursor:pointer}\r\n.t7-paste-item{flex:1;min-width:0;padding:7px 9px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\r\n.t7-paste-item:hover,.t7-paste-edit:hover,.t7-paste-delete:hover,.t7-paste-close:hover,.t7-paste-secondary:hover{background:#292936}\r\n.t7-paste-edit,.t7-paste-delete,.t7-paste-close{display:grid;place-items:center;flex:none;width:30px;height:30px;padding:0}\r\n.t7-paste-edit{font-size:16px}\r\n.t7-paste-delete,.t7-paste-close{font-size:20px}\r\n.t7-paste-add,.t7-paste-primary,.t7-paste-secondary{padding:7px 10px}\r\n.t7-paste-primary{border-color:#7650c9;background:#6844b5;color:#fff}\r\n.t7-paste-primary:hover{background:#7954c5}\r\n.t7-paste-editor{display:flex;flex-direction:column;gap:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.12)}\r\n.t7-paste-editor[hidden],.t7-paste-add[hidden],.t7-paste-list[hidden]{display:none}\r\n.t7-paste-field{display:flex;flex-direction:column;gap:4px;color:#bbb;font-size:12px}\r\n.t7-paste-field input,.t7-paste-field textarea{box-sizing:border-box;width:100%;padding:7px 8px;border:1px solid rgba(255,255,255,.2);border-radius:4px;background:#101018;color:#fff;font:13px/1.35 system-ui,sans-serif}\r\n.t7-paste-field textarea{min-height:100px;resize:vertical}\r\n.t7-paste-actions{justify-content:flex-end}\r\n.t7-paste-empty{padding:10px 4px;color:#aaa;text-align:center}\r\n.t7-image-picker{width:min(440px,100%);max-height:min(680px,92vh)}\r\n.t7-image-picker-url{display:flex;align-items:center;gap:6px}\r\n.t7-image-picker-url>a{display:grid;place-items:center;flex:none;width:34px;height:34px;border:1px solid rgba(255,255,255,.18);border-radius:5px;background:#101018;color:#eee;font-size:18px;text-decoration:none}\r\n.t7-image-picker-url>a:hover{background:#292936}\r\n.t7-image-picker-input{box-sizing:border-box;flex:1;min-width:0;padding:8px;border:1px solid rgba(255,255,255,.2);border-radius:5px;background:#101018;color:#fff;font:13px system-ui,sans-serif}\r\n.t7-image-picker-preview{display:grid;place-items:center;min-height:110px;max-height:180px;overflow:hidden;padding:8px;border:1px solid rgba(255,255,255,.1);border-radius:5px;background:#15141e;color:#aaa;font-size:12px;text-align:center}\r\n.t7-image-picker-preview img{display:block;max-width:100%;max-height:160px;object-fit:contain}\r\n.t7-image-picker-preview.t7-image-picker-error{color:#ffaaa5}\r\n.t7-image-picker-actions{display:flex;justify-content:flex-end;gap:6px}\r\n.t7-image-picker-tabs button{flex:1;padding:6px 8px;border:0;border-radius:4px;background:transparent;color:#aaa;font:12px system-ui,sans-serif;cursor:pointer}\r\n.t7-image-picker-tabs button[aria-selected=true]{background:rgba(255,255,255,.14);color:#eee}\r\n.t7-image-library{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px;min-height:52px;max-height:190px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-image-library-item{position:relative;min-width:0}\r\n.t7-image-library-choose{display:flex;flex-direction:column;align-items:stretch;gap:4px;width:100%;height:100%;min-height:82px;padding:5px;border:1px solid rgba(255,255,255,.12);border-radius:5px;background:#101018;color:#ddd;text-align:center;cursor:pointer}\r\n.t7-image-library-choose:hover,.t7-image-library-choose:focus-visible{background:#292936}\r\n.t7-image-library-choose img{display:block;width:100%;height:54px;object-fit:contain}\r\n.t7-image-library-choose span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}\r\n.t7-image-library-favorite{position:absolute;top:3px;right:3px;display:grid;place-items:center;width:24px;height:24px;padding:0;border:1px solid rgba(255,255,255,.18);border-radius:4px;background:rgba(15,15,21,.88);color:#e5c76b;font:16px/1 system-ui,sans-serif;cursor:pointer}\r\n.t7-image-picker-empty{grid-column:1/-1;padding:16px 6px;color:#aaa;text-align:center;font-size:12px}\r\n\r\n\r\n.t7-pop,.t7-set{\r\n    --t7-bg:#1b1b24;--t7-bg-in:#0f0f15;--t7-fg:#eee;--t7-mute:#aaa;\r\n    --t7-line:rgba(255,255,255,.2);--t7-hover:rgba(255,255,255,.14);--t7-acc:#9146ff}\r\n.t7-pop *,.t7-set *{box-sizing:border-box}\r\n.t7-pop button,.t7-sw button{font:inherit;cursor:pointer}\r\n.t7-pop [hidden]{display:none!important}\r\n\r\n\r\n.t7-x,.t7-g{display:grid;place-items:center;flex:none;width:40px;height:40px;padding:0;background:none;border:0;color:#ccc;line-height:1;border-radius:6px}\r\n.t7-x{font-size:36px}\r\n.t7-g{font-size:29px}\r\n.t7-x:hover,.t7-g:hover{background:var(--t7-hover);color:#fff}\r\n\r\n\r\n.t7-pop{\r\n    position:fixed;z-index:2147483000;display:flex;flex-direction:column;gap:8px;\r\n    padding:10px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:10px;\r\n    box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.3 system-ui,sans-serif;\r\n    contain:layout paint;isolation:isolate}\r\n.t7-pop.t7-drag{will-change:transform;transition:none}\r\n.t7-pop.t7-drag .t7-gr{pointer-events:none}\r\n\r\n.t7-h,.t7-sth{display:flex;justify-content:space-between;align-items:center;\r\n    font-size:15px;cursor:grab;touch-action:none;user-select:none}\r\n.t7-h:active,.t7-sth:active{cursor:grabbing}\r\n.t7-hb{display:flex;align-items:center;gap:2px}\r\n\r\n.t7-pop input[type=search]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-views{display:flex;gap:3px;padding:2px;border:1px solid var(--t7-line);border-radius:6px;background:var(--t7-bg-in)}\r\n.t7-views button{flex:1;padding:5px 7px;border:0;border-radius:4px;background:transparent;color:var(--t7-mute);font-size:12px}\r\n.t7-views button[aria-selected=true]{background:var(--t7-hover);color:var(--t7-fg)}\r\n\r\n.t7-gr{flex:1;min-height:156px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-sh{margin:6px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--t7-mute)}\r\n.t7-gw{display:flex;flex-wrap:wrap;gap:2px}\r\n.t7-it{display:inline-flex;align-items:center;justify-content:center;\r\n    width:var(--t7-tile,40px);height:var(--t7-tile,40px);padding:3px;border:0;border-radius:6px;background:transparent}\r\n.t7-it:hover,.t7-it:focus-visible{background:var(--t7-hover)}\r\n.t7-it img{width:100%;height:100%;object-fit:contain}\r\n.t7-item{position:relative;flex:none;width:var(--t7-tile,40px);height:var(--t7-tile,40px)}\r\n.t7-item .t7-it{width:100%;height:100%}\r\n.t7-fav{position:absolute;top:0;right:0;z-index:1;display:grid;place-items:center;width:17px;height:17px;padding:0;border:0;border-radius:4px;background:rgba(15,15,21,.82);color:#e5c76b;font:14px/1 system-ui,sans-serif;opacity:.78}\r\n.t7-fav:hover,.t7-fav:focus-visible{opacity:1;background:var(--t7-hover)}\r\n.t7-emp{padding:16px 4px;color:var(--t7-mute);text-align:center}\r\n\r\n.t7-rs{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;\r\n    border-radius:0 0 10px 0;\r\n    background:linear-gradient(135deg,transparent 0 55%,#888 55% 62%,transparent 62% 72%,#888 72% 79%,transparent 79%)}\r\n\r\n\r\n.t7-set{\r\n    position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;\r\n    padding:12px;background:rgba(0,0,0,.5);font:13px/1.3 system-ui,sans-serif}\r\n.t7-sw{\r\n    width:380px;max-width:100%;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:8px;\r\n    padding:14px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.6)}\r\n.t7-sw.t7-drag{will-change:transform}\r\n.t7-settings-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:3px;border:1px solid var(--t7-line);border-radius:8px;background:var(--t7-bg-in)}\r\n.t7-settings-tabs button{min-width:0;padding:7px 3px;border:0;border-radius:6px;background:transparent;color:var(--t7-mute);font-size:12px;font-weight:600;white-space:nowrap}\r\n.t7-settings-tabs button:hover{background:var(--t7-hover);color:var(--t7-fg)}\r\n.t7-settings-tabs button[aria-selected=true]{background:#ffc94d;color:#211b11}\r\n.t7-settings-tabs button:focus-visible{outline:2px solid #ffc94d;outline-offset:1px}\r\n.t7-setting-panel{display:flex;flex-direction:column;gap:8px;min-width:0}\r\n.t7-setting-panel[hidden]{display:none!important}\r\n\r\n.t7-sec{display:flex;flex-direction:column;gap:6px;padding:0 0 6px;border-bottom:1px solid rgba(255,255,255,.1);interpolate-size:allow-keywords}\r\n.t7-sec:last-of-type{padding-bottom:0;border-bottom:0}\r\n.t7-sec>summary{display:flex;align-items:center;justify-content:flex-start;gap:9px;min-height:32px;padding:0 2px;list-style:none;color:#c8c8d0;font-size:12px;font-weight:600;text-transform:none;cursor:pointer;user-select:none}\r\n.t7-sec>summary::-webkit-details-marker{display:none}\r\n.t7-sec>summary::before{content:"";flex:none;width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform 180ms ease,color 180ms ease}\r\n.t7-sec>summary:hover,.t7-sec[open]>summary{color:#fff}\r\n.t7-sec>summary:focus-visible{outline:2px solid rgba(255,201,77,.75);outline-offset:2px}\r\n.t7-sec[open]>summary::before{transform:rotate(45deg)}\r\n.t7-sec>summary~*{margin-left:15px}\r\n.t7-sec::details-content{block-size:0;overflow:clip;opacity:0;transition:block-size 220ms ease,opacity 180ms ease,content-visibility 220ms allow-discrete}\r\n.t7-sec[open]::details-content{block-size:auto;opacity:1}\r\n@media(prefers-reduced-motion:reduce){.t7-sec::details-content,.t7-sec>summary::after{transition:none}}\r\n.t7-row{display:flex;gap:6px;align-items:flex-end}\r\n.t7-wrap{flex-wrap:wrap}\r\n.t7-fl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t7-mute)}\r\n.t7-chk{display:flex;gap:8px;align-items:center;cursor:pointer}\r\n.t7-dm-nick-mode{display:flex;align-items:center;justify-content:center;gap:10px;min-height:34px}\r\n.t7-dm-nick-mode-label{color:var(--t7-mute);font-size:12px;font-weight:600;transition:color 150ms ease}\r\n.t7-dm-nick-mode:not(.is-whitelist) .t7-dm-nick-mode-label:first-child,\r\n.t7-dm-nick-mode.is-whitelist .t7-dm-nick-mode-label:last-child{color:#ffc94d}\r\n.t7-toggle-switch{position:relative;display:inline-flex;flex:none;align-items:center;gap:8px;width:auto;height:auto;cursor:pointer}\r\n.t7-toggle-switch input{position:absolute;width:1px;height:1px;opacity:0}\r\n.t7-toggle-track{position:relative;display:block;flex:none;box-sizing:border-box;width:34px;height:18px;border:1px solid var(--t7-line);border-radius:999px;background:var(--t7-bg-in);transition:background 180ms ease,border-color 180ms ease}\r\n.t7-toggle-track::after{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#aaa;content:"";transition:transform 180ms ease,background 180ms ease}\r\n.t7-toggle-switch input:checked+.t7-toggle-track{border-color:#b783ff;background:rgba(145,70,255,.35)}\r\n.t7-toggle-switch input:checked+.t7-toggle-track::after{transform:translateX(14px);background:#d7b6ff}\r\n.t7-toggle-switch input:focus-visible+.t7-toggle-track{outline:2px solid #ffc94d;outline-offset:2px}\r\n.t7-toggle-switch:has(input:disabled){cursor:not-allowed;opacity:.5}\r\n.t7-sst{min-height:1.3em;font-size:11px;color:var(--t7-mute)}\r\n.t7-note{display:flex;align-items:center;gap:8px;margin:0;padding:8px 10px;border:1px solid rgba(255,201,77,.3);border-left:3px solid #ffc94d;border-radius:4px;background:rgba(255,201,77,.08);color:#e8d6a4;font-size:12px;line-height:1.35}\r\n.t7-note-icon{display:grid;place-items:center;flex:none;width:18px;height:18px;border-radius:50%;background:rgba(255,201,77,.18);color:#ffc94d;font-size:12px;font-weight:700}\r\n\r\n.t7-sw input[type=text],.t7-sw input[type=number]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-sw textarea,.t7-sw select{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-sw textarea{resize:vertical;min-height:44px}\r\n.t7-volume{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:8px}\r\n.t7-volume input{grid-column:1/-1;width:100%;margin:2px 0}\r\n.t7-volume output,.t7-ping-status{font-size:11px;color:var(--t7-mute)}\r\n.t7-ping-status{min-height:1.3em}\r\n.t7-ping-color-control input{width:38px;height:30px;padding:2px;border:1px solid var(--t7-line);border-radius:5px;background:var(--t7-bg-in);cursor:pointer}\r\n.t7-chat-font-control{min-width:0;width:100%}\r\n.t7-chat-font-control select{box-sizing:border-box;min-width:0;max-width:100%}\r\n.t7-chat-font-size-control{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:8px}\r\n.t7-chat-font-size-control input{grid-column:1/-1;width:100%;margin:2px 0;accent-color:var(--t7-acc)}\r\n.t7-chat-font-size-control output{min-width:42px;text-align:right;font-variant-numeric:tabular-nums}\r\n.t7-chat-font-actions{min-width:0;align-items:center}\r\n.t7-chat-font-actions .t7-b{flex:1 1 130px;min-width:0;white-space:normal}\r\n.t7-chat-font-actions .t7-b:disabled{opacity:.45;cursor:default}\r\n.t7-chat-font-status{overflow-wrap:anywhere}\r\n\r\n.t7-b{padding:6px 10px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-b:hover{background:#1d1d29}\r\n.t7-b.p{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n\r\n.t7-szb{display:flex;gap:4px}\r\n.t7-szb button{min-width:34px;padding:4px 8px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-szb button[aria-pressed=true]{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n.t7-chat-tab-list{display:flex;flex-direction:column;gap:3px}\r\n.t7-chat-tab-row{display:flex;align-items:center;gap:8px;min-height:32px;padding:2px 0}\r\n.t7-chat-tab-name{flex:1;min-width:0;font-size:12px;color:var(--t7-fg)}\r\n.t7-chat-tab-visible{font-size:11px;color:var(--t7-mute);white-space:nowrap}\r\n.t7-chat-tab-move{display:inline-flex;gap:3px}\r\n.t7-chat-tab-move button{display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid var(--t7-line);border-radius:4px;background:var(--t7-bg-in);color:#ddd}\r\n.t7-chat-tab-move button:disabled{opacity:.35;cursor:default}\r\n\r\n\r\n.cy-chat-tabs:not([hidden]){\r\n    display:flex;flex-wrap:nowrap;gap:2px;width:100%;max-width:100%;min-width:0;box-sizing:border-box;\r\n    overflow-x:auto;overflow-y:hidden;scrollbar-width:none}\r\n.cy-chat-tabs::-webkit-scrollbar{display:none}\r\n.cy-chat-tabs>button[data-tab]{\r\n    flex:0 0 auto;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:3px;\r\n    padding:5px 6px;font-size:11px;line-height:1.2;white-space:nowrap;overflow:visible}\r\n.cy-chat-tabs>button .cy-chat-tn{flex:none;margin:0;min-width:1.5em;padding:1px 4px;line-height:1.3;text-align:center;overflow:visible}\r\n.cy-chat-h .t7-chat-filter{display:inline-flex;align-items:center;gap:4px;margin-left:auto;padding:3px 5px;border-radius:4px;font:11px/1.2 system-ui,sans-serif;white-space:nowrap;cursor:pointer;user-select:none}\r\n.cy-chat-h .t7-chat-filter input{width:13px;height:13px;margin:0;accent-color:#ffc94d;flex:none}\r\n.cy-chat-h .t7-chat-filter span{white-space:nowrap}\r\n.cy-chat-h .t7-ping-nav{display:inline-flex;align-items:center;gap:2px;margin-left:4px}\r\n.cy-chat-h .t7-ping-nav[hidden]{display:none!important}\r\n.cy-chat-h .t7-ping-nav button{display:grid;place-items:center;width:22px;height:22px;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:3px;background:transparent;color:inherit;font:16px/1 system-ui,sans-serif;cursor:pointer}\r\n.cy-chat-h .t7-ping-nav button:disabled{opacity:.35;cursor:default}\r\n\r\n\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn,\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{\r\n    flex:none;display:inline-block;box-sizing:border-box;min-width:18px;height:18px;margin:0 0 0 4px;padding:0 5px;\r\n    border-radius:9px;font:700 11px/18px system-ui,sans-serif;text-align:center;text-indent:0;overflow:visible}\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn{background:#e53935;color:#fff}\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{background:#ffc94d;color:#1b1b24}\r\n.cy-chat .cy-chat-n[hidden],\r\n.cy-chat .cy-chat-tn[hidden],\r\n.cy-chat .cy-chat-tp[hidden],\r\n.cy-chat .cy-chat-pn[hidden]{display:none!important}\r\n.cy-chat-l>li.t7-ping-hidden{display:none!important}\r\n.cy-chat-l[data-t7-no-pings="true"]:after{display:block;padding:12px 6px;color:#aaa;font:12px/1.4 system-ui,sans-serif;text-align:center;content:"\u041F\u0438\u043D\u0433\u043E\u0432 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442"}\r\n.cy-chat-l,.cy-chat-dmx .dm-l{font-family:var(--t7-chat-font,inherit);font-size:var(--t7-chat-font-size,14px);font-synthesis:weight style}\r\n.t7-mention{color:var(--t7-ping-color,#e89aa3);font-weight:600}\r\n.cy-chat-l>li.t7-filtered{font-style:italic}\r\n.cy-chat-l>li>.t7-filter-label{display:inline-block;margin-right:5px;padding:2px 6px;border-radius:4px;background:rgba(255,201,77,.14);color:#ffca66;font-size:13px;font-weight:700;white-space:nowrap}\r\n.cy-chat-l>li.t7-filtered>:not(.t7-filter-label){display:none!important}\r\n.mn .cy-chat-l,.mn .cy-chat-l li,.mn .cy-chat-l li *{-webkit-user-select:text!important;user-select:text!important}\r\n\r\n.cy-chat-l a.t7-link{color:#8edbff;text-decoration:underline;text-underline-offset:2px;cursor:pointer}\r\n.cy-chat-tabs>button[data-tab][hidden]{display:none!important}\r\n\r\n.cy-chat-l,\r\n.dm-l {\r\n  overflow-anchor: none;\r\n}\r\n\r\n\r\nform.cy-chat-f .t7-btn, form.dm-f .t7-btn{\r\n    flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;\r\n    box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f .t7-btn:hover, form.dm-f .t7-btn:hover{background:rgb(165,100,255)}\r\nform.dm-f{position:relative}';
+  var styles_default = '.t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}\r\n.t7-e {\r\n    display: block;\r\n    height: var(--t7-h, 1.9em);\r\n    width: calc(var(--t7-h, 1.9em) * var(--t7-r, 1));\r\n    object-fit: contain;\r\n}\r\n.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:var(--t7-h,1.9em);width:auto;pointer-events:none}\r\n.t7-e:not([data-loaded]),.t7-zw:not([data-loaded]){visibility:hidden}\r\n.t7-spoiler{padding:0 3px;border-radius:4px;background:#c7c9ce;color:transparent!important;cursor:pointer;transition:background-color .12s ease,color .12s ease}\r\n.t7-spoiler:not(.t7-spoiler-revealed) img{visibility:hidden}\r\n.t7-spoiler:not(.t7-spoiler-revealed) *{color:transparent!important;text-shadow:none!important}\r\n.t7-spoiler.t7-spoiler-revealed{padding:0;border-radius:0;background:transparent;color:inherit!important;cursor:inherit;transition:none}\r\n.t7-spoiler:focus-visible{outline:2px solid rgba(255,201,77,.75);outline-offset:2px}\r\n\r\n.t7-tip{position:fixed;z-index:2147483200;display:flex;flex-direction:column;align-items:center;width:min(210px,calc(100vw - 16px));overflow:hidden;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:#201d2b;color:#f4f1fb;box-shadow:0 5px 20px rgba(0,0,0,.55);font:14px/1.3 Arial,sans-serif;text-align:center;pointer-events:none}\r\n.t7-tip[hidden]{display:none!important}\r\n.t7-tip-preview{display:grid;place-items:center;width:100%;height:132px;background:linear-gradient(135deg,#302c3c,#171522)}\r\n.t7-tip-preview img{max-width:100%;max-height:100%;object-fit:contain}\r\n.t7-tip-preview img.t7-tip-loading{visibility:hidden}\r\n.t7-tip-info{display:flex;flex-direction:column;align-items:center;gap:7px;width:100%;padding:10px 8px 8px;overflow-wrap:anywhere}\r\n.t7-tip-name{display:flex;align-items:center;justify-content:center;gap:6px;font-size:17px;font-weight:700}\r\n.t7-tip-logo{display:inline-grid;place-items:center;width:25px;height:20px;border-radius:3px;background:#7136d8;color:#fff;font:bold 10px/1 Arial,sans-serif}\r\n.t7-tip-author{font-size:16px}\r\n.t7-tip-author span{color:#e89a00}\r\n.t7-tip-type{font-size:16px;font-weight:700}\r\n.t7-image-link{display:inline-flex;flex-direction:column;align-items:flex-start;gap:4px;max-width:100%;vertical-align:top;font-size:0;line-height:0;text-decoration:none}\r\n.t7-image-preview{display:block;width:auto;height:auto;max-width:min(100%,400px);max-height:300px;object-fit:contain;border-radius:4px}\r\n\r\n\r\nform.cy-chat-f .t7-btn{\r\n    flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;\r\n    box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f .t7-btn:hover{background:rgb(165,100,255)}\r\nform.dm-f .t7-pastes-btn{flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;font:700 11px/1 system-ui,sans-serif;white-space:nowrap;cursor:pointer}\r\nform.dm-f .t7-pastes-btn:hover{background:rgb(165,100,255)}\r\nform.cy-chat-f .t7-pastes-btn[hidden],form.dm-f .t7-pastes-btn[hidden],form.cy-chat-f .t7-images-btn[hidden],form.dm-f .t7-images-btn[hidden]{display:none!important}\r\nform.cy-chat-f{position:relative}\r\nform.cy-chat-f>.t7-ping-menu{position:absolute;left:auto;right:0;bottom:calc(100% + 5px);z-index:20;display:flex;flex-direction:column;width:min(210px,calc(100vw - 24px));max-height:132px;overflow-y:auto;padding:3px;border:1px solid rgba(255,255,255,.16);border-radius:6px;background:rgba(24,24,32,.88);box-shadow:0 5px 14px rgba(0,0,0,.28);backdrop-filter:blur(5px)}\r\nform.cy-chat-f>.t7-ping-menu[hidden]{display:none}\r\nform.cy-chat-f>.t7-ping-menu>.t7-ping-option{display:block;flex:none;width:100%;min-width:0;min-height:0;height:auto;margin:0;padding:4px 8px;border:0;border-radius:4px;background:transparent;color:#eee;text-align:left;text-transform:none;font:12px/1.25 system-ui,sans-serif;box-shadow:none}\r\nform.cy-chat-f>.t7-ping-menu>.t7-ping-option:hover,form.cy-chat-f>.t7-ping-menu>.t7-ping-option:focus-visible{background:rgba(255,255,255,.12);color:#fff;outline:none}\r\nform.cy-chat-f>.t7-emote-menu,form.dm-f>.t7-emote-menu{position:absolute;left:0;right:0;bottom:calc(100% + 5px);z-index:20;box-sizing:border-box;display:flex;align-items:center;gap:4px;width:min(620px,calc(100vw - 24px));max-width:100%;padding:5px;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:rgba(24,24,32,.94);box-shadow:0 5px 14px rgba(0,0,0,.32);backdrop-filter:blur(6px)}\r\nform.cy-chat-f>.t7-emote-menu[hidden],form.dm-f>.t7-emote-menu[hidden]{display:none}\r\n.t7-emote-strip{display:flex;flex:1;gap:4px;min-width:0;overflow:hidden}\r\n.t7-emote-nav,.t7-emote-option{flex:none;min-width:0;height:auto;margin:0;border:0;border-radius:5px;background:transparent;color:#eee;box-shadow:none;text-transform:none;cursor:pointer}\r\n.t7-emote-nav{width:24px;padding:4px;font:20px/1 system-ui,sans-serif}\r\n.t7-emote-nav:hover:not(:disabled),.t7-emote-option:hover{background:rgba(255,255,255,.14);color:#fff}\r\n.t7-emote-option:focus-visible{outline:2px solid rgba(255,201,77,.75);outline-offset:-2px}\r\n.t7-emote-option[aria-selected=true]{box-shadow:inset 0 -2px #ffc94d}\r\n.t7-emote-nav:disabled{opacity:.35;cursor:default}\r\n.t7-emote-option{display:flex;flex:1 1 62px;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:58px;min-height:56px;padding:1.5px;font:9px/1.15 system-ui,sans-serif}\r\n.t7-emote-option img{width:26px;height:26px;object-fit:contain}\r\n.t7-emote-option span{display:block;width:9ch;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;font-size:8px}\r\nform.cy-chat-f>.t7-emote-menu .t7-emote-option,form.dm-f>.t7-emote-menu .t7-emote-option{box-sizing:border-box;min-height:56px!important;height:auto!important;margin:0!important;padding:1.5px!important}\r\nform.cy-chat-f>.t7-banword-warning{position:absolute;left:0;right:0;bottom:calc(100% + 5px);z-index:21;padding:7px 9px;border:1px solid rgba(255,201,77,.38);border-left:3px solid #ffc94d;border-radius:4px;background:rgba(24,24,32,.96);color:#f2dda0;font:12px/1.35 system-ui,sans-serif;box-shadow:0 5px 14px rgba(0,0,0,.28)}\r\nform.cy-chat-f>.t7-banword-warning[hidden]{display:none}\r\n.t7-paste-overlay{position:fixed;inset:0;z-index:2147483100;display:grid;place-items:center;padding:12px;background:rgba(0,0,0,.58);font:13px/1.35 system-ui,sans-serif}\r\n.t7-paste-dialog{display:flex;flex-direction:column;gap:10px;width:min(440px,100%);max-height:min(620px,90vh);overflow-y:auto;padding:12px;border:1px solid rgba(255,255,255,.18);border-radius:8px;background:#1b1b24;color:#eee;box-shadow:0 10px 32px rgba(0,0,0,.48)}\r\n.t7-paste-header,.t7-paste-row,.t7-paste-actions{display:flex;align-items:center;gap:6px}\r\n.t7-paste-header{justify-content:space-between;font-size:15px}\r\n.t7-paste-list{display:flex;flex-direction:column;gap:4px;min-height:36px;overflow-y:auto}\r\n.t7-paste-item,.t7-paste-edit,.t7-paste-delete,.t7-paste-close,.t7-paste-primary,.t7-paste-secondary{border:1px solid rgba(255,255,255,.18);border-radius:4px;background:#101018;color:#eee;cursor:pointer}\r\n.t7-paste-item{flex:1;min-width:0;padding:7px 9px;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\r\n.t7-paste-item:hover,.t7-paste-edit:hover,.t7-paste-delete:hover,.t7-paste-close:hover,.t7-paste-secondary:hover{background:#292936}\r\n.t7-paste-edit,.t7-paste-delete,.t7-paste-close{display:grid;place-items:center;flex:none;width:30px;height:30px;padding:0}\r\n.t7-paste-edit{font-size:16px}\r\n.t7-paste-delete,.t7-paste-close{font-size:20px}\r\n.t7-paste-add,.t7-paste-primary,.t7-paste-secondary{padding:7px 10px}\r\n.t7-paste-primary{border-color:#7650c9;background:#6844b5;color:#fff}\r\n.t7-paste-primary:hover{background:#7954c5}\r\n.t7-paste-editor{display:flex;flex-direction:column;gap:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,.12)}\r\n.t7-paste-editor[hidden],.t7-paste-add[hidden],.t7-paste-list[hidden]{display:none}\r\n.t7-paste-field{display:flex;flex-direction:column;gap:4px;color:#bbb;font-size:12px}\r\n.t7-paste-field input,.t7-paste-field textarea{box-sizing:border-box;width:100%;padding:7px 8px;border:1px solid rgba(255,255,255,.2);border-radius:4px;background:#101018;color:#fff;font:13px/1.35 system-ui,sans-serif}\r\n.t7-paste-field textarea{min-height:100px;resize:vertical}\r\n.t7-paste-actions{justify-content:flex-end}\r\n.t7-paste-empty{padding:10px 4px;color:#aaa;text-align:center}\r\n.t7-image-picker{width:min(440px,100%);max-height:min(680px,92vh)}\r\n.t7-image-picker-url{display:flex;align-items:center;gap:6px}\r\n.t7-image-picker-url>a{display:grid;place-items:center;flex:none;width:34px;height:34px;border:1px solid rgba(255,255,255,.18);border-radius:5px;background:#101018;color:#eee;font-size:18px;text-decoration:none}\r\n.t7-image-picker-url>a:hover{background:#292936}\r\n.t7-image-picker-input{box-sizing:border-box;flex:1;min-width:0;padding:8px;border:1px solid rgba(255,255,255,.2);border-radius:5px;background:#101018;color:#fff;font:13px system-ui,sans-serif}\r\n.t7-image-picker-preview{display:grid;place-items:center;min-height:110px;max-height:180px;overflow:hidden;padding:8px;border:1px solid rgba(255,255,255,.1);border-radius:5px;background:#15141e;color:#aaa;font-size:12px;text-align:center}\r\n.t7-image-picker-preview img{display:block;max-width:100%;max-height:160px;object-fit:contain}\r\n.t7-image-picker-preview.t7-image-picker-error{color:#ffaaa5}\r\n.t7-image-picker-actions{display:flex;justify-content:flex-end;gap:6px}\r\n.t7-image-picker-tabs button{flex:1;padding:6px 8px;border:0;border-radius:4px;background:transparent;color:#aaa;font:12px system-ui,sans-serif;cursor:pointer}\r\n.t7-image-picker-tabs button[aria-selected=true]{background:rgba(255,255,255,.14);color:#eee}\r\n.t7-image-library{display:grid;grid-template-columns:repeat(auto-fill,minmax(112px,1fr));gap:6px;min-height:52px;max-height:190px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-image-library-item{position:relative;min-width:0}\r\n.t7-image-library-choose{display:flex;flex-direction:column;align-items:stretch;gap:4px;width:100%;height:100%;min-height:82px;padding:5px;border:1px solid rgba(255,255,255,.12);border-radius:5px;background:#101018;color:#ddd;text-align:center;cursor:pointer}\r\n.t7-image-library-choose:hover,.t7-image-library-choose:focus-visible{background:#292936}\r\n.t7-image-library-choose img{display:block;width:100%;height:54px;object-fit:contain}\r\n.t7-image-library-choose span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}\r\n.t7-image-library-favorite{position:absolute;top:3px;right:3px;display:grid;place-items:center;width:24px;height:24px;padding:0;border:1px solid rgba(255,255,255,.18);border-radius:4px;background:rgba(15,15,21,.88);color:#e5c76b;font:16px/1 system-ui,sans-serif;cursor:pointer}\r\n.t7-image-picker-empty{grid-column:1/-1;padding:16px 6px;color:#aaa;text-align:center;font-size:12px}\r\n\r\n\r\n.t7-pop,.t7-set{\r\n    --t7-bg:#1b1b24;--t7-bg-in:#0f0f15;--t7-fg:#eee;--t7-mute:#aaa;\r\n    --t7-line:rgba(255,255,255,.2);--t7-hover:rgba(255,255,255,.14);--t7-acc:#9146ff}\r\n.t7-pop *,.t7-set *{box-sizing:border-box}\r\n.t7-pop button,.t7-sw button{font:inherit;cursor:pointer}\r\n.t7-pop [hidden]{display:none!important}\r\n\r\n\r\n.t7-x,.t7-g{display:grid;place-items:center;flex:none;width:40px;height:40px;padding:0;background:none;border:0;color:#ccc;line-height:1;border-radius:6px}\r\n.t7-x{font-size:36px}\r\n.t7-g{font-size:29px}\r\n.t7-x:hover,.t7-g:hover{background:var(--t7-hover);color:#fff}\r\n\r\n\r\n.t7-pop{\r\n    position:fixed;z-index:2147483000;display:flex;flex-direction:column;gap:8px;\r\n    padding:10px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:10px;\r\n    box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.3 system-ui,sans-serif;\r\n    contain:layout paint;isolation:isolate}\r\n.t7-pop.t7-drag{will-change:transform;transition:none}\r\n.t7-pop.t7-drag .t7-gr{pointer-events:none}\r\n\r\n.t7-h,.t7-sth{display:flex;justify-content:space-between;align-items:center;\r\n    font-size:15px;cursor:grab;touch-action:none;user-select:none}\r\n.t7-h:active,.t7-sth:active{cursor:grabbing}\r\n.t7-hb{display:flex;align-items:center;gap:2px}\r\n\r\n.t7-pop input[type=search]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-views{display:flex;gap:3px;padding:2px;border:1px solid var(--t7-line);border-radius:6px;background:var(--t7-bg-in)}\r\n.t7-views button{flex:1;padding:5px 7px;border:0;border-radius:4px;background:transparent;color:var(--t7-mute);font-size:12px}\r\n.t7-views button[aria-selected=true]{background:var(--t7-hover);color:var(--t7-fg)}\r\n\r\n.t7-gr{flex:1;min-height:156px;overflow-y:auto;overscroll-behavior:contain}\r\n.t7-sh{margin:6px 0 4px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--t7-mute)}\r\n.t7-gw{display:flex;flex-wrap:wrap;gap:2px}\r\n.t7-it{display:inline-flex;align-items:center;justify-content:center;\r\n    width:var(--t7-tile,40px);height:var(--t7-tile,40px);padding:3px;border:0;border-radius:6px;background:transparent}\r\n.t7-it:hover,.t7-it:focus-visible{background:var(--t7-hover)}\r\n.t7-it img{width:100%;height:100%;object-fit:contain}\r\n.t7-item{position:relative;flex:none;width:var(--t7-tile,40px);height:var(--t7-tile,40px)}\r\n.t7-item .t7-it{width:100%;height:100%}\r\n.t7-fav{position:absolute;top:0;right:0;z-index:1;display:grid;place-items:center;width:17px;height:17px;padding:0;border:0;border-radius:4px;background:rgba(15,15,21,.82);color:#e5c76b;font:14px/1 system-ui,sans-serif;opacity:.78}\r\n.t7-fav:hover,.t7-fav:focus-visible{opacity:1;background:var(--t7-hover)}\r\n.t7-emp{padding:16px 4px;color:var(--t7-mute);text-align:center}\r\n\r\n.t7-rs{position:absolute;right:0;bottom:0;width:20px;height:20px;cursor:nwse-resize;touch-action:none;\r\n    border-radius:0 0 10px 0;\r\n    background:linear-gradient(135deg,transparent 0 55%,#888 55% 62%,transparent 62% 72%,#888 72% 79%,transparent 79%)}\r\n\r\n\r\n.t7-set{\r\n    position:fixed;inset:0;z-index:2147483200;display:flex;align-items:center;justify-content:center;\r\n    padding:12px;background:rgba(0,0,0,.5);font:13px/1.3 system-ui,sans-serif}\r\n.t7-sw{\r\n    width:380px;max-width:100%;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:8px;\r\n    padding:14px;background:var(--t7-bg);color:var(--t7-fg);\r\n    border:1px solid rgba(255,255,255,.18);border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.6)}\r\n.t7-sw.t7-drag{will-change:transform}\r\n.t7-settings-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:3px;border:1px solid var(--t7-line);border-radius:8px;background:var(--t7-bg-in)}\r\n.t7-settings-tabs button{min-width:0;padding:7px 3px;border:0;border-radius:6px;background:transparent;color:var(--t7-mute);font-size:12px;font-weight:600;white-space:nowrap}\r\n.t7-settings-tabs button:hover{background:var(--t7-hover);color:var(--t7-fg)}\r\n.t7-settings-tabs button[aria-selected=true]{background:#ffc94d;color:#211b11}\r\n.t7-settings-tabs button:focus-visible{outline:2px solid #ffc94d;outline-offset:1px}\r\n.t7-setting-panel{display:flex;flex-direction:column;gap:8px;min-width:0}\r\n.t7-setting-panel[hidden]{display:none!important}\r\n\r\n.t7-sec{display:flex;flex-direction:column;gap:6px;padding:0 0 6px;border-bottom:1px solid rgba(255,255,255,.1);interpolate-size:allow-keywords}\r\n.t7-sec:last-of-type{padding-bottom:0;border-bottom:0}\r\n.t7-sec>summary{display:flex;align-items:center;justify-content:flex-start;gap:9px;min-height:32px;padding:0 2px;list-style:none;color:#c8c8d0;font-size:12px;font-weight:600;text-transform:none;cursor:pointer;user-select:none}\r\n.t7-sec>summary::-webkit-details-marker{display:none}\r\n.t7-sec>summary::before{content:"";flex:none;width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform 180ms ease,color 180ms ease}\r\n.t7-sec>summary:hover,.t7-sec[open]>summary{color:#fff}\r\n.t7-sec>summary:focus-visible{outline:2px solid rgba(255,201,77,.75);outline-offset:2px}\r\n.t7-sec[open]>summary::before{transform:rotate(45deg)}\r\n.t7-sec>summary~*{margin-left:15px}\r\n.t7-sec::details-content{block-size:0;overflow:clip;opacity:0;transition:block-size 220ms ease,opacity 180ms ease,content-visibility 220ms allow-discrete}\r\n.t7-sec[open]::details-content{block-size:auto;opacity:1}\r\n@media(prefers-reduced-motion:reduce){.t7-sec::details-content,.t7-sec>summary::after{transition:none}}\r\n.t7-row{display:flex;gap:6px;align-items:flex-end}\r\n.t7-wrap{flex-wrap:wrap}\r\n.t7-fl{flex:1;display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--t7-mute)}\r\n.t7-chk{display:flex;gap:8px;align-items:center;cursor:pointer}\r\n.t7-dm-nick-mode{display:flex;align-items:center;justify-content:center;gap:10px;min-height:34px}\r\n.t7-dm-nick-mode-label{color:var(--t7-mute);font-size:12px;font-weight:600;transition:color 150ms ease}\r\n.t7-dm-nick-mode:not(.is-whitelist) .t7-dm-nick-mode-label:first-child,\r\n.t7-dm-nick-mode.is-whitelist .t7-dm-nick-mode-label:last-child{color:#ffc94d}\r\n.t7-toggle-switch{position:relative;display:inline-flex;flex:none;align-items:center;gap:8px;width:auto;height:auto;cursor:pointer}\r\n.t7-toggle-switch input{position:absolute;width:1px;height:1px;opacity:0}\r\n.t7-toggle-track{position:relative;display:block;flex:none;box-sizing:border-box;width:34px;height:18px;border:1px solid var(--t7-line);border-radius:999px;background:var(--t7-bg-in);transition:background 180ms ease,border-color 180ms ease}\r\n.t7-toggle-track::after{position:absolute;top:2px;left:2px;width:12px;height:12px;border-radius:50%;background:#aaa;content:"";transition:transform 180ms ease,background 180ms ease}\r\n.t7-toggle-switch input:checked+.t7-toggle-track{border-color:#b783ff;background:rgba(145,70,255,.35)}\r\n.t7-toggle-switch input:checked+.t7-toggle-track::after{transform:translateX(14px);background:#d7b6ff}\r\n.t7-toggle-switch input:focus-visible+.t7-toggle-track{outline:2px solid #ffc94d;outline-offset:2px}\r\n.t7-toggle-switch:has(input:disabled){cursor:not-allowed;opacity:.5}\r\n.t7-sst{min-height:1.3em;font-size:11px;color:var(--t7-mute)}\r\n.t7-note{display:flex;align-items:center;gap:8px;margin:0;padding:8px 10px;border:1px solid rgba(255,201,77,.3);border-left:3px solid #ffc94d;border-radius:4px;background:rgba(255,201,77,.08);color:#e8d6a4;font-size:12px;line-height:1.35}\r\n.t7-note-icon{display:grid;place-items:center;flex:none;width:18px;height:18px;border-radius:50%;background:rgba(255,201,77,.18);color:#ffc94d;font-size:12px;font-weight:700}\r\n\r\n.t7-sw input[type=text],.t7-sw input[type=number]{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-sw textarea,.t7-sw select{\r\n    width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);\r\n    background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}\r\n.t7-sw textarea{resize:vertical;min-height:44px}\r\n.t7-volume{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:8px}\r\n.t7-volume input{grid-column:1/-1;width:100%;margin:2px 0}\r\n.t7-volume output,.t7-ping-status{font-size:11px;color:var(--t7-mute)}\r\n.t7-ping-status{min-height:1.3em}\r\n.t7-ping-color-control input{width:38px;height:30px;padding:2px;border:1px solid var(--t7-line);border-radius:5px;background:var(--t7-bg-in);cursor:pointer}\r\n.t7-chat-font-control{min-width:0;width:100%}\r\n.t7-chat-font-control select{box-sizing:border-box;min-width:0;max-width:100%}\r\n.t7-chat-font-size-control{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:8px}\r\n.t7-chat-font-size-control input{grid-column:1/-1;width:100%;margin:2px 0;accent-color:var(--t7-acc)}\r\n.t7-chat-font-size-control output{min-width:42px;text-align:right;font-variant-numeric:tabular-nums}\r\n.t7-chat-font-actions{min-width:0;align-items:center}\r\n.t7-chat-font-actions .t7-b{flex:1 1 130px;min-width:0;white-space:normal}\r\n.t7-chat-font-actions .t7-b:disabled{opacity:.45;cursor:default}\r\n.t7-chat-font-status{overflow-wrap:anywhere}\r\n\r\n.t7-b{padding:6px 10px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-b:hover{background:#1d1d29}\r\n.t7-b.p{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n\r\n.t7-szb{display:flex;gap:4px}\r\n.t7-szb button{min-width:34px;padding:4px 8px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}\r\n.t7-szb button[aria-pressed=true]{background:var(--t7-acc);border-color:var(--t7-acc);color:#fff}\r\n.t7-chat-tab-list{display:flex;flex-direction:column;gap:3px}\r\n.t7-chat-tab-row{display:flex;align-items:center;gap:8px;min-height:32px;padding:2px 0}\r\n.t7-chat-tab-name{flex:1;min-width:0;font-size:12px;color:var(--t7-fg)}\r\n.t7-chat-tab-visible{font-size:11px;color:var(--t7-mute);white-space:nowrap}\r\n.t7-chat-tab-move{display:inline-flex;gap:3px}\r\n.t7-chat-tab-move button{display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid var(--t7-line);border-radius:4px;background:var(--t7-bg-in);color:#ddd}\r\n.t7-chat-tab-move button:disabled{opacity:.35;cursor:default}\r\n\r\n\r\n.cy-chat-tabs:not([hidden]){\r\n    display:flex;flex-wrap:nowrap;gap:2px;width:100%;max-width:100%;min-width:0;box-sizing:border-box;\r\n    overflow-x:auto;overflow-y:hidden;scrollbar-width:none}\r\n.cy-chat-tabs::-webkit-scrollbar{display:none}\r\n.cy-chat-tabs>button[data-tab]{\r\n    flex:0 0 auto;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:3px;\r\n    padding:5px 6px;font-size:11px;line-height:1.2;white-space:nowrap;overflow:visible}\r\n.cy-chat-tabs>button .cy-chat-tn{flex:none;margin:0;min-width:1.5em;padding:1px 4px;line-height:1.3;text-align:center;overflow:visible}\r\n.cy-chat-h .t7-chat-filter{display:inline-flex;align-items:center;gap:4px;margin-left:auto;padding:3px 5px;border-radius:4px;font:11px/1.2 system-ui,sans-serif;white-space:nowrap;cursor:pointer;user-select:none}\r\n.cy-chat-h .t7-chat-filter input{width:13px;height:13px;margin:0;accent-color:#ffc94d;flex:none}\r\n.cy-chat-h .t7-chat-filter span{white-space:nowrap}\r\n.cy-chat-h .t7-ping-nav{display:inline-flex;align-items:center;gap:2px;margin-left:4px}\r\n.cy-chat-h .t7-ping-nav[hidden]{display:none!important}\r\n.cy-chat-h .t7-ping-nav button{display:grid;place-items:center;width:22px;height:22px;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:3px;background:transparent;color:inherit;font:16px/1 system-ui,sans-serif;cursor:pointer}\r\n.cy-chat-h .t7-ping-nav button:disabled{opacity:.35;cursor:default}\r\n\r\n\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn,\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{\r\n    flex:none;display:inline-block;box-sizing:border-box;min-width:18px;height:18px;margin:0 0 0 4px;padding:0 5px;\r\n    border-radius:9px;font:700 11px/18px system-ui,sans-serif;text-align:center;text-indent:0;overflow:visible}\r\n.cy-chat .cy-chat-n,\r\n.cy-chat .cy-chat-tn{background:#e53935;color:#fff}\r\n.cy-chat .cy-chat-tp,\r\n.cy-chat .cy-chat-pn{background:#ffc94d;color:#1b1b24}\r\n.cy-chat .cy-chat-n[hidden],\r\n.cy-chat .cy-chat-tn[hidden],\r\n.cy-chat .cy-chat-tp[hidden],\r\n.cy-chat .cy-chat-pn[hidden]{display:none!important}\r\n.cy-chat-l>li.t7-ping-hidden{display:none!important}\r\n.cy-chat-l>li.t7-ping{background:rgba(255,201,77,.14);border-radius:6px;box-shadow:inset 3px 0 0 #ffc94d;padding-left:6px}\r\n.cy-chat-l[data-t7-no-pings="true"]:after{display:block;padding:12px 6px;color:#aaa;font:12px/1.4 system-ui,sans-serif;text-align:center;content:"\u041F\u0438\u043D\u0433\u043E\u0432 \u043F\u043E\u043A\u0430 \u043D\u0435\u0442"}\r\n.cy-chat-l,.dm-l{font-family:var(--t7-chat-font,inherit);font-size:var(--t7-chat-font-size,14px);font-synthesis:weight style}\r\n.t7-mention{color:var(--t7-ping-color,#e89aa3);font-weight:600}\r\n.cy-chat-l>li.t7-filtered{font-style:italic}\r\n.cy-chat-l>li>.t7-filter-label{display:inline-block;margin-right:5px;padding:2px 6px;border-radius:4px;background:rgba(255,201,77,.14);color:#ffca66;font-size:13px;font-weight:700;white-space:nowrap}\r\n.cy-chat-l>li.t7-filtered>:not(.t7-filter-label){display:none!important}\r\n.mn .cy-chat-l,.mn .cy-chat-l li,.mn .cy-chat-l li *{-webkit-user-select:text!important;user-select:text!important}\r\n\r\n.cy-chat-l a.t7-link{color:#8edbff;text-decoration:underline;text-underline-offset:2px;cursor:pointer}\r\n.cy-chat-tabs>button[data-tab][hidden]{display:none!important}\r\n.cy-chat-tabs>button[data-tab].t7-pref-hidden{display:none!important}\r\n.t7-link-warning{flex-basis:100%;color:#ffb4a8;font:12px/1.35 system-ui,sans-serif}\r\n\r\n.cy-chat-l,\r\n.dm-l {\r\n  overflow-anchor: none;\r\n}\r\n\r\n\r\nform.cy-chat-f .t7-btn, form.dm-f .t7-btn{\r\n    flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;\r\n    box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;\r\n    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;\r\n    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;\r\n    white-space:nowrap;vertical-align:middle;cursor:pointer}\r\nform.cy-chat-f .t7-btn:hover, form.dm-f .t7-btn:hover{background:rgb(165,100,255)}\r\nform.dm-f{position:relative}';
   var CACHE_TTL = 60 * 60 * 1e3;
   var SIZES = {
     s: { h: "1.25em", n: 2, p: 32, label: "S" },
@@ -134,15 +133,16 @@
     systemMessage: ".cy-chat-sys",
     eventMessage: ".cy-chat-ev"
   });
+  var extensionEvents = new EventTarget();
   var clamp = (value, min, max) => Math.max(min, Math.min(value, max));
   function emit(name, detail) {
     const event = detail === void 0 ? new Event(name) : new CustomEvent(name, { detail });
-    document.dispatchEvent(event);
+    extensionEvents.dispatchEvent(event);
     return event;
   }
   function on(name, listener, options) {
-    document.addEventListener(name, listener, options);
-    return () => document.removeEventListener(name, listener, options);
+    extensionEvents.addEventListener(name, listener, options);
+    return () => extensionEvents.removeEventListener(name, listener, options);
   }
   var S = { nick: pageChan, size: "m", on: true };
   var EM = {};
@@ -834,6 +834,7 @@
         if (emote) {
           const wrapper = document.createElement("span");
           wrapper.className = "t7-w";
+          wrapper.style.setProperty("--t7-h", SIZES[S.size].h);
           wrapper.appendChild(makeImg(part, emote, "t7-e"));
           fragment.appendChild(wrapper);
           lastWrap = wrapper;
@@ -1557,10 +1558,10 @@
       return this.keep(list, mutate);
     }
   };
-  var SAY_RE = /^\/api\/(?:chat\/say|city\/say|mine\/chat\/say|dm\/say)(?:\?|$)/;
   var LINK_ENCODING_KEY = STORE.linkEncoding;
   var IMAGE_PREVIEWS_KEY = STORE.imagePreviews;
   var previewCache = /* @__PURE__ */ new Map();
+  var outgoingBindings = /* @__PURE__ */ new WeakMap();
   var isLinkEncodingEnabled = () => store.get(LINK_ENCODING_KEY) === true;
   var setLinkEncodingEnabled = (enabled) => store.set(LINK_ENCODING_KEY, !!enabled);
   var areImagePreviewsEnabled = () => store.get(IMAGE_PREVIEWS_KEY) === true;
@@ -1602,8 +1603,8 @@
     }
   }
   function encodeOne(raw) {
+    if (/^\[ref\]\{[^{}\s]+\}$/i.test(raw)) return raw;
     let { clean: url, tail } = trimTrailingPunct(raw, {
-      stripClosingParens: true,
       stripQuotes: true,
       stripBrackets: true
     });
@@ -1725,40 +1726,59 @@
       addImagePreview(anchor);
     });
   }
-  async function sendWithLinks(call, path, body) {
-    const text = body && body.text;
-    if (typeof text !== "string") return call(path, body);
-    rememberSentImages(text);
-    if (!isLinkEncodingEnabled()) return call(path, body);
-    if (HTTP_RE.test(text)) return { ok: false, error: "\u0441\u0441\u044B\u043B\u043A\u0438 http:// \u043D\u0435 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u044E\u0442\u0441\u044F - \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439 https://" };
-    const encoded = encodeLinks(text);
-    return call(path, encoded === text ? body : { ...body, text: encoded });
-  }
-  var MENTION_RE2 = /(?<![\p{L}\p{N}_])@[a-z0-9_]{1,25}(?![\p{L}\p{N}_])/giu;
-  function processMentions({ content, kind }) {
-    if (kind !== "message") return;
-    const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
-    const nodes = [];
-    while (walker.nextNode()) nodes.push(walker.currentNode);
-    for (const node of nodes) {
-      if (node.parentElement && node.parentElement.closest("a")) continue;
-      const text = node.nodeValue;
-      const matches = [...text.matchAll(MENTION_RE2)];
-      if (!matches.length) continue;
-      const fragment = document.createDocumentFragment();
-      let offset = 0;
-      for (const match of matches) {
-        const start = match.index;
-        if (start > offset) fragment.appendChild(document.createTextNode(text.slice(offset, start)));
-        const mention = document.createElement("span");
-        mention.className = "t7-mention";
-        mention.textContent = match[0];
-        fragment.appendChild(mention);
-        offset = start + match[0].length;
-      }
-      if (offset < text.length) fragment.appendChild(document.createTextNode(text.slice(offset)));
-      node.replaceWith(fragment);
+  function showLinkWarning(form, message) {
+    let warning = form.querySelector(":scope > .t7-link-warning");
+    if (!warning) {
+      warning = document.createElement("div");
+      warning.className = "t7-link-warning";
+      warning.setAttribute("role", "alert");
+      form.appendChild(warning);
     }
+    warning.textContent = message;
+    warning.hidden = false;
+  }
+  function isExcludedChatSend(form, input) {
+    const activeTab = form.closest(".cy-chat")?.querySelector('[data-tab][aria-selected="true"]');
+    const tab = activeTab?.dataset.tab;
+    return tab === "gl" || tab === "lg" || tab === "g" && input.value.trim().startsWith("/");
+  }
+  function bindOutgoingLinkEncoding(form, input) {
+    if (outgoingBindings.has(form)) return outgoingBindings.get(form);
+    const prepare = (event) => {
+      if (isExcludedChatSend(form, input)) return;
+      if (!isLinkEncodingEnabled()) {
+        rememberSentImages(input.value);
+        return;
+      }
+      const text = input.value;
+      if (HTTP_RE.test(text)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        showLinkWarning(form, "\u0421\u0441\u044B\u043B\u043A\u0438 http:// \u043D\u0435 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u044E\u0442\u0441\u044F \u2014 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439 https://");
+        return;
+      }
+      rememberSentImages(text);
+      const encoded = encodeLinks(text);
+      if (encoded === text) return;
+      input.value = encoded;
+      queueMicrotask(() => {
+        if (input.isConnected && input.value === encoded) input.value = text;
+      });
+    };
+    const onKeyDown = (event) => {
+      if (event.key !== "Enter" || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey || event.isComposing || event.keyCode === 229) return;
+      prepare(event);
+    };
+    const onSubmit = (event) => prepare(event);
+    input.addEventListener("keydown", onKeyDown, true);
+    form.addEventListener("submit", onSubmit, true);
+    const dispose = () => {
+      input.removeEventListener("keydown", onKeyDown, true);
+      form.removeEventListener("submit", onSubmit, true);
+      outgoingBindings.delete(form);
+    };
+    outgoingBindings.set(form, dispose);
+    return dispose;
   }
   var CONFIG_KEY = STORE.pingConfig;
   var PRESETS = /* @__PURE__ */ new Set(["bell", "chime", "pop", "custom"]);
@@ -1879,10 +1899,14 @@
       if (!/^#[0-9a-f]{6}$/i.test(color)) return;
       this.config.pingColor = color.toLowerCase();
       this.save();
-      document.documentElement?.style.setProperty("--t7-ping-color", this.config.pingColor);
+      document.querySelectorAll(".t7-mention").forEach((mention) => {
+        mention.style.color = this.config.pingColor;
+      });
     }
     applyPingColor() {
-      document.documentElement?.style.setProperty("--t7-ping-color", this.config.pingColor);
+      document.querySelectorAll(".t7-mention").forEach((mention) => {
+        mention.style.color = this.config.pingColor;
+      });
     }
     setPreset(value) {
       if (!PRESETS.has(value) || value === "custom" && !this.config.customSound) return;
@@ -2058,6 +2082,33 @@
     }
   };
   var pingSystem = new PingSystem();
+  var MENTION_RE2 = /(?<![\p{L}\p{N}_])@[a-z0-9_]{1,25}(?![\p{L}\p{N}_])/giu;
+  function processMentions({ content, kind }) {
+    if (kind !== "message") return;
+    const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+    for (const node of nodes) {
+      if (node.parentElement && node.parentElement.closest("a")) continue;
+      const text = node.nodeValue;
+      const matches = [...text.matchAll(MENTION_RE2)];
+      if (!matches.length) continue;
+      const fragment = document.createDocumentFragment();
+      let offset = 0;
+      for (const match of matches) {
+        const start = match.index;
+        if (start > offset) fragment.appendChild(document.createTextNode(text.slice(offset, start)));
+        const mention = document.createElement("span");
+        mention.className = "t7-mention";
+        mention.style.color = pingSystem.config.pingColor;
+        mention.textContent = match[0];
+        fragment.appendChild(mention);
+        offset = start + match[0].length;
+      }
+      if (offset < text.length) fragment.appendChild(document.createTextNode(text.slice(offset)));
+      node.replaceWith(fragment);
+    }
+  }
   var processors = [];
   var SOURCE_KEY = "l7tvEmoteSource";
   function registerChatProcessor(processor) {
@@ -2127,18 +2178,20 @@
     scan();
   }
   var applySize = () => {
-    const root = document.documentElement;
-    root.style.setProperty("--t7-h", SIZES[S.size].h);
-    document.documentElement.style.setProperty("--t7-tile", SIZES[S.size].p + "px");
+    document.querySelectorAll(".t7-w").forEach((wrapper) => {
+      wrapper.style.setProperty("--t7-h", SIZES[S.size].h);
+    });
+    document.querySelectorAll(".t7-pop").forEach((popup) => {
+      popup.style.setProperty("--t7-tile", SIZES[S.size].p + "px");
+    });
   };
-  var GOOGLE_FONTS_ID = "t7-chat-google-fonts";
-  var GOOGLE_FONTS_URL = "https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400;1,700&family=Montserrat:ital,wght@0,400;0,700;1,400;1,700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400;1,600;1,700;1,800&family=Open+Sans:ital,wght@0,400;0,600;0,700;0,800;1,400;1,600;1,700;1,800&family=Roboto:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&display=swap";
   var CUSTOM_FAMILY = "T7UploadedChatFont";
   var FONT_MIME = { woff2: "font/woff2", woff: "font/woff", ttf: "font/ttf", otf: "font/otf" };
   var FONT_CHOICES = /* @__PURE__ */ new Set(["site", "nunito", "open-sans", "roboto", "lato", "montserrat", "custom"]);
   var MAX_FONT_SIZE = 2 * 1024 * 1024;
   var DEFAULT_CHAT_FONT_SIZE = 14;
   var customFace = null;
+  var listObserver = null;
   function getChatFont() {
     const value = store.get(STORE.chatFont);
     return FONT_CHOICES.has(value) ? value : "site";
@@ -2156,20 +2209,41 @@
     if (!Number.isFinite(size)) return DEFAULT_CHAT_FONT_SIZE;
     const normalized = Math.max(11, Math.min(22, Math.round(size)));
     store.set(STORE.chatFontSize, normalized);
-    document.documentElement.style.setProperty("--t7-chat-font-size", normalized + "px");
+    applyFontSettings();
     return normalized;
   }
   function setFamily(value) {
-    if (value) document.documentElement.style.setProperty("--t7-chat-font", value);
-    else document.documentElement.style.removeProperty("--t7-chat-font");
+    document.querySelectorAll(".cy-chat-l, .dm-l").forEach((list) => {
+      if (value) list.style.setProperty("--t7-chat-font", value);
+      else list.style.removeProperty("--t7-chat-font");
+    });
   }
-  function ensureGoogleFonts() {
-    if (document.getElementById(GOOGLE_FONTS_ID)) return;
-    const link = document.createElement("link");
-    link.id = GOOGLE_FONTS_ID;
-    link.rel = "stylesheet";
-    link.href = GOOGLE_FONTS_URL;
-    document.head.appendChild(link);
+  function applyFontSettings(root = document) {
+    const family = selectedFamily();
+    const size = getChatFontSize() + "px";
+    const lists = [];
+    if (root instanceof Element && root.matches(".cy-chat-l, .dm-l")) lists.push(root);
+    if (root.querySelectorAll) lists.push(...root.querySelectorAll(".cy-chat-l, .dm-l"));
+    for (const list of lists) {
+      if (family) list.style.setProperty("--t7-chat-font", family);
+      else list.style.removeProperty("--t7-chat-font");
+      list.style.setProperty("--t7-chat-font-size", size);
+    }
+  }
+  function selectedFamily() {
+    const choice = getChatFont();
+    return choice === "nunito" ? "Nunito, sans-serif" : choice === "open-sans" ? '"Open Sans", sans-serif' : choice === "roboto" ? "Roboto, sans-serif" : choice === "lato" ? "Lato, sans-serif" : choice === "montserrat" ? "Montserrat, sans-serif" : choice === "custom" && customFace ? `"${CUSTOM_FAMILY}", sans-serif` : "";
+  }
+  function observeChatLists() {
+    if (listObserver || !document.body) return;
+    listObserver = new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) applyFontSettings(node);
+        }
+      }
+    });
+    listObserver.observe(document.body, { childList: true, subtree: true });
   }
   async function loadCustomFont(font) {
     if (!font || !font.source || typeof FontFace !== "function") return false;
@@ -2183,18 +2257,22 @@
   }
   async function applyChatFont() {
     const choice = getChatFont();
-    document.documentElement.style.setProperty("--t7-chat-font-size", getChatFontSize() + "px");
-    if (choice !== "site" && choice !== "custom") ensureGoogleFonts();
+    observeChatLists();
     if (choice === "custom") {
       try {
-        if (await loadCustomFont(getCustomChatFont())) return true;
+        if (await loadCustomFont(getCustomChatFont())) {
+          applyFontSettings();
+          return true;
+        }
       } catch (error) {
         console.warn("[7TV] \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0448\u0440\u0438\u0444\u0442 \u0447\u0430\u0442\u0430", error);
       }
       setFamily(null);
+      applyFontSettings();
       return false;
     }
-    setFamily(choice === "nunito" ? "Nunito, sans-serif" : choice === "open-sans" ? '"Open Sans", sans-serif' : choice === "roboto" ? "Roboto, sans-serif" : choice === "lato" ? "Lato, sans-serif" : choice === "montserrat" ? "Montserrat, sans-serif" : null);
+    setFamily(selectedFamily());
+    applyFontSettings();
     return true;
   }
   async function setChatFont(choice) {
@@ -2534,7 +2612,7 @@
       if (e.target.closest("button") || e.button !== 0 || !e.isPrimary) return;
       const r = win.getBoundingClientRect();
       const sx = e.clientX, sy = e.clientY, pid = e.pointerId, ox = SOFF.x, oy = SOFF.y;
-      let started3 = false, nx = ox, ny = oy, raf = 0;
+      let started4 = false, nx = ox, ny = oy, raf = 0;
       const apply = () => {
         raf = 0;
         SOFF = { x: nx, y: ny };
@@ -2546,9 +2624,9 @@
           up();
           return;
         }
-        if (!started3) {
+        if (!started4) {
           if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 4) return;
-          started3 = true;
+          started4 = true;
           win.classList.add("t7-drag");
           try {
             hd.setPointerCapture(pid);
@@ -2565,7 +2643,7 @@
         removeEventListener("pointercancel", up);
         removeEventListener("blur", up);
         if (raf) cancelAnimationFrame(raf);
-        if (!started3) return;
+        if (!started4) return;
         win.classList.remove("t7-drag");
         SOFF = { x: nx, y: ny };
         put();
@@ -3412,13 +3490,13 @@
       if (e.target.closest("button") || e.button !== 0 || !e.isPrimary) return;
       const r = pop.getBoundingClientRect();
       const sx = e.clientX, sy = e.clientY, pid = e.pointerId;
-      let started3 = false, nx = r.left, ny = r.top, raf = 0;
+      let started4 = false, nx = r.left, ny = r.top, raf = 0;
       const apply = () => {
         raf = 0;
         pop.style.transform = `translate(${nx - r.left}px, ${ny - r.top}px)`;
       };
       const start = () => {
-        started3 = true;
+        started4 = true;
         pop.style.left = r.left + "px";
         pop.style.top = r.top + "px";
         pop.style.bottom = "auto";
@@ -3435,7 +3513,7 @@
           up();
           return;
         }
-        if (!started3) {
+        if (!started4) {
           if (Math.abs(ev.clientX - sx) + Math.abs(ev.clientY - sy) < 4) return;
           start();
         }
@@ -3449,7 +3527,7 @@
         removeEventListener("pointercancel", up);
         removeEventListener("blur", up);
         if (raf) cancelAnimationFrame(raf);
-        if (!started3 || st.pop !== pop) return;
+        if (!started4 || st.pop !== pop) return;
         pop.classList.remove("t7-drag");
         st.pos = { x: nx, y: ny };
         store.set(STORE.popupPosition, st.pos);
@@ -3529,6 +3607,7 @@
     const pop = document.createElement("div");
     st.pop = pop;
     pop.className = "t7-pop";
+    pop.style.setProperty("--t7-tile", SIZES[S.size].p + "px");
     pop.setAttribute("role", "dialog");
     pop.setAttribute("aria-label", "\u042D\u043C\u043E\u0443\u0442\u044B 7TV");
     const header = document.createElement("div");
@@ -3627,6 +3706,7 @@
   }
   var bindings = /* @__PURE__ */ new WeakMap();
   var emoteBindings = /* @__PURE__ */ new WeakMap();
+  var linkBindings = /* @__PURE__ */ new WeakMap();
   function normalizeBanword(value) {
     return String(value || "").normalize("NFKC").toLowerCase().replace(/\s+/gu, " ").trim();
   }
@@ -4040,6 +4120,7 @@
   function disposeForm(form) {
     const dispose = bindings.get(form);
     const disposeEmotes = emoteBindings.get(form);
+    const disposeLinks = linkBindings.get(form);
     if (dispose && st.anchor && form.contains(st.anchor)) closePop();
     disposeImagePicker(form);
     if (dispose) {
@@ -4049,6 +4130,10 @@
     if (disposeEmotes) {
       disposeEmotes();
       emoteBindings.delete(form);
+    }
+    if (disposeLinks) {
+      disposeLinks();
+      linkBindings.delete(form);
     }
   }
   function disposeInputBindings(node) {
@@ -4066,6 +4151,8 @@
         bindings.set(form, form.matches(SEL.chatForm) ? bindChatForm(form, input) : () => {
         });
       }
+      if (input && !linkBindings.has(form))
+        linkBindings.set(form, bindOutgoingLinkEncoding(form, input));
       const submit = form.querySelector(SEL.submitButton);
       let button = form.querySelector(".t7-btn");
       if (!button) {
@@ -4162,423 +4249,301 @@
       observer.disconnect();
     };
   }
-  var chats = /* @__PURE__ */ new Set();
-  function setupTabs(K) {
-    const S2 = K.state();
-    if (!S2 || !S2.chat || !S2.el) return;
-    const C = S2.chat;
-    const tabs = S2.el.querySelector(SEL.chatTabs);
-    if (!tabs) return;
-    chats.add(K);
+  var observers = /* @__PURE__ */ new WeakMap();
+  var failedFallbacks = /* @__PURE__ */ new WeakMap();
+  var documentObserver = null;
+  function applyTabs(tabs) {
+    if (!tabs.isConnected) return;
     const prefs = getChatTabPrefs();
-    for (const id of prefs.order) {
-      const button = tabs.querySelector(`[data-tab="${id}"]`);
-      if (!button) continue;
-      button.hidden = prefs.hidden.has(id) || !C[id];
-      tabs.appendChild(button);
+    const buttons = [...tabs.querySelectorAll(":scope > [data-tab]")];
+    if (!buttons.length) return;
+    const byId = new Map(buttons.map((button) => [button.dataset.tab, button]));
+    const ordered = [
+      ...prefs.order.map((id) => byId.get(id)).filter(Boolean),
+      ...buttons.filter((button) => !prefs.order.includes(button.dataset.tab))
+    ];
+    if (ordered.some((button, index) => buttons[index] !== button))
+      ordered.forEach((button) => tabs.appendChild(button));
+    for (const button of ordered) {
+      const hidden = prefs.hidden.has(button.dataset.tab);
+      button.classList.toggle("t7-pref-hidden", hidden);
     }
-    tabs.querySelectorAll("[data-tab]").forEach((button) => {
-      if (button._t7h) return;
-      button._t7h = 1;
-      new MutationObserver(() => {
-        const hidden = getChatTabPrefs().hidden.has(button.dataset.tab) || !C[button.dataset.tab];
-        if (hidden !== button.hidden) button.hidden = hidden;
-      }).observe(button, { attributes: true, attributeFilter: ["hidden"] });
+    const active = ordered.find((button) => button.getAttribute("aria-selected") === "true");
+    if (!active || !prefs.hidden.has(active.dataset.tab)) {
+      failedFallbacks.delete(tabs);
+      return;
+    }
+    const fallback = ordered.find((button) => !prefs.hidden.has(button.dataset.tab) && !button.hidden && !button.disabled);
+    if (!fallback || failedFallbacks.get(tabs) === active.dataset.tab) return;
+    failedFallbacks.set(tabs, active.dataset.tab);
+    fallback.click();
+  }
+  function observeTabs(tabs) {
+    if (observers.has(tabs)) return;
+    const observer = new MutationObserver(() => applyTabs(tabs));
+    observer.observe(tabs, {
+      attributes: true,
+      attributeFilter: ["aria-selected", "hidden"],
+      childList: true
     });
-    if (prefs.hidden.has(C.tab) || !C[C.tab]) {
-      const fallback = prefs.order.find((id) => {
-        const button = tabs.querySelector(`[data-tab="${id}"]`);
-        return !prefs.hidden.has(id) && C[id] && button;
+    observers.set(tabs, observer);
+    applyTabs(tabs);
+  }
+  function setupTabs(root = document) {
+    root.querySelectorAll(SEL.chatTabs).forEach(observeTabs);
+    if (!documentObserver && document.documentElement) {
+      documentObserver = new MutationObserver((records) => {
+        for (const record of records) {
+          for (const node of record.addedNodes) {
+            if (node.nodeType !== Node.ELEMENT_NODE) continue;
+            if (node.matches(SEL.chatTabs)) observeTabs(node);
+            node.querySelectorAll(SEL.chatTabs).forEach(observeTabs);
+          }
+        }
       });
-      if (fallback) selectTab(K, fallback);
+      documentObserver.observe(document.documentElement, { childList: true, subtree: true });
     }
-    if (!tabs._t7) {
-      tabs._t7 = 1;
-      new MutationObserver(() => {
-        const chat = K.state() && K.state().chat;
-        if (tabs.hidden && chat && !chat.panel) tabs.hidden = false;
-      }).observe(tabs, { attributes: true, attributeFilter: ["hidden"] });
-    }
-    if (!C.panel) tabs.hidden = false;
   }
-  on(EV.chatTabsChange, () => {
-    for (const K of chats) setupTabs(K);
-  });
-  function selectTab(K, id) {
-    const S2 = K.state();
-    const button = S2 && S2.el && S2.el.querySelector(`${SEL.chatTabs} [data-tab="${id}"]`);
-    if (button) button.click();
-  }
-  function wrapDm(v) {
-    if (!v || v.__t7 || typeof v.init !== "function") return v;
-    const init = v.init;
-    let lastContext = "";
-    const dmSoundSeen = /* @__PURE__ */ new Set();
-    let lastSig = "";
-    let lastParent = null;
-    const wrapped = {
-      ...v,
-      place() {
-        try {
-          const list = document.querySelector(".dm-l");
-          const dm = list && list.closest(".dm");
-          if (dm && dm.isConnected && dm.getClientRects().length) {
-            const active = v.active();
-            const conv = v.conv(active) || [];
-            const last = conv[conv.length - 1];
-            const sig = [
-              active,
-              v.tabs().join(","),
-              v.unread(),
-              conv.length,
-              last && last.id
-            ].join("|");
-            if (sig === lastSig && dm.parentNode === lastParent) return;
-            lastSig = sig;
-            lastParent = dm.parentNode;
-          }
-        } catch (e) {
-          return v.place.apply(this, arguments);
-        }
-        return v.place.apply(this, arguments);
-      },
-      onEvent(d) {
-        try {
-          const message = d && d.m;
-          if (message && message.id != null) {
-            const id = String(message.id);
-            if (!dmSoundSeen.has(id)) {
-              dmSoundSeen.add(id);
-              if (dmSoundSeen.size > 500) {
-                dmSoundSeen.delete(dmSoundSeen.values().next().value);
-              }
-              const fresh = !Number.isFinite(message.at) || Date.now() - message.at < 5 * 60 * 1e3;
-              if (fresh && pingSystem.shouldNotifyDm(message.fl)) {
-                pingSystem.playDm().catch((error) => console.warn("[7TV] \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0437\u0432\u0443\u043A \u041B\u0421", error));
-              }
-            }
-          }
-        } catch (error) {
-          console.warn("[7TV] \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0437\u0432\u0443\u043A \u041B\u0421", error);
-        }
-        if (typeof v.onEvent === "function") return v.onEvent.apply(this, arguments);
-      },
-      init(ctx) {
-        let context = "";
-        try {
-          const user = String(ctx && ctx.me && ctx.me() || "").toLowerCase();
-          context = `${user}|${String(ctx && ctx.ch || "").toLowerCase()}`;
-          pingSystem.setDmUser(user);
-        } catch (e) {
-        }
-        const list = context && context === lastContext ? document.querySelector(".dm-l") : null;
-        let dmContext = ctx;
-        if (ctx && typeof ctx.api === "function") {
-          const api = ctx.api.bind(ctx);
-          dmContext = new Proxy(ctx, {
-            get(target, key) {
-              if (key === "api") {
-                return (path, body) => SAY_RE.test(path) ? sendWithLinks(api, path, body) : api(path, body);
-              }
-              const value = Reflect.get(target, key, target);
-              return typeof value === "function" ? value.bind(target) : value;
-            }
-          });
-        }
-        const args = [...arguments];
-        args[0] = dmContext;
-        let result;
-        if (list && list.isConnected) {
-          result = chatScroller.reinitialize(list, () => init.apply(this, args));
-        } else {
-          result = init.apply(this, args);
-        }
-        lastContext = context;
-        return result;
-      },
-      open(login, options) {
-        return v.open.apply(this, arguments);
-      },
-      setActive(login) {
-        return v.setActive.apply(this, arguments);
-      }
-    };
-    wrapped.__t7 = 1;
-    return wrapped;
-  }
+  on(EV.chatTabsChange, () => setupTabs());
   var PING_ONLY_KEY = STORE.pingOnly;
   var PING_ARCHIVE_KEY = STORE.pingArchive;
   var PING_ARCHIVE_LIMIT = 500;
   var PING_PAGE_SIZE = 50;
-  var pingOnly = store.get(PING_ONLY_KEY) === true;
-  var storedPingArchive = store.get(PING_ARCHIVE_KEY) || {};
-  var cityPingArchive = Array.isArray(storedPingArchive.city) ? storedPingArchive.city.filter((m) => m && m.id != null) : [];
-  var minePingArchive = Array.isArray(storedPingArchive.mine) ? storedPingArchive.mine.filter((m) => m && m.id != null) : [];
-  var unifiedPingArchive = Array.isArray(storedPingArchive.one) ? storedPingArchive.one.filter((m) => m && m.id != null) : [];
   var ROOM_IDS = ["city", "mine", "one"];
-  var createRoomState = (archive = []) => ({
-    instance: null,
-    pings: {},
-    archive,
-    archiveIds: new Set(archive.map((m) => String(m.id))),
-    archivePage: 0,
-    injectedPings: /* @__PURE__ */ new Set(),
-    filterObserver: null,
-    filterList: null
-  });
-  var rooms = {
-    city: createRoomState(cityPingArchive),
-    mine: createRoomState(minePingArchive),
-    one: createRoomState(unifiedPingArchive)
-  };
-  var pingArchiveSaveTimer = 0;
-  var hasUnifiedChat = () => !!rooms.one.instance;
-  function setChatInstance(room, instance) {
-    rooms[room].instance = instance;
+  var states2 = /* @__PURE__ */ new Set();
+  var stateByBox = /* @__PURE__ */ new WeakMap();
+  var pingOnly = store.get(PING_ONLY_KEY) === true;
+  var saveTimer = 0;
+  var documentObserver2 = null;
+  var storedArchive = readArchive();
+  function readArchive() {
+    const saved = store.get(PING_ARCHIVE_KEY);
+    const archive = Object.fromEntries(ROOM_IDS.map((room) => [room, []]));
+    for (const room of ROOM_IDS) {
+      const values = saved && Array.isArray(saved[room]) ? saved[room] : [];
+      for (const message of values) {
+        if (!message || message.id == null) continue;
+        const text = typeof message.text === "string" ? message.text : String(message.t || "");
+        const login = String(message.login || message.l || "");
+        const name = String(message.name || message.n || login);
+        const tab = String(message.tab || message.tb || inferTab(message));
+        archive[room].push({
+          id: String(message.id),
+          login,
+          name,
+          text,
+          tab,
+          at: Number(message.at) || 0
+        });
+      }
+    }
+    return archive;
   }
-  function resetPingCounts(room) {
-    rooms[room].pings = {};
+  function inferTab(message) {
+    if (message.rm === "mine") return "mn";
+    if (message.k === "tr") return "tr";
+    if (message.k === "dm") return "dm";
+    return "g";
   }
-  function clearInjectedPings(room) {
-    rooms[room].injectedPings.clear();
-  }
-  function removePingArchiveMessages(room, ids) {
-    const state = rooms[room];
-    const deleted = new Set(ids);
-    const kept = state.archive.filter((message) => !deleted.has(String(message.id)));
-    if (kept.length === state.archive.length) return false;
-    state.archive = kept;
-    state.archiveIds = new Set(kept.map((message) => String(message.id)));
-    schedulePingArchiveSave();
-    return true;
-  }
-  pingSystem.subscribe(() => {
-    for (const room of Object.values(rooms)) if (room.instance) room.instance.raw.render();
-  });
-  function schedulePingArchiveSave() {
-    clearTimeout(pingArchiveSaveTimer);
-    pingArchiveSaveTimer = setTimeout(() => {
-      pingArchiveSaveTimer = 0;
-      store.set(PING_ARCHIVE_KEY, Object.fromEntries(ROOM_IDS.map((room) => [room, rooms[room].archive])));
+  function saveArchiveSoon() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      saveTimer = 0;
+      store.set(PING_ARCHIVE_KEY, storedArchive);
     }, 500);
   }
-  function chatOf(room) {
-    const i = rooms[room].instance;
-    const S2 = i && i.K.state();
-    return S2 && S2.chat ? { S: S2, C: S2.chat } : null;
+  function getRoom(box, row) {
+    if (box.closest(".co-host, .co-float")) return "one";
+    if (row.dataset.rm === "mine" || box.closest(".mn")) return "mine";
+    if (row.dataset.rm === "city") return "city";
+    return "city";
   }
-  function tabOfMsg(C, m) {
-    return m.tb || (m.rm === "mine" ? "mn" : m.ev ? C.tr ? "ev" : "g" : m.k === "tr" ? "tr" : m.k === "dm" ? "dm" : "g");
+  function getTab(box, row) {
+    if (row.dataset.rm === "mine") return "mn";
+    const selected = box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`);
+    return selected && selected.dataset.tab || "g";
   }
-  function isPingMessage(room, m, me) {
-    const o = chatOf(room);
-    if (!m || m.id == null || String(m.l || "").toLowerCase() === me || m.ev || m.sys) return false;
-    if (o && o.C.ign && o.C.ign.has(m.l)) return false;
-    if (pingSystem.shouldIgnore(m.l, m.t)) return false;
-    return pingSystem.isPinged(m.t, me ? [me] : []);
+  function getMessage(row) {
+    if (row.matches(`${SEL.emptyMessage}, ${SEL.systemMessage}, ${SEL.eventMessage}`) || row.classList.contains("t7-archive-row")) return null;
+    const nick = row.querySelector(":scope > b[data-nick]");
+    const content = row.querySelector(":scope > span:not([class])");
+    const login = nick && String(nick.dataset.nick || "").trim();
+    const text = content ? content.textContent : "";
+    if (!login || !text) return null;
+    return { login, name: nick.textContent.trim() || login, text };
   }
-  function rememberPingMessages(room, msgs) {
-    const roomState = rooms[room];
-    const fallbackRoom = room === "mine" ? "city" : "mine";
-    const i = roomState.instance || rooms[fallbackRoom].instance;
-    const x = i && i.K.X();
-    const me = String(x && x.login && x.login() || "").toLowerCase();
-    const items = roomState.archive;
-    const ids = roomState.archiveIds;
-    let changed = false;
-    for (const m of msgs || []) {
-      if (!isPingMessage(room, m, me)) continue;
-      const id = String(m.id);
-      if (ids.has(id)) continue;
-      items.push(m);
-      ids.add(id);
-      changed = true;
+  function archiveMessage(room, tab, row, message) {
+    if (!row.dataset.mid) return;
+    const id = `${room}:${row.dataset.mid}`;
+    if (storedArchive[room].some((item) => `${room}:${item.id}` === id)) return;
+    storedArchive[room].push({
+      id: row.dataset.mid,
+      login: message.login,
+      name: message.name,
+      text: message.text,
+      tab,
+      at: Date.now()
+    });
+    storedArchive[room].sort((a, b) => a.at - b.at);
+    if (storedArchive[room].length > PING_ARCHIVE_LIMIT)
+      storedArchive[room].splice(0, storedArchive[room].length - PING_ARCHIVE_LIMIT);
+    saveArchiveSoon();
+  }
+  function addFilterLabel(row, label) {
+    let tag = row.querySelector(":scope > .t7-filter-label");
+    if (!label) {
+      if (tag) tag.remove();
+      return;
     }
-    if (!changed) return;
-    items.sort((a, b) => (a.at || 0) - (b.at || 0));
-    while (items.length > PING_ARCHIVE_LIMIT) ids.delete(String(items.shift().id));
-    schedulePingArchiveSave();
-  }
-  function stripArchivedPings(room) {
-    const o = chatOf(room);
-    const injected = rooms[room].injectedPings;
-    if (o && o.C.list && injected.size) {
-      const list = o.C.list.filter((m) => !injected.has(String(m.id)));
-      o.C.list.splice(0, o.C.list.length, ...list);
+    if (!tag) {
+      tag = document.createElement("i");
+      tag.className = "t7-filter-label";
+      row.prepend(tag);
     }
-    injected.clear();
+    const text = label === "\u0412 \u0427\u0421" ? `\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C ${row.querySelector(":scope > b[data-nick]")?.textContent || ""} \u0432 \u0447\u0451\u0440\u043D\u043E\u043C \u0441\u043F\u0438\u0441\u043A\u0435` : "\u0421\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435 \u0441\u043A\u0440\u044B\u0442\u043E \u0444\u0438\u043B\u044C\u0442\u0440\u043E\u043C";
+    if (tag.textContent !== text) tag.textContent = text;
+    tag.title = label === "\u0412 \u0427\u0421" ? "\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u0435\u043B\u044C \u0432 \u0432\u0430\u0448\u0435\u043C \u0447\u0435\u0440\u043D\u043E\u043C \u0441\u043F\u0438\u0441\u043A\u0435" : "\u0412 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0438 \u043D\u0430\u0439\u0434\u0435\u043D\u043E \u0441\u043B\u043E\u0432\u043E \u0438\u043B\u0438 \u0444\u0440\u0430\u0437\u0430 \u0438\u0437 \u0444\u0438\u043B\u044C\u0442\u0440\u0430";
   }
-  function archivePage(room, C) {
-    const roomState = rooms[room];
-    const messages = roomState.archive.filter((m) => tabOfMsg(C, m) === C.tab);
-    const pageCount = Math.max(1, Math.ceil(messages.length / PING_PAGE_SIZE));
-    roomState.archivePage = Math.min(roomState.archivePage, pageCount - 1);
-    const end = messages.length - roomState.archivePage * PING_PAGE_SIZE;
-    return messages.slice(Math.max(0, end - PING_PAGE_SIZE), end);
-  }
-  function syncPingArchive(room) {
-    const o = chatOf(room);
-    if (!o || !o.C.list) return false;
-    const injected = rooms[room].injectedPings;
-    const wanted = pingOnly ? archivePage(room, o.C) : [];
-    const wantedIds = new Set(wanted.map((m) => String(m.id)));
-    const presentIds = new Set(o.C.list.map((m) => String(m.id)));
-    let changed = false;
-    for (const id of injected) {
-      if (wantedIds.has(id) && presentIds.has(id)) continue;
-      const index = o.C.list.findIndex((m) => String(m.id) === id);
-      if (index >= 0) {
-        o.C.list.splice(index, 1);
-        changed = true;
-      }
-      injected.delete(id);
-    }
-    for (const message of wanted) {
-      const id = String(message.id);
-      if (presentIds.has(id)) continue;
-      o.C.list.push(message);
-      injected.add(id);
-      presentIds.add(id);
-      changed = true;
-    }
-    if (changed) o.C.list.sort((a, b) => (a.at || 0) - (b.at || 0));
-    return changed;
-  }
-  function refreshPingArchive(room) {
-    const i = rooms[room].instance;
-    if (!i) return;
-    const o = chatOf(room);
-    const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
-    const update = () => {
-      if (syncPingArchive(room)) i.raw.render();
-      markFilteredMessages(room);
-      applyPingOnly(room);
-    };
-    if (list) chatScroller.keep(list, update);
-    else update();
-    updatePingArchiveControl(room);
-  }
-  function countPings(room, msgs) {
-    const o = chatOf(room);
-    if (!o) return;
-    rememberPingMessages(room, msgs);
-    const x = rooms[room].instance.K.X();
-    const me = String(x && x.login && x.login() || "").toLowerCase();
-    const pg = rooms[room].pings;
-    let hit = false;
-    for (const m of msgs || []) {
-      if (!m || String(m.l || "").toLowerCase() === me || m.ev || m.sys) continue;
-      if (o.C.ign && o.C.ign.has(m.l)) continue;
-      if (pingSystem.shouldIgnore(m.l, m.t)) continue;
-      if (!pingSystem.isPinged(m.t, me ? [me] : [])) continue;
-      const id = m.id == null ? "" : room + ":" + String(m.id);
-      if (!id || !seenPings.has(id)) {
+  function processRow(state, row, notify) {
+    const message = getMessage(row);
+    if (!message) return false;
+    const room = getRoom(state.box, row);
+    const tab = getTab(state.box, row);
+    const key = row.dataset.mid ? `${room}:${row.dataset.mid}` : "";
+    const previouslySeen = key && state.seen.has(key);
+    if (key) state.seen.add(key);
+    row.dataset.t7PingProcessed = "1";
+    const label = pingSystem.filterLabel(message.login, message.text);
+    addFilterLabel(row, label);
+    row.classList.toggle("t7-filtered", !!label);
+    row.classList.toggle("t7-filtered-blacklist", label === "\u0412 \u0427\u0421");
+    const nativePing = row.classList.contains("ping");
+    const pinged = !label && !row.classList.contains("me") && (nativePing || pingSystem.isPinged(message.text));
+    row.classList.toggle("t7-ping", pinged && !nativePing);
+    if (pinged) {
+      archiveMessage(room, tab, row, message);
+      const currentTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab;
+      if (!previouslySeen && notify) {
+        state.counts[tab] = (state.counts[tab] || 0) + (tab === currentTab ? 0 : 1);
         pingSystem.play().catch((error) => console.warn("[7TV] \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0437\u0432\u0443\u043A \u043F\u0438\u043D\u0433\u0430", error));
-        if (id) {
-          seenPings.add(id);
-          if (seenPings.size > 500) seenPings.delete(seenPings.values().next().value);
+      }
+    }
+    return pinged;
+  }
+  function badge(parent, className, count, title) {
+    let element = parent.querySelector(`:scope > .${className}`);
+    if (!element) {
+      element = document.createElement("b");
+      element.className = className;
+      parent.appendChild(element);
+    }
+    element.hidden = count <= 0;
+    element.textContent = count > 99 ? "99+" : count ? String(count) : "";
+    element.title = count > 0 ? `${title}: ${count}` : "";
+  }
+  function paint(state) {
+    const activeTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab;
+    if (activeTab) state.counts[activeTab] = 0;
+    let total = 0;
+    state.box.querySelectorAll(SEL.chatTabButtons).forEach((button) => {
+      const count = state.counts[button.dataset.tab] || 0;
+      total += count;
+      badge(button, "cy-chat-tp", count, "\u0423\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u0439");
+    });
+    const toggle = state.box.querySelector(SEL.chatToggleButton);
+    if (toggle) badge(toggle, "cy-chat-pn", state.box.classList.contains("open") ? 0 : total, "\u0423\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u0439");
+  }
+  function visibleArchive(state) {
+    const activeTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab;
+    const rooms = state.box.closest(".mn") ? ["mine"] : state.box.closest(".co-host, .co-float") ? ["one", "city", "mine"] : ["city"];
+    const messages = rooms.flatMap((room) => storedArchive[room] || []);
+    return [...new Map(messages.map((item) => [item.id, item])).values()].filter((item) => item.tab === activeTab).sort((a, b) => a.at - b.at);
+  }
+  function archiveRow(message, room) {
+    const row = document.createElement("li");
+    row.className = "t7-archive-row ping";
+    row.dataset.mid = message.id;
+    row.dataset.t7ArchiveRoom = room;
+    row.title = message.at ? new Date(message.at).toLocaleTimeString() : "";
+    const nick = document.createElement("b");
+    nick.dataset.nick = message.login;
+    nick.tabIndex = 0;
+    nick.textContent = message.name || message.login;
+    const text = document.createElement("span");
+    text.textContent = message.text;
+    row.append(nick, document.createTextNode(" "), text);
+    return row;
+  }
+  function updateArchiveControls(state) {
+    const nav = state.box.querySelector(".t7-ping-nav");
+    if (!nav) return;
+    const messages = visibleArchive(state);
+    const pages = Math.ceil(messages.length / PING_PAGE_SIZE);
+    state.page = Math.min(state.page, Math.max(0, pages - 1));
+    nav.hidden = !pingOnly || pages < 2;
+    const older = nav.querySelector('[data-direction="older"]');
+    const newer = nav.querySelector('[data-direction="newer"]');
+    if (older) older.disabled = state.page >= pages - 1;
+    if (newer) newer.disabled = state.page === 0;
+  }
+  function renderArchivePage(state) {
+    const list = state.list;
+    if (!list) return;
+    const messages = visibleArchive(state);
+    const start = Math.max(0, messages.length - (state.page + 1) * PING_PAGE_SIZE);
+    const end = messages.length - state.page * PING_PAGE_SIZE;
+    const pageMessages = messages.slice(start, end);
+    const wanted = new Set(pageMessages.map((message) => message.id));
+    chatScroller.keep(list, () => {
+      list.querySelectorAll(":scope > li:not(.t7-archive-row)").forEach((row) => {
+        const keep = state.page === 0 && (row.classList.contains("ping") || row.classList.contains("t7-ping"));
+        row.classList.toggle("t7-ping-hidden", pingOnly && !keep);
+      });
+      list.querySelectorAll(":scope > .t7-archive-row").forEach((row) => {
+        if (!wanted.has(row.dataset.mid)) row.remove();
+      });
+      if (pingOnly) {
+        const present = new Set([...list.querySelectorAll(":scope > li[data-mid]")].map((row) => row.dataset.mid));
+        const room = state.box.closest(".mn") ? "mine" : state.box.closest(".co-host, .co-float") ? "one" : "city";
+        const missing = pageMessages.filter((message) => !present.has(message.id)).map((message) => archiveRow(message, room));
+        if (missing.length) {
+          const firstLiveRow = list.querySelector(":scope > li:not(.t7-archive-row)");
+          if (firstLiveRow) firstLiveRow.before(...missing);
+          else list.append(...missing);
         }
       }
-      const tb = tabOfMsg(o.C, m);
-      if (!o.C.on || o.C.open && o.C.tab === tb) continue;
-      pg[tb] = (pg[tb] || 0) + 1;
-      hit = true;
-    }
-    if (hit && o.C.on) paint(room);
-  }
-  var seenPings = /* @__PURE__ */ new Set();
-  function visibleChatMessages(C) {
-    return C.list.filter((m) => tabOfMsg(C, m) === C.tab && !(C.ign && C.ign.has(m.l)) && (C.tab !== "dm" || !C.peer || m.sys || m.l === C.peer || m.to === C.peer));
-  }
-  function markFilteredMessages(room) {
-    const o = chatOf(room);
-    const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
-    if (!list || !o.C) return;
-    const messagesById = new Map(visibleChatMessages(o.C).map((message) => [String(message.id), message]));
-    const rows = list.querySelectorAll(SEL.nonEmptyChatRows);
-    const x = rooms[room].instance.K.X();
-    const me = String(x && x.login && x.login() || "").toLowerCase();
-    rows.forEach((row) => {
-      const m = messagesById.get(row.dataset.mid);
-      if (!m) {
-        row.classList.remove("ping", "t7-filtered", "t7-filtered-blacklist");
-        const oldTag = row.querySelector(":scope > .t7-filter-label");
-        if (oldTag) oldTag.remove();
-        return;
-      }
-      const label = pingSystem.filterLabel(m.l, m.t);
-      row.classList.toggle("t7-filtered", !!label);
-      row.classList.toggle("t7-filtered-blacklist", label === "\u0412 \u0427\u0421");
-      row.classList.toggle("ping", !label && pingSystem.isPinged(m.t, me ? [me] : []));
-      let tag = row.querySelector(":scope > .t7-filter-label");
-      if (!label) {
-        if (tag) tag.remove();
-        return;
-      }
-      if (!tag) {
-        tag = document.createElement("i");
-        tag.className = "t7-filter-label";
-        row.prepend(tag);
-      }
-      const text = label === "\u0412 \u0427\u0421" ? `\u041F\u043E\u043B\u044C\u0437\u043E\u0432\u0430\u0442\u0435\u043B\u044C ${m.n || m.l} \u0432 \u0447\u0451\u0440\u043D\u043E\u043C \u0441\u043F\u0438\u0441\u043A\u0435` : "\u0421\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0435 \u0441\u043A\u0440\u044B\u0442\u043E \u0444\u0438\u043B\u044C\u0442\u0440\u043E\u043C";
-      if (tag.textContent !== text) tag.textContent = text;
-      tag.title = label === "\u0412 \u0427\u0421" ? "\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u0435\u043B\u044C \u0432 \u0432\u0430\u0448\u0435\u043C \u0447\u0435\u0440\u043D\u043E\u043C \u0441\u043F\u0438\u0441\u043A\u0435" : "\u0412 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0438 \u043D\u0430\u0439\u0434\u0435\u043D\u043E \u0441\u043B\u043E\u0432\u043E \u0438\u043B\u0438 \u0444\u0440\u0430\u0437\u0430 \u0438\u0437 \u0444\u0438\u043B\u044C\u0442\u0440\u0430";
+      list.dataset.t7NoPings = String(pingOnly && !pageMessages.length);
     });
+    updateArchiveControls(state);
   }
-  function keepPingList(room, mutate) {
-    const o = chatOf(room);
-    const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
-    if (list) chatScroller.keep(list, mutate);
-    else mutate();
-  }
-  function applyPingOnly(room) {
-    const o = chatOf(room);
-    const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
-    if (!list) return;
-    const messagesById = new Map(visibleChatMessages(o.C).map((message) => [String(message.id), message]));
-    const pageIds = new Set(archivePage(room, o.C).map((m) => String(m.id)));
-    let hasPing = false;
-    list.querySelectorAll(":scope > li").forEach((row) => {
-      if (row.classList.contains("cy-chat-0")) return;
-      const message = messagesById.get(row.dataset.mid);
-      const onPage = message && (message.id == null || pageIds.has(String(message.id)));
-      const keep = !pingOnly || row.classList.contains("ping") && onPage;
-      row.classList.toggle("t7-ping-hidden", !keep);
-      if (pingOnly && keep) hasPing = true;
-    });
-    list.dataset.t7NoPings = String(pingOnly && !hasPing);
-  }
-  function syncPingOnlyControls() {
-    for (const room of hasUnifiedChat() ? ["one"] : ["city", "mine"]) {
-      const o = chatOf(room);
-      const input = o && o.S.el && o.S.el.querySelector(".t7-chat-filter input");
-      if (input) input.checked = pingOnly;
-      refreshPingArchive(room);
-    }
-  }
-  function addPingOnlyControl(room, box) {
-    const header = box.querySelector(SEL.chatHeader);
+  function ensureControls(state) {
+    const header = state.box.querySelector(SEL.chatHeader);
     if (!header) return;
-    let label = header.querySelector(".t7-chat-filter");
-    if (!label) {
-      label = document.createElement("label");
-      label.className = "t7-chat-filter";
-      label.title = "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u0442\u043E\u043B\u044C\u043A\u043E \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0441 \u0443\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u0435\u043C";
-      const input = document.createElement("input");
-      input.type = "checkbox";
+    let filter = header.querySelector(".t7-chat-filter");
+    if (!filter) {
+      filter = document.createElement("label");
+      filter.className = "t7-chat-filter";
+      filter.title = "\u041F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0442\u044C \u0442\u043E\u043B\u044C\u043A\u043E \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u044F \u0441 \u0443\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u0435\u043C";
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
       const text = document.createElement("span");
       text.textContent = "\u0422\u043E\u043B\u044C\u043A\u043E \u043F\u0438\u043D\u0433\u0438";
-      label.append(input, text);
-      label.addEventListener("click", (e) => e.stopPropagation());
-      label.querySelector("input").addEventListener("change", (e) => {
-        pingOnly = e.currentTarget.checked;
+      filter.append(checkbox, text);
+      filter.addEventListener("click", (event) => event.stopPropagation());
+      checkbox.addEventListener("change", () => {
+        pingOnly = checkbox.checked;
         store.set(PING_ONLY_KEY, pingOnly);
-        syncPingOnlyControls();
+        for (const current2 of states2) {
+          const input = current2.box.querySelector(".t7-chat-filter input");
+          if (input) input.checked = pingOnly;
+          current2.page = 0;
+          renderArchivePage(current2);
+        }
       });
     }
-    label.querySelector("input").checked = pingOnly;
+    filter.querySelector("input").checked = pingOnly;
     const close = header.querySelector(SEL.chatCloseButton);
-    if (!label.isConnected) header.insertBefore(label, close || null);
+    if (!filter.isConnected) header.insertBefore(filter, close || null);
     let nav = header.querySelector(".t7-ping-nav");
     if (!nav) {
       nav = document.createElement("span");
@@ -4595,298 +4560,228 @@
         button.textContent = symbol;
         nav.appendChild(button);
       }
-      nav.addEventListener("click", (e) => {
-        const button = e.target.closest("button[data-direction]");
+      nav.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-direction]");
         if (!button) return;
-        e.stopPropagation();
-        const roomState = rooms[room];
-        roomState.archivePage = Math.max(0, roomState.archivePage + (button.dataset.direction === "older" ? 1 : -1));
-        refreshPingArchive(room);
-        updatePingArchiveControl(room);
+        event.stopPropagation();
+        state.page = Math.max(0, state.page + (button.dataset.direction === "older" ? 1 : -1));
+        renderArchivePage(state);
       });
       header.insertBefore(nav, close || null);
     }
-    updatePingArchiveControl(room);
-    keepPingList(room, () => applyPingOnly(room));
   }
-  function updatePingArchiveControl(room) {
-    const o = chatOf(room);
-    const header = o && o.S.el && o.S.el.querySelector(SEL.chatHeader);
-    const nav = header && header.querySelector(".t7-ping-nav");
-    if (!nav || !o.C) return;
-    const roomState = rooms[room];
-    const count = roomState.archive.filter((m) => tabOfMsg(o.C, m) === o.C.tab).length;
-    const pages = Math.ceil(count / PING_PAGE_SIZE);
-    roomState.archivePage = Math.min(roomState.archivePage, Math.max(0, pages - 1));
-    nav.hidden = !pingOnly || pages < 2;
-    const older = nav.querySelector('[data-direction="older"]');
-    const newer = nav.querySelector('[data-direction="newer"]');
-    if (older) older.disabled = roomState.archivePage >= pages - 1;
-    if (newer) newer.disabled = roomState.archivePage === 0;
+  function addBlacklistMenu(state) {
+    const list = state.list;
+    if (!list || list.dataset.t7BlacklistMenu) return;
+    list.dataset.t7BlacklistMenu = "1";
+    list.addEventListener("contextmenu", (event) => {
+      const nick = event.target.closest(SEL.nickButton);
+      if (!nick || !list.contains(nick)) return;
+      const login = String(nick.dataset.nick || "").trim();
+      if (!login) return;
+      requestAnimationFrame(() => {
+        const menu = document.querySelector(".cy-nm");
+        if (!menu || menu.dataset.t7BlacklistAction) return;
+        menu.dataset.t7BlacklistAction = "1";
+        const blocked = pingSystem.config.blacklist.includes(login.toLowerCase());
+        const action = document.createElement("button");
+        action.type = "button";
+        action.setAttribute("role", "menuitem");
+        action.dataset.nm = "t7-blacklist";
+        action.textContent = blocked ? "\u0423\u0431\u0440\u0430\u0442\u044C \u0438\u0437 \u0427\u0421" : "\u0412 \u0447\u0451\u0440\u043D\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A";
+        action.addEventListener("click", () => pingSystem.toggleBlacklist(login));
+        menu.appendChild(action);
+      });
+    }, true);
   }
-  var num = (n) => n > 99 ? "99+" : String(n);
-  function badge(parent, cls, n, title) {
-    let b = parent.querySelector(":scope > ." + cls);
-    if (!b) {
-      b = document.createElement("b");
-      b.className = cls;
-      parent.appendChild(b);
+  function refreshRows(state, notify = false) {
+    if (!state.box.isConnected) return;
+    const activeTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab || "";
+    if (state.activeTab !== activeTab) {
+      state.activeTab = activeTab;
+      state.page = 0;
+      notify = false;
     }
-    b.hidden = !n;
-    b.textContent = n ? num(n) : "";
-    b.title = n ? title + ": " + n : "";
+    const tabs = state.box.querySelector(SEL.chatTabs);
+    if (tabs !== state.tabs) {
+      state.tabsObserver?.disconnect();
+      state.tabs = tabs;
+      if (tabs) {
+        state.tabsObserver = new MutationObserver(() => refreshRows(state, false));
+        state.tabsObserver.observe(tabs, {
+          attributes: true,
+          attributeFilter: ["aria-selected"],
+          subtree: true
+        });
+      }
+    }
+    const list = state.box.querySelector(SEL.chatList);
+    if (list !== state.list) {
+      state.listObserver?.disconnect();
+      state.list = list;
+      state.page = 0;
+      if (list) {
+        chatScroller.register(list);
+        addBlacklistMenu(state);
+        state.listObserver = new MutationObserver(() => {
+          const currentTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab || "";
+          if (currentTab !== state.activeTab) {
+            refreshRows(state, false);
+            return;
+          }
+          list.querySelectorAll(":scope > li:not(.t7-archive-row)").forEach((row) => processRow(state, row, true));
+          paint(state);
+          renderArchivePage(state);
+        });
+        state.listObserver.observe(list, { childList: true });
+      }
+    }
+    ensureControls(state);
+    if (state.list) {
+      state.list.querySelectorAll(":scope > li:not(.t7-archive-row)").forEach((row) => processRow(state, row, notify));
+      addBlacklistMenu(state);
+    }
+    paint(state);
+    renderArchivePage(state);
   }
-  function paint(room) {
-    const o = chatOf(room);
-    const box = o && o.S.el && o.S.el.querySelector(".cy-chat");
-    if (!box) return;
-    const pg = rooms[room].pings;
-    if (o.C.open) pg[o.C.tab] = 0;
-    let total = 0;
-    box.querySelectorAll(SEL.chatTabButtons).forEach((b) => {
-      const n = pg[b.dataset.tab] || 0;
-      total += n;
-      badge(b, "cy-chat-tp", n, "\u0423\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u0439");
-    });
-    const t = box.querySelector(SEL.chatToggleButton);
-    if (t) badge(t, "cy-chat-pn", o.C.open ? 0 : total, "\u0423\u043F\u043E\u043C\u0438\u043D\u0430\u043D\u0438\u0439");
-  }
-  function pingBind(room) {
-    const o = chatOf(room);
-    const box = o && o.S.el && o.S.el.querySelector(SEL.chatRoot);
-    if (!box || box.dataset.t7pg) return;
-    box.dataset.t7pg = "1";
-    addPingOnlyControl(room, box);
+  function observeBox(box) {
+    if (stateByBox.has(box)) return;
+    const state = { box, list: null, listObserver: null, counts: {}, page: 0, seen: /* @__PURE__ */ new Set() };
+    stateByBox.set(box, state);
+    states2.add(state);
+    state.boxObserver = new MutationObserver(() => refreshRows(state, true));
+    state.boxObserver.observe(box, { childList: true });
     box.addEventListener("click", (event) => {
       if (!(event.target instanceof Element) || !event.target.closest(`${SEL.chatTabButtons}, ${SEL.chatToggleButton}, ${SEL.chatCloseButton}`)) return;
-      refreshPingArchive(room);
-      updatePingArchiveControl(room);
-      paint(room);
+      queueMicrotask(() => refreshRows(state, false));
     });
-    const list = box.querySelector(SEL.chatList);
-    if (list && !list.dataset.t7BlacklistMenu) {
-      list.dataset.t7BlacklistMenu = "1";
-      list.addEventListener("contextmenu", (e) => {
-        const nick = e.target.closest(SEL.nickButton);
-        if (!nick || !list.contains(nick)) return;
-        const login = String(nick.dataset.nick || "").trim();
-        if (!login) return;
-        requestAnimationFrame(() => {
-          const menu = document.querySelector(".cy-nm");
-          if (!menu || menu.dataset.t7BlacklistAction) return;
-          menu.dataset.t7BlacklistAction = "1";
-          const blocked = pingSystem.config.blacklist.includes(login.toLowerCase());
-          const action = document.createElement("button");
-          action.type = "button";
-          action.setAttribute("role", "menuitem");
-          action.dataset.nm = "t7-blacklist";
-          action.textContent = blocked ? "\u0423\u0431\u0440\u0430\u0442\u044C \u0438\u0437 \u0427\u0421" : "\u0412 \u0447\u0451\u0440\u043D\u044B\u0439 \u0441\u043F\u0438\u0441\u043E\u043A";
-          action.addEventListener("click", () => pingSystem.toggleBlacklist(login));
-          menu.appendChild(action);
-        });
-      }, true);
-    }
-    const roomState = rooms[room];
-    if (list) chatScroller.register(list, room, true);
-    if (list && roomState.filterList !== list) {
-      if (roomState.filterObserver) roomState.filterObserver.disconnect();
-      roomState.filterObserver = new MutationObserver(() => {
-        chatScroller.keep(list, () => {
-          markFilteredMessages(room);
-          applyPingOnly(room);
-        });
-      });
-      roomState.filterObserver.observe(list, { childList: true });
-      roomState.filterList = list;
-    }
-    keepPingList(room, () => {
-      markFilteredMessages(room);
-      applyPingOnly(room);
-    });
-    updatePingArchiveControl(room);
+    refreshRows(state, false);
   }
-  var isPingOnly = () => pingOnly;
-  var W = globalThis.__L7TV_EXTENSION_PAGE__ ? window : typeof unsafeWindow !== "undefined" ? unsafeWindow : null;
-  var CITY = "/api/city/chat";
-  var MINE = "/api/mine/chat";
-  var CHAT_JS = "/lib/site-chat.js";
-  var chatLoad = null;
-  function loadChatLib() {
-    if (W.LGChat) return Promise.resolve();
-    if (!chatLoad) chatLoad = new Promise((ok) => {
-      const sc = document.createElement("script");
-      sc.src = CHAT_JS;
-      sc.onload = sc.onerror = () => ok();
-      document.head.appendChild(sc);
+  function startDocumentObserver() {
+    if (documentObserver2 || !document.documentElement) return;
+    documentObserver2 = new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.removedNodes) {
+          if (node.nodeType !== Node.ELEMENT_NODE) continue;
+          const removedBoxes = [];
+          if (node.matches(SEL.chatRoot)) removedBoxes.push(node);
+          removedBoxes.push(...node.querySelectorAll(SEL.chatRoot));
+          for (const box of removedBoxes) {
+            const state = stateByBox.get(box);
+            if (!state || box.isConnected) continue;
+            state.boxObserver.disconnect();
+            state.listObserver?.disconnect();
+            state.tabsObserver?.disconnect();
+            states2.delete(state);
+            stateByBox.delete(box);
+          }
+        }
+        for (const node of record.addedNodes) {
+          if (node.nodeType !== Node.ELEMENT_NODE) continue;
+          if (node.matches(SEL.chatRoot)) observeBox(node);
+          node.querySelectorAll(SEL.chatRoot).forEach(observeBox);
+        }
+      }
     });
-    return chatLoad;
+    documentObserver2.observe(document.documentElement, { childList: true, subtree: true });
+    document.querySelectorAll(SEL.chatRoot).forEach(observeBox);
   }
-  function patchK(K, room) {
-    const cache = /* @__PURE__ */ new WeakMap();
-    const route = (api, p, b) => {
-      const result = api(p, b);
-      if (room !== "mine" || p !== K.say) return result;
-      const o = chatOf(room);
-      const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
-      const endIntent = list && chatScroller.captureEndIntent(list);
-      return Promise.resolve(result).then((response) => {
-        if (response && response.ok && list && endIntent) chatScroller.settleAtEnd(list, endIntent);
-        return response;
-      });
+  pingSystem.subscribe(() => {
+    for (const state of states2) refreshRows(state, false);
+  });
+  function startChatPingIntegration() {
+    startDocumentObserver();
+  }
+  var listStates = /* @__PURE__ */ new WeakMap();
+  var states3 = /* @__PURE__ */ new Set();
+  var documentObserver3 = null;
+  function messageRows(list) {
+    return [...list.children].filter((row) => row.tagName === "LI" && !row.matches(".dm-old, .dm-0"));
+  }
+  function rowKey(row) {
+    return `${row.className}|${row.title}|${row.textContent}`;
+  }
+  function recipientOf(list) {
+    const root = list.closest(".dm");
+    const name = root && root.querySelector(".dm-who");
+    if (name && name.textContent.trim()) return name.textContent.trim();
+    const activeTab = root && root.querySelector(".dm-tab.on [data-dmt]");
+    return activeTab && activeTab.dataset.dmt || "";
+  }
+  function updateList(state) {
+    const currentRecipient = recipientOf(state.list);
+    const rows = messageRows(state.list);
+    const keys = rows.map(rowKey);
+    if (!state.recipient || currentRecipient !== state.recipient) {
+      state.recipient = currentRecipient;
+      state.seen = new Set(keys);
+      state.lastKey = keys[keys.length - 1] || "";
+      return;
+    }
+    const previousLastIndex = state.lastKey ? keys.lastIndexOf(state.lastKey) : -1;
+    const newRows = previousLastIndex < 0 ? [] : rows.slice(previousLastIndex + 1);
+    for (const row of newRows) {
+      const key = rowKey(row);
+      if (state.seen.has(key)) continue;
+      state.seen.add(key);
+      if (row.classList.contains("me") || !pingSystem.shouldNotifyDm(currentRecipient)) continue;
+      pingSystem.playDm().catch((error) => console.warn("[7TV] \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0437\u0432\u0443\u043A \u041B\u0421", error));
+    }
+    for (const key of keys) state.seen.add(key);
+    state.lastKey = keys[keys.length - 1] || "";
+    if (state.seen.size > 600) state.seen = new Set(keys.slice(-300));
+  }
+  function observeList(list) {
+    if (listStates.has(list)) return;
+    const state = {
+      list,
+      observer: null,
+      recipient: "",
+      lastKey: "",
+      seen: /* @__PURE__ */ new Set()
     };
-    return {
-      ...K,
-      flags: room === "mine" && !K.one ? () => {
-        const x = K.X();
-        const h = x && x.hero && x.hero() || {};
-        return { on: K.flags(h).on, tr: !!h.ct, dm: !!h.cd };
-      } : K.flags,
-      X: () => {
-        const x = K.X();
-        if (!x) return x;
-        let m = cache.get(x);
-        if (!m) {
-          const raw = (...a) => x.api(...a);
-          const api = (p, b) => SAY_RE.test(p) ? sendWithLinks(raw, p, b) : raw(p, b);
-          m = new Proxy(x, {
-            get(t, k) {
-              if (k === "api") return (p, b) => route(api, p, b);
-              const v = t[k];
-              return typeof v === "function" ? v.bind(t) : v;
+    state.observer = new MutationObserver(() => updateList(state));
+    state.observer.observe(list, { childList: true });
+    listStates.set(list, state);
+    states3.add(state);
+    updateList(state);
+  }
+  function scan2(root) {
+    if (root.nodeType !== Node.ELEMENT_NODE) return;
+    if (root.matches(".dm-l")) observeList(root);
+    root.querySelectorAll(".dm-l").forEach(observeList);
+  }
+  function startDirectMessageObserver() {
+    if (documentObserver3 || !document.documentElement) return;
+    documentObserver3 = new MutationObserver((records) => {
+      for (const record of records) {
+        for (const node of record.removedNodes) {
+          if (node.nodeType !== Node.ELEMENT_NODE) continue;
+          for (const state of states3) {
+            if ((node === state.list || node.contains(state.list)) && !state.list.isConnected) {
+              state.observer.disconnect();
+              states3.delete(state);
+              listStates.delete(state.list);
             }
-          });
-          cache.set(x, m);
-        }
-        return m;
-      }
-    };
-  }
-  function wrapInst(raw, K, room) {
-    const unified = !!K.one;
-    return {
-      ...raw,
-      init() {
-        raw.init();
-        setupTabs(K);
-        pingBind(room);
-      },
-      enter(r, rm) {
-        if (unified) {
-          const enter2 = () => {
-            raw.enter(r, rm);
-            if (r && Array.isArray(r.chat)) rememberPingMessages(room, r.chat);
-            resetPingCounts(room);
-            setupTabs(K);
-            pingBind(room);
-            paint(room);
-            if (isPingOnly()) refreshPingArchive(room);
-          };
-          enter2();
-          return;
-        }
-        const enter = () => {
-          if (isPingOnly()) stripArchivedPings(room);
-          raw.enter(r);
-          clearInjectedPings(room);
-          if (r && Array.isArray(r.chat)) rememberPingMessages(room, r.chat);
-          setupTabs(K);
-          resetPingCounts(room);
-          pingBind(room);
-          paint(room);
-          if (isPingOnly()) refreshPingArchive(room);
-        };
-        enter();
-      },
-      apply(d, rm) {
-        if (unified) {
-          raw.apply(d, rm);
-          if (d && Array.isArray(d.chat)) countPings(room, d.chat);
-          if (d && Array.isArray(d.chatDel)) {
-            removePingArchiveMessages(room, d.chatDel.map(String));
-          }
-          if (isPingOnly()) refreshPingArchive(room);
-          return;
-        }
-        raw.apply(d);
-        if (d && d.chat) countPings(room, d.chat);
-        if (isPingOnly()) refreshPingArchive(room);
-      }
-    };
-  }
-  function wrapChat(v) {
-    if (!v || v.__t7 || typeof v.make !== "function") return v;
-    const make = v.make;
-    const w = {
-      ...v,
-      make(K) {
-        const room = K && K.one ? "one" : K && K.base === MINE ? "mine" : K && K.base === CITY ? "city" : null;
-        if (!room) return make(K);
-        const KK = patchK(K, room);
-        const raw = make(KK);
-        setChatInstance(room, { raw, K: KK });
-        return wrapInst(raw, KK, room);
-      }
-    };
-    w.__t7 = 1;
-    return w;
-  }
-  function wrapCity(v) {
-    if (!v || v.__t7 || typeof v.onEvent !== "function") return v;
-    const o = v.onEvent;
-    v.onEvent = function(d) {
-      try {
-        if (d) {
-          if (Array.isArray(d.chatDel) && d.chatDel.length) {
-            const archiveRoom = hasUnifiedChat() ? "one" : "city";
-            removePingArchiveMessages(archiveRoom, d.chatDel.map(String));
           }
         }
-      } catch (e) {
-        console.warn("[7TV] city chat event", e);
+        for (const node of record.addedNodes) scan2(node);
       }
-      return o.apply(this, arguments);
-    };
-    v.__t7 = 1;
-    return v;
-  }
-  function wrapMine(v) {
-    if (!v || v.__t7) return v;
-    const op = v.open;
-    if (typeof op === "function") {
-      v.open = function() {
-        if (W.LGChat) return op.apply(this, arguments);
-        const args = arguments, self = this;
-        loadChatLib().then(() => op.apply(self, args));
-      };
-    }
-    v.__t7 = 1;
-    return v;
-  }
-  function hook(name, fn) {
-    let val = W[name];
-    if (val) val = fn(val);
-    try {
-      Object.defineProperty(W, name, {
-        configurable: true,
-        enumerable: true,
-        get: () => val,
-        set: (v) => {
-          val = fn(v);
-        }
-      });
-    } catch (e) {
-      console.warn("[7TV] chat hook", name, e);
-    }
-  }
-  if (W) {
-    hook("LGChat", wrapChat);
-    hook("LGCity", wrapCity);
-    hook("LGMine", wrapMine);
-    hook("LGDm", wrapDm);
+    });
+    documentObserver3.observe(document.documentElement, { childList: true, subtree: true });
+    document.querySelectorAll(".dm-l").forEach(observeList);
   }
   var started2 = false;
+  function startSiteChatIntegration() {
+    if (started2) return;
+    started2 = true;
+    setupTabs();
+    startChatPingIntegration();
+    startDirectMessageObserver();
+  }
+  var started3 = false;
   function initialize() {
-    if (!globalThis.__L7TV_CSS_INJECTED__) {
+    if (styles_default) {
       const style = document.createElement("style");
       style.textContent = styles_default;
       document.head.appendChild(style);
@@ -4910,13 +4805,14 @@
     applyChatFont();
     initEmoteTooltip();
     startChatObservers();
+    startSiteChatIntegration();
     ensureButtons();
     scan();
     reload(false);
   }
   function startApp() {
-    if (started2) return;
-    started2 = true;
+    if (started3) return;
+    started3 = true;
     if (document.readyState === "loading")
       document.addEventListener("DOMContentLoaded", initialize, { once: true });
     else

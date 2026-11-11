@@ -1,14 +1,13 @@
 import { store } from '../../core/store.js';
 import { STORE } from '../../core/consts.js';
 
-const GOOGLE_FONTS_ID = 't7-chat-google-fonts';
-const GOOGLE_FONTS_URL = 'https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400;1,700&family=Montserrat:ital,wght@0,400;0,700;1,400;1,700&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400;1,600;1,700;1,800&family=Open+Sans:ital,wght@0,400;0,600;0,700;0,800;1,400;1,600;1,700;1,800&family=Roboto:ital,wght@0,400;0,500;0,700;1,400;1,500;1,700&display=swap';
 const CUSTOM_FAMILY = 'T7UploadedChatFont';
 const FONT_MIME = { woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf', otf: 'font/otf' };
 const FONT_CHOICES = new Set(['site', 'nunito', 'open-sans', 'roboto', 'lato', 'montserrat', 'custom']);
 const MAX_FONT_SIZE = 2 * 1024 * 1024;
 const DEFAULT_CHAT_FONT_SIZE = 14;
 let customFace = null;
+let listObserver = null;
 
 export function getChatFont() {
     const value = store.get(STORE.chatFont);
@@ -30,22 +29,50 @@ export function setChatFontSize(value) {
     if (!Number.isFinite(size)) return DEFAULT_CHAT_FONT_SIZE;
     const normalized = Math.max(11, Math.min(22, Math.round(size)));
     store.set(STORE.chatFontSize, normalized);
-    document.documentElement.style.setProperty('--t7-chat-font-size', normalized + 'px');
+    applyFontSettings();
     return normalized;
 }
 
 function setFamily(value) {
-    if (value) document.documentElement.style.setProperty('--t7-chat-font', value);
-    else document.documentElement.style.removeProperty('--t7-chat-font');
+    document.querySelectorAll('.cy-chat-l, .dm-l').forEach((list) => {
+        if (value) list.style.setProperty('--t7-chat-font', value);
+        else list.style.removeProperty('--t7-chat-font');
+    });
 }
 
-function ensureGoogleFonts() {
-    if (document.getElementById(GOOGLE_FONTS_ID)) return;
-    const link = document.createElement('link');
-    link.id = GOOGLE_FONTS_ID;
-    link.rel = 'stylesheet';
-    link.href = GOOGLE_FONTS_URL;
-    document.head.appendChild(link);
+function applyFontSettings(root = document) {
+    const family = selectedFamily();
+    const size = getChatFontSize() + 'px';
+    const lists = [];
+    if (root instanceof Element && root.matches('.cy-chat-l, .dm-l')) lists.push(root);
+    if (root.querySelectorAll) lists.push(...root.querySelectorAll('.cy-chat-l, .dm-l'));
+    for (const list of lists) {
+        if (family) list.style.setProperty('--t7-chat-font', family);
+        else list.style.removeProperty('--t7-chat-font');
+        list.style.setProperty('--t7-chat-font-size', size);
+    }
+}
+
+function selectedFamily() {
+    const choice = getChatFont();
+    return choice === 'nunito' ? 'Nunito, sans-serif'
+        : choice === 'open-sans' ? '"Open Sans", sans-serif'
+            : choice === 'roboto' ? 'Roboto, sans-serif'
+                : choice === 'lato' ? 'Lato, sans-serif'
+                    : choice === 'montserrat' ? 'Montserrat, sans-serif'
+                        : choice === 'custom' && customFace ? `"${CUSTOM_FAMILY}", sans-serif` : '';
+}
+
+function observeChatLists() {
+    if (listObserver || !document.body) return;
+    listObserver = new MutationObserver((records) => {
+        for (const record of records) {
+            for (const node of record.addedNodes) {
+                if (node.nodeType === Node.ELEMENT_NODE) applyFontSettings(node);
+            }
+        }
+    });
+    listObserver.observe(document.body, { childList: true, subtree: true });
 }
 
 async function loadCustomFont(font) {
@@ -61,22 +88,22 @@ async function loadCustomFont(font) {
 
 export async function applyChatFont() {
     const choice = getChatFont();
-    document.documentElement.style.setProperty('--t7-chat-font-size', getChatFontSize() + 'px');
-    if (choice !== 'site' && choice !== 'custom') ensureGoogleFonts();
+    observeChatLists();
     if (choice === 'custom') {
         try {
-            if (await loadCustomFont(getCustomChatFont())) return true;
+            if (await loadCustomFont(getCustomChatFont())) {
+                applyFontSettings();
+                return true;
+            }
         } catch (error) {
             console.warn('[7TV] не удалось загрузить шрифт чата', error);
         }
         setFamily(null);
+        applyFontSettings();
         return false;
     }
-    setFamily(choice === 'nunito' ? 'Nunito, sans-serif'
-        : choice === 'open-sans' ? '"Open Sans", sans-serif'
-            : choice === 'roboto' ? 'Roboto, sans-serif'
-                : choice === 'lato' ? 'Lato, sans-serif'
-                    : choice === 'montserrat' ? 'Montserrat, sans-serif' : null);
+    setFamily(selectedFamily());
+    applyFontSettings();
     return true;
 }
 

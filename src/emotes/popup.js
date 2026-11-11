@@ -377,6 +377,7 @@ function openPop(btn) {
     const pop = document.createElement('div');
     st.pop = pop;
     pop.className = 't7-pop';
+    pop.style.setProperty('--t7-tile', SIZES[S.size].p + 'px');
     pop.setAttribute('role', 'dialog');
     pop.setAttribute('aria-label', 'Эмоуты 7TV');
     const header = document.createElement('div');

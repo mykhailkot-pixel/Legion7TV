@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const root = process.cwd();
@@ -14,6 +14,7 @@ if (manifest.version !== packageJson.version) {
 }
 
 await mkdir(resolve(output, 'icons'), { recursive: true });
+await rm(resolve(output, 'page-bridge.js'), { force: true });
 
 const cssAsText = {
     name: 'extension-css-as-text',
@@ -29,7 +30,6 @@ await Promise.all([
     build({
         entryPoints: {
             'content-bridge': resolve(shared, 'content-bridge.js'),
-            'page-bridge': resolve(shared, 'page-bridge.js'),
             background: resolve(shared, 'background.js')
         },
         bundle: true,

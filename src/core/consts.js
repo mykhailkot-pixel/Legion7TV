@@ -62,15 +62,17 @@ export const SEL = Object.freeze({
     eventMessage: '.cy-chat-ev'
 });
 
+const extensionEvents = new EventTarget();
+
 export const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
 
 export function emit(name, detail) {
     const event = detail === undefined ? new Event(name) : new CustomEvent(name, { detail });
-    document.dispatchEvent(event);
+    extensionEvents.dispatchEvent(event);
     return event;
 }
 
 export function on(name, listener, options) {
-    document.addEventListener(name, listener, options);
-    return () => document.removeEventListener(name, listener, options);
+    extensionEvents.addEventListener(name, listener, options);
+    return () => extensionEvents.removeEventListener(name, listener, options);
 }

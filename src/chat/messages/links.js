@@ -6,10 +6,10 @@ import { resolveImageUrl, supportsImageUrl } from '../ui/imageProviders.js';
 import { rememberSentImages } from '../ui/imagePicker.js';
 import { chatScroller } from './scrollState.js';
 
-export const SAY_RE = /^\/api\/(?:chat\/say|city\/say|mine\/chat\/say|dm\/say)(?:\?|$)/;
 const LINK_ENCODING_KEY = STORE.linkEncoding;
 const IMAGE_PREVIEWS_KEY = STORE.imagePreviews;
 const previewCache = new Map();
+const outgoingBindings = new WeakMap();
 
 export const isLinkEncodingEnabled = () => store.get(LINK_ENCODING_KEY) === true;
 export const setLinkEncodingEnabled = (enabled) => store.set(LINK_ENCODING_KEY, !!enabled);
@@ -57,8 +57,8 @@ export function isSafeHttpsUrl(value) {
 }
 
 function encodeOne(raw) {
+    if (/^\[ref\]\{[^{}\s]+\}$/i.test(raw)) return raw;
     let { clean: url, tail } = trimTrailingPunct(raw, {
-        stripClosingParens: true,
         stripQuotes: true,
         stripBrackets: true
     });
@@ -188,13 +188,64 @@ export function processLinks({ content, room }) {
     if (showImages) content.querySelectorAll('a.t7-link').forEach((anchor) => { addImagePreview(anchor); });
 }
 
-// call(path, body) - исходный api сайта
-export async function sendWithLinks(call, path, body) {
-    const text = body && body.text;
-    if (typeof text !== 'string') return call(path, body);
-    rememberSentImages(text);
-    if (!isLinkEncodingEnabled()) return call(path, body);
-    if (HTTP_RE.test(text)) return { ok: false, error: 'ссылки http:// не отправляются - используй https://' };
-    const encoded = encodeLinks(text);
-    return call(path, encoded === text ? body : { ...body, text: encoded });
+function showLinkWarning(form, message) {
+    let warning = form.querySelector(':scope > .t7-link-warning');
+    if (!warning) {
+        warning = document.createElement('div');
+        warning.className = 't7-link-warning';
+        warning.setAttribute('role', 'alert');
+        form.appendChild(warning);
+    }
+    warning.textContent = message;
+    warning.hidden = false;
+}
+
+function isExcludedChatSend(form, input) {
+    const activeTab = form.closest('.cy-chat')?.querySelector('[data-tab][aria-selected="true"]');
+    const tab = activeTab?.dataset.tab;
+    return tab === 'gl' || tab === 'lg' || (tab === 'g' && input.value.trim().startsWith('/'));
+}
+
+export function bindOutgoingLinkEncoding(form, input) {
+    if (outgoingBindings.has(form)) return outgoingBindings.get(form);
+
+    const prepare = (event) => {
+        if (isExcludedChatSend(form, input)) return;
+        if (!isLinkEncodingEnabled()) {
+            rememberSentImages(input.value);
+            return;
+        }
+        const text = input.value;
+        if (HTTP_RE.test(text)) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            showLinkWarning(form, 'Ссылки http:// не отправляются — используй https://');
+            return;
+        }
+
+        rememberSentImages(text);
+        const encoded = encodeLinks(text);
+        if (encoded === text) return;
+
+        input.value = encoded;
+        queueMicrotask(() => {
+            if (input.isConnected && input.value === encoded) input.value = text;
+        });
+    };
+    const onKeyDown = (event) => {
+        if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey
+            || event.metaKey || event.isComposing || event.keyCode === 229) return;
+        prepare(event);
+    };
+    const onSubmit = (event) => prepare(event);
+
+    input.addEventListener('keydown', onKeyDown, true);
+    form.addEventListener('submit', onSubmit, true);
+    const dispose = () => {
+        input.removeEventListener('keydown', onKeyDown, true);
+        form.removeEventListener('submit', onSubmit, true);
+        outgoingBindings.delete(form);
+    };
+    outgoingBindings.set(form, dispose);
+    return dispose;
 }

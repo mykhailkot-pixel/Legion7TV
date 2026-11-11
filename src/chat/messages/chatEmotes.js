@@ -54,6 +54,7 @@ export function processEmotes({ content, kind }) {
             if (emote) {
                 const wrapper = document.createElement('span');
                 wrapper.className = 't7-w';
+                wrapper.style.setProperty('--t7-h', SIZES[S.size].h);
                 wrapper.appendChild(makeImg(part, emote, 't7-e'));
                 fragment.appendChild(wrapper);
                 lastWrap = wrapper;

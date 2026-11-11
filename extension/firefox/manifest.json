@@ -37,12 +37,6 @@
       "css": ["styles.css"],
       "js": ["content-bridge.js"],
       "run_at": "document_start"
-    },
-    {
-      "matches": ["https://play.multidonate.ru/*"],
-      "js": ["page-bridge.js"],
-      "run_at": "document_start",
-      "world": "MAIN"
     }
   ],
   "browser_specific_settings": {

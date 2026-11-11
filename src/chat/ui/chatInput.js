@@ -4,11 +4,13 @@ import { EV, SEL, on } from '../../core/consts.js';
 import { setEmoteImage } from '../../emotes/emotes.js';
 import { togglePop, closePop, recordRecentFromMessage } from '../../emotes/popup.js';
 import { pingSystem } from '../pingSystem.js';
+import { bindOutgoingLinkEncoding } from '../messages/links.js';
 import { arePastesEnabled, openPastes } from './pastes.js';
 import { disposeImagePicker, isImagePickerButtonEnabled, openImagePicker } from './imagePicker.js';
 
 const bindings = new WeakMap();
 const emoteBindings = new WeakMap();
+const linkBindings = new WeakMap();
 function normalizeBanword(value) {
     return String(value || '').normalize('NFKC').toLowerCase().replace(/\s+/gu, ' ').trim();
 }
@@ -445,6 +447,7 @@ function bindChatForm(form, input) {
 function disposeForm(form) {
     const dispose = bindings.get(form);
     const disposeEmotes = emoteBindings.get(form);
+    const disposeLinks = linkBindings.get(form);
     if (dispose && st.anchor && form.contains(st.anchor)) closePop();
     disposeImagePicker(form);
     if (dispose) {
@@ -454,6 +457,10 @@ function disposeForm(form) {
     if (disposeEmotes) {
         disposeEmotes();
         emoteBindings.delete(form);
+    }
+    if (disposeLinks) {
+        disposeLinks();
+        linkBindings.delete(form);
     }
 }
 
@@ -472,6 +479,8 @@ export function ensureButtons() {
         if (input && !bindings.has(form)) {
             bindings.set(form, form.matches(SEL.chatForm) ? bindChatForm(form, input) : () => {});
         }
+        if (input && !linkBindings.has(form))
+            linkBindings.set(form, bindOutgoingLinkEncoding(form, input));
 
         const submit = form.querySelector(SEL.submitButton);
         let button = form.querySelector('.t7-btn');

@@ -133,11 +133,15 @@ class PingSystem {
         if (!/^#[0-9a-f]{6}$/i.test(color)) return;
         this.config.pingColor = color.toLowerCase();
         this.save();
-        document.documentElement?.style.setProperty('--t7-ping-color', this.config.pingColor);
+        document.querySelectorAll('.t7-mention').forEach((mention) => {
+            mention.style.color = this.config.pingColor;
+        });
     }
 
     applyPingColor() {
-        document.documentElement?.style.setProperty('--t7-ping-color', this.config.pingColor);
+        document.querySelectorAll('.t7-mention').forEach((mention) => {
+            mention.style.color = this.config.pingColor;
+        });
     }
 
     setPreset(value) {

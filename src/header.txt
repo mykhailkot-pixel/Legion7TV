@@ -12,7 +12,6 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getValue
 // @grant        GM_setValue
-// @grant        unsafeWindow
 // @run-at       document-start
 // @connect      7tv.io
 // @connect      cdn.7tv.app

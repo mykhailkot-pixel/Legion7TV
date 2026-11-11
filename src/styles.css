@@ -272,8 +272,9 @@ form.cy-chat-f>.t7-banword-warning[hidden]{display:none}
 .cy-chat .cy-chat-tp[hidden],
 .cy-chat .cy-chat-pn[hidden]{display:none!important}
 .cy-chat-l>li.t7-ping-hidden{display:none!important}
+.cy-chat-l>li.t7-ping{background:rgba(255,201,77,.14);border-radius:6px;box-shadow:inset 3px 0 0 #ffc94d;padding-left:6px}
 .cy-chat-l[data-t7-no-pings="true"]:after{display:block;padding:12px 6px;color:#aaa;font:12px/1.4 system-ui,sans-serif;text-align:center;content:"Пингов пока нет"}
-.cy-chat-l,.cy-chat-dmx .dm-l{font-family:var(--t7-chat-font,inherit);font-size:var(--t7-chat-font-size,14px);font-synthesis:weight style}
+.cy-chat-l,.dm-l{font-family:var(--t7-chat-font,inherit);font-size:var(--t7-chat-font-size,14px);font-synthesis:weight style}
 .t7-mention{color:var(--t7-ping-color,#e89aa3);font-weight:600}
 .cy-chat-l>li.t7-filtered{font-style:italic}
 .cy-chat-l>li>.t7-filter-label{display:inline-block;margin-right:5px;padding:2px 6px;border-radius:4px;background:rgba(255,201,77,.14);color:#ffca66;font-size:13px;font-weight:700;white-space:nowrap}
@@ -282,6 +283,8 @@ form.cy-chat-f>.t7-banword-warning[hidden]{display:none}
 
 .cy-chat-l a.t7-link{color:#8edbff;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .cy-chat-tabs>button[data-tab][hidden]{display:none!important}
+.cy-chat-tabs>button[data-tab].t7-pref-hidden{display:none!important}
+.t7-link-warning{flex-basis:100%;color:#ffb4a8;font:12px/1.35 system-ui,sans-serif}
 /* Позицию в лентах контролирует скрипт, без конкурирующего нативного якорения. */
 .cy-chat-l,
 .dm-l {

@@ -12,12 +12,12 @@ import { startChatObservers } from './chat/ui/chatObservers.js';
 import { applyChatFont } from './chat/ui/chatFonts.js';
 import { pingSystem } from './chat/pingSystem.js';
 import { initEmoteTooltip } from './emotes/tooltip.js';
-import './chat/integration/siteChat.js';
+import { startSiteChatIntegration } from './chat/integration/siteChat.js';
 
 let started = false;
 
 function initialize() {
-    if (!globalThis.__L7TV_CSS_INJECTED__) {
+    if (css) {
         const style = document.createElement('style');
         style.textContent = css;
         document.head.appendChild(style);
@@ -41,6 +41,7 @@ function initialize() {
     initEmoteTooltip();
 
     startChatObservers();
+    startSiteChatIntegration();
     ensureButtons();
     scan();
     reload(false);

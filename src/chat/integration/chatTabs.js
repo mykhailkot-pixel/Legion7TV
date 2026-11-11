@@ -1,53 +1,67 @@
 import { getChatTabPrefs } from '../prefs.js';
 import { EV, SEL, on } from '../../core/consts.js';
 
-const chats = new Set();
+const observers = new WeakMap();
+const failedFallbacks = new WeakMap();
+let documentObserver = null;
 
-export function setupTabs(K) {
-    const S = K.state();
-    if (!S || !S.chat || !S.el) return;
-    const C = S.chat;
-    const tabs = S.el.querySelector(SEL.chatTabs);
-    if (!tabs) return;
-    chats.add(K);
+function applyTabs(tabs) {
+    if (!tabs.isConnected) return;
     const prefs = getChatTabPrefs();
-    for (const id of prefs.order) {
-        const button = tabs.querySelector(`[data-tab="${id}"]`);
-        if (!button) continue;
-        button.hidden = prefs.hidden.has(id) || !C[id];
-        tabs.appendChild(button);
+    const buttons = [...tabs.querySelectorAll(':scope > [data-tab]')];
+    if (!buttons.length) return;
+
+    const byId = new Map(buttons.map((button) => [button.dataset.tab, button]));
+    const ordered = [
+        ...prefs.order.map((id) => byId.get(id)).filter(Boolean),
+        ...buttons.filter((button) => !prefs.order.includes(button.dataset.tab))
+    ];
+    if (ordered.some((button, index) => buttons[index] !== button))
+        ordered.forEach((button) => tabs.appendChild(button));
+
+    for (const button of ordered) {
+        const hidden = prefs.hidden.has(button.dataset.tab);
+        button.classList.toggle('t7-pref-hidden', hidden);
     }
-    tabs.querySelectorAll('[data-tab]').forEach((button) => {
-        if (button._t7h) return;
-        button._t7h = 1;
-        new MutationObserver(() => {
-            const hidden = getChatTabPrefs().hidden.has(button.dataset.tab) || !C[button.dataset.tab];
-            if (hidden !== button.hidden) button.hidden = hidden;
-        }).observe(button, { attributes: true, attributeFilter: ['hidden'] });
+
+    const active = ordered.find((button) => button.getAttribute('aria-selected') === 'true');
+    if (!active || !prefs.hidden.has(active.dataset.tab)) {
+        failedFallbacks.delete(tabs);
+        return;
+    }
+    const fallback = ordered.find((button) =>
+        !prefs.hidden.has(button.dataset.tab) && !button.hidden && !button.disabled);
+    if (!fallback || failedFallbacks.get(tabs) === active.dataset.tab) return;
+    failedFallbacks.set(tabs, active.dataset.tab);
+    fallback.click();
+}
+
+function observeTabs(tabs) {
+    if (observers.has(tabs)) return;
+    const observer = new MutationObserver(() => applyTabs(tabs));
+    observer.observe(tabs, {
+        attributes: true,
+        attributeFilter: ['aria-selected', 'hidden'],
+        childList: true
     });
-    if (prefs.hidden.has(C.tab) || !C[C.tab]) {
-        const fallback = prefs.order.find((id) => {
-            const button = tabs.querySelector(`[data-tab="${id}"]`);
-            return !prefs.hidden.has(id) && C[id] && button;
+    observers.set(tabs, observer);
+    applyTabs(tabs);
+}
+
+export function setupTabs(root = document) {
+    root.querySelectorAll(SEL.chatTabs).forEach(observeTabs);
+    if (!documentObserver && document.documentElement) {
+        documentObserver = new MutationObserver((records) => {
+            for (const record of records) {
+                for (const node of record.addedNodes) {
+                    if (node.nodeType !== Node.ELEMENT_NODE) continue;
+                    if (node.matches(SEL.chatTabs)) observeTabs(node);
+                    node.querySelectorAll(SEL.chatTabs).forEach(observeTabs);
+                }
+            }
         });
-        if (fallback) selectTab(K, fallback);
+        documentObserver.observe(document.documentElement, { childList: true, subtree: true });
     }
-    if (!tabs._t7) {
-        tabs._t7 = 1;
-        new MutationObserver(() => {
-            const chat = K.state() && K.state().chat;
-            if (tabs.hidden && chat && !chat.panel) tabs.hidden = false;
-        }).observe(tabs, { attributes: true, attributeFilter: ['hidden'] });
-    }
-    if (!C.panel) tabs.hidden = false;
 }
 
-on(EV.chatTabsChange, () => {
-    for (const K of chats) setupTabs(K);
-});
-
-function selectTab(K, id) {
-    const S = K.state();
-    const button = S && S.el && S.el.querySelector(`${SEL.chatTabs} [data-tab="${id}"]`);
-    if (button) button.click();
-}
+on(EV.chatTabsChange, () => setupTabs());

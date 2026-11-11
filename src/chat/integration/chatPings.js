@@ -7,292 +7,274 @@ const PING_ONLY_KEY = STORE.pingOnly;
 const PING_ARCHIVE_KEY = STORE.pingArchive;
 const PING_ARCHIVE_LIMIT = 500;
 const PING_PAGE_SIZE = 50;
-let pingOnly = store.get(PING_ONLY_KEY) === true;
-const storedPingArchive = store.get(PING_ARCHIVE_KEY) || {};
-const cityPingArchive = Array.isArray(storedPingArchive.city) ? storedPingArchive.city.filter((m) => m && m.id != null) : [];
-const minePingArchive = Array.isArray(storedPingArchive.mine) ? storedPingArchive.mine.filter((m) => m && m.id != null) : [];
-const unifiedPingArchive = Array.isArray(storedPingArchive.one) ? storedPingArchive.one.filter((m) => m && m.id != null) : [];
 const ROOM_IDS = ['city', 'mine', 'one'];
-const createRoomState = (archive = []) => ({
-    instance: null,
-    pings: {},
-    archive,
-    archiveIds: new Set(archive.map((m) => String(m.id))),
-    archivePage: 0,
-    injectedPings: new Set(),
-    filterObserver: null,
-    filterList: null
-});
-const rooms = {
-    city: createRoomState(cityPingArchive),
-    mine: createRoomState(minePingArchive),
-    one: createRoomState(unifiedPingArchive)
-};
-let pingArchiveSaveTimer = 0;
+const states = new Set();
+const stateByBox = new WeakMap();
+let pingOnly = store.get(PING_ONLY_KEY) === true;
+let saveTimer = 0;
+let documentObserver = null;
+let storedArchive = readArchive();
 
-export const hasUnifiedChat = () => !!rooms.one.instance;
-
-export function setChatInstance(room, instance) {
-    rooms[room].instance = instance;
+function readArchive() {
+    const saved = store.get(PING_ARCHIVE_KEY);
+    const archive = Object.fromEntries(ROOM_IDS.map((room) => [room, []]));
+    for (const room of ROOM_IDS) {
+        const values = saved && Array.isArray(saved[room]) ? saved[room] : [];
+        for (const message of values) {
+            if (!message || message.id == null) continue;
+            const text = typeof message.text === 'string' ? message.text : String(message.t || '');
+            const login = String(message.login || message.l || '');
+            const name = String(message.name || message.n || login);
+            const tab = String(message.tab || message.tb || inferTab(message));
+            archive[room].push({
+                id: String(message.id),
+                login,
+                name,
+                text,
+                tab,
+                at: Number(message.at) || 0
+            });
+        }
+    }
+    return archive;
 }
 
-export function resetPingCounts(room) {
-    rooms[room].pings = {};
+function inferTab(message) {
+    if (message.rm === 'mine') return 'mn';
+    if (message.k === 'tr') return 'tr';
+    if (message.k === 'dm') return 'dm';
+    return 'g';
 }
 
-export function clearInjectedPings(room) {
-    rooms[room].injectedPings.clear();
-}
-
-export function removePingArchiveMessages(room, ids) {
-    const state = rooms[room];
-    const deleted = new Set(ids);
-    const kept = state.archive.filter((message) => !deleted.has(String(message.id)));
-    if (kept.length === state.archive.length) return false;
-    state.archive = kept;
-    state.archiveIds = new Set(kept.map((message) => String(message.id)));
-    schedulePingArchiveSave();
-    return true;
-}
-
-pingSystem.subscribe(() => {
-    for (const room of Object.values(rooms)) if (room.instance) room.instance.raw.render();
-});
-
-function schedulePingArchiveSave() {
-    clearTimeout(pingArchiveSaveTimer);
-    pingArchiveSaveTimer = setTimeout(() => {
-        pingArchiveSaveTimer = 0;
-        store.set(PING_ARCHIVE_KEY, Object.fromEntries(ROOM_IDS.map((room) => [room, rooms[room].archive])));
+function saveArchiveSoon() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+        saveTimer = 0;
+        store.set(PING_ARCHIVE_KEY, storedArchive);
     }, 500);
 }
 
-export function chatOf(room) {
-    const i = rooms[room].instance;
-    const S = i && i.K.state();
-    return S && S.chat ? { S, C: S.chat } : null;
+function getRoom(box, row) {
+    if (box.closest('.co-host, .co-float')) return 'one';
+    if (row.dataset.rm === 'mine' || box.closest('.mn')) return 'mine';
+    if (row.dataset.rm === 'city') return 'city';
+    return 'city';
 }
-function tabOfMsg(C, m) {   // как tabOf в чате сайта
-    return m.tb || (m.rm === 'mine' ? 'mn' : m.ev ? (C.tr ? 'ev' : 'g') : m.k === 'tr' ? 'tr' : m.k === 'dm' ? 'dm' : 'g');
+
+function getTab(box, row) {
+    if (row.dataset.rm === 'mine') return 'mn';
+    const selected = box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`);
+    return selected && selected.dataset.tab || 'g';
 }
-function isPingMessage(room, m, me) {
-    const o = chatOf(room);
-    if (!m || m.id == null || String(m.l || '').toLowerCase() === me || m.ev || m.sys) return false;
-    if (o && o.C.ign && o.C.ign.has(m.l)) return false;
-    if (pingSystem.shouldIgnore(m.l, m.t)) return false;
-    return pingSystem.isPinged(m.t, me ? [me] : []);
+
+function getMessage(row) {
+    if (row.matches(`${SEL.emptyMessage}, ${SEL.systemMessage}, ${SEL.eventMessage}`)
+        || row.classList.contains('t7-archive-row')) return null;
+    const nick = row.querySelector(':scope > b[data-nick]');
+    const content = row.querySelector(':scope > span:not([class])');
+    const login = nick && String(nick.dataset.nick || '').trim();
+    const text = content ? content.textContent : '';
+    if (!login || !text) return null;
+    return { login, name: nick.textContent.trim() || login, text };
 }
-export function rememberPingMessages(room, msgs) {
-    const roomState = rooms[room];
-    const fallbackRoom = room === 'mine' ? 'city' : 'mine';
-    const i = roomState.instance || rooms[fallbackRoom].instance;
-    const x = i && i.K.X();
-    const me = String((x && x.login && x.login()) || '').toLowerCase();
-    const items = roomState.archive;
-    const ids = roomState.archiveIds;
-    let changed = false;
-    for (const m of msgs || []) {
-        if (!isPingMessage(room, m, me)) continue;
-        const id = String(m.id);
-        if (ids.has(id)) continue;
-        items.push(m);
-        ids.add(id);
-        changed = true;
+
+function archiveMessage(room, tab, row, message) {
+    if (!row.dataset.mid) return;
+    const id = `${room}:${row.dataset.mid}`;
+    if (storedArchive[room].some((item) => `${room}:${item.id}` === id)) return;
+    storedArchive[room].push({
+        id: row.dataset.mid,
+        login: message.login,
+        name: message.name,
+        text: message.text,
+        tab,
+        at: Date.now()
+    });
+    storedArchive[room].sort((a, b) => a.at - b.at);
+    if (storedArchive[room].length > PING_ARCHIVE_LIMIT)
+        storedArchive[room].splice(0, storedArchive[room].length - PING_ARCHIVE_LIMIT);
+    saveArchiveSoon();
+}
+
+function addFilterLabel(row, label) {
+    let tag = row.querySelector(':scope > .t7-filter-label');
+    if (!label) {
+        if (tag) tag.remove();
+        return;
     }
-    if (!changed) return;
-    items.sort((a, b) => (a.at || 0) - (b.at || 0));
-    while (items.length > PING_ARCHIVE_LIMIT) ids.delete(String(items.shift().id));
-    schedulePingArchiveSave();
-}
-export function stripArchivedPings(room) {
-    const o = chatOf(room);
-    const injected = rooms[room].injectedPings;
-    if (o && o.C.list && injected.size) {
-        const list = o.C.list.filter((m) => !injected.has(String(m.id)));
-        o.C.list.splice(0, o.C.list.length, ...list);
+    if (!tag) {
+        tag = document.createElement('i');
+        tag.className = 't7-filter-label';
+        row.prepend(tag);
     }
-    injected.clear();
+    const text = label === 'В ЧС'
+        ? `Пользователь ${row.querySelector(':scope > b[data-nick]')?.textContent || ''} в чёрном списке`
+        : 'Сообщение скрыто фильтром';
+    if (tag.textContent !== text) tag.textContent = text;
+    tag.title = label === 'В ЧС'
+        ? 'Отправитель в вашем черном списке'
+        : 'В сообщении найдено слово или фраза из фильтра';
 }
-function archivePage(room, C) {
-    const roomState = rooms[room];
-    const messages = roomState.archive.filter((m) => tabOfMsg(C, m) === C.tab);
-    const pageCount = Math.max(1, Math.ceil(messages.length / PING_PAGE_SIZE));
-    roomState.archivePage = Math.min(roomState.archivePage, pageCount - 1);
-    const end = messages.length - roomState.archivePage * PING_PAGE_SIZE;
-    return messages.slice(Math.max(0, end - PING_PAGE_SIZE), end);
-}
-function syncPingArchive(room) {
-    const o = chatOf(room);
-    if (!o || !o.C.list) return false;
-    const injected = rooms[room].injectedPings;
-    const wanted = pingOnly ? archivePage(room, o.C) : [];
-    const wantedIds = new Set(wanted.map((m) => String(m.id)));
-    const presentIds = new Set(o.C.list.map((m) => String(m.id)));
-    let changed = false;
-    for (const id of injected) {
-        if (wantedIds.has(id) && presentIds.has(id)) continue;
-        const index = o.C.list.findIndex((m) => String(m.id) === id);
-        if (index >= 0) {
-            o.C.list.splice(index, 1);
-            changed = true;
-        }
-        injected.delete(id);
-    }
-    for (const message of wanted) {
-        const id = String(message.id);
-        if (presentIds.has(id)) continue;
-        o.C.list.push(message);
-        injected.add(id);
-        presentIds.add(id);
-        changed = true;
-    }
-    if (changed) o.C.list.sort((a, b) => (a.at || 0) - (b.at || 0));
-    return changed;
-}
-export function refreshPingArchive(room) {
-    const i = rooms[room].instance;
-    if (!i) return;
-    const o = chatOf(room);
-    const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
-    const update = () => {
-        if (syncPingArchive(room)) i.raw.render();
-        markFilteredMessages(room);
-        applyPingOnly(room);
-    };
-    if (list) chatScroller.keep(list, update);
-    else update();
-    updatePingArchiveControl(room);
-}
-export function countPings(room, msgs) {
-    const o = chatOf(room);
-    if (!o) return;
-    rememberPingMessages(room, msgs);
-    const x = rooms[room].instance.K.X();
-    const me = String((x && x.login && x.login()) || '').toLowerCase();
-    const pg = rooms[room].pings;
-    let hit = false;
-    for (const m of msgs || []) {
-        if (!m || String(m.l || '').toLowerCase() === me || m.ev || m.sys) continue;
-        if (o.C.ign && o.C.ign.has(m.l)) continue;
-        if (pingSystem.shouldIgnore(m.l, m.t)) continue;
-        if (!pingSystem.isPinged(m.t, me ? [me] : [])) continue;
-        const id = m.id == null ? '' : room + ':' + String(m.id);
-        if (!id || !seenPings.has(id)) {
+
+function processRow(state, row, notify) {
+    const message = getMessage(row);
+    if (!message) return false;
+    const room = getRoom(state.box, row);
+    const tab = getTab(state.box, row);
+    const key = row.dataset.mid ? `${room}:${row.dataset.mid}` : '';
+    const previouslySeen = key && state.seen.has(key);
+    if (key) state.seen.add(key);
+    row.dataset.t7PingProcessed = '1';
+
+    const label = pingSystem.filterLabel(message.login, message.text);
+    addFilterLabel(row, label);
+    row.classList.toggle('t7-filtered', !!label);
+    row.classList.toggle('t7-filtered-blacklist', label === 'В ЧС');
+
+    const nativePing = row.classList.contains('ping');
+    const pinged = !label && !row.classList.contains('me')
+        && (nativePing || pingSystem.isPinged(message.text));
+    row.classList.toggle('t7-ping', pinged && !nativePing);
+    if (pinged) {
+        archiveMessage(room, tab, row, message);
+        const currentTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab;
+        if (!previouslySeen && notify) {
+            state.counts[tab] = (state.counts[tab] || 0) + (tab === currentTab ? 0 : 1);
             pingSystem.play().catch((error) =>
                 console.warn('[7TV] не удалось воспроизвести звук пинга', error));
-            if (id) {
-                seenPings.add(id);
-                if (seenPings.size > 500) seenPings.delete(seenPings.values().next().value);
+        }
+    }
+    return pinged;
+}
+
+function badge(parent, className, count, title) {
+    let element = parent.querySelector(`:scope > .${className}`);
+    if (!element) {
+        element = document.createElement('b');
+        element.className = className;
+        parent.appendChild(element);
+    }
+    element.hidden = count <= 0;
+    element.textContent = count > 99 ? '99+' : count ? String(count) : '';
+    element.title = count > 0 ? `${title}: ${count}` : '';
+}
+
+function paint(state) {
+    const activeTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab;
+    if (activeTab) state.counts[activeTab] = 0;
+    let total = 0;
+    state.box.querySelectorAll(SEL.chatTabButtons).forEach((button) => {
+        const count = state.counts[button.dataset.tab] || 0;
+        total += count;
+        badge(button, 'cy-chat-tp', count, 'Упоминаний');
+    });
+    const toggle = state.box.querySelector(SEL.chatToggleButton);
+    if (toggle) badge(toggle, 'cy-chat-pn', state.box.classList.contains('open') ? 0 : total, 'Упоминаний');
+}
+
+function visibleArchive(state) {
+    const activeTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab;
+    const rooms = state.box.closest('.mn') ? ['mine']
+        : state.box.closest('.co-host, .co-float') ? ['one', 'city', 'mine'] : ['city'];
+    const messages = rooms.flatMap((room) => storedArchive[room] || []);
+    return [...new Map(messages.map((item) => [item.id, item])).values()]
+        .filter((item) => item.tab === activeTab)
+        .sort((a, b) => a.at - b.at);
+}
+
+function archiveRow(message, room) {
+    const row = document.createElement('li');
+    row.className = 't7-archive-row ping';
+    row.dataset.mid = message.id;
+    row.dataset.t7ArchiveRoom = room;
+    row.title = message.at ? new Date(message.at).toLocaleTimeString() : '';
+    const nick = document.createElement('b');
+    nick.dataset.nick = message.login;
+    nick.tabIndex = 0;
+    nick.textContent = message.name || message.login;
+    const text = document.createElement('span');
+    text.textContent = message.text;
+    row.append(nick, document.createTextNode(' '), text);
+    return row;
+}
+
+function updateArchiveControls(state) {
+    const nav = state.box.querySelector('.t7-ping-nav');
+    if (!nav) return;
+    const messages = visibleArchive(state);
+    const pages = Math.ceil(messages.length / PING_PAGE_SIZE);
+    state.page = Math.min(state.page, Math.max(0, pages - 1));
+    nav.hidden = !pingOnly || pages < 2;
+    const older = nav.querySelector('[data-direction="older"]');
+    const newer = nav.querySelector('[data-direction="newer"]');
+    if (older) older.disabled = state.page >= pages - 1;
+    if (newer) newer.disabled = state.page === 0;
+}
+
+function renderArchivePage(state) {
+    const list = state.list;
+    if (!list) return;
+    const messages = visibleArchive(state);
+    const start = Math.max(0, messages.length - (state.page + 1) * PING_PAGE_SIZE);
+    const end = messages.length - state.page * PING_PAGE_SIZE;
+    const pageMessages = messages.slice(start, end);
+    const wanted = new Set(pageMessages.map((message) => message.id));
+
+    chatScroller.keep(list, () => {
+        list.querySelectorAll(':scope > li:not(.t7-archive-row)').forEach((row) => {
+            const keep = state.page === 0
+                && (row.classList.contains('ping') || row.classList.contains('t7-ping'));
+            row.classList.toggle('t7-ping-hidden', pingOnly && !keep);
+        });
+        list.querySelectorAll(':scope > .t7-archive-row').forEach((row) => {
+            if (!wanted.has(row.dataset.mid)) row.remove();
+        });
+        if (pingOnly) {
+            const present = new Set([...list.querySelectorAll(':scope > li[data-mid]')].map((row) => row.dataset.mid));
+            const room = state.box.closest('.mn') ? 'mine'
+                : state.box.closest('.co-host, .co-float') ? 'one' : 'city';
+            const missing = pageMessages.filter((message) => !present.has(message.id))
+                .map((message) => archiveRow(message, room));
+            if (missing.length) {
+                const firstLiveRow = list.querySelector(':scope > li:not(.t7-archive-row)');
+                if (firstLiveRow) firstLiveRow.before(...missing);
+                else list.append(...missing);
             }
         }
-        const tb = tabOfMsg(o.C, m);
-        if (!o.C.on || (o.C.open && o.C.tab === tb)) continue;
-        pg[tb] = (pg[tb] || 0) + 1;
-        hit = true;
-    }
-    if (hit && o.C.on) paint(room);
-}
-
-const seenPings = new Set();
-function visibleChatMessages(C) {
-    return C.list.filter((m) => tabOfMsg(C, m) === C.tab
-        && !(C.ign && C.ign.has(m.l))
-        && (C.tab !== 'dm' || !C.peer || m.sys || m.l === C.peer || m.to === C.peer));
-}
-
-function markFilteredMessages(room) {
-    const o = chatOf(room);
-    const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
-    if (!list || !o.C) return;
-    const messagesById = new Map(visibleChatMessages(o.C).map((message) => [String(message.id), message]));
-    const rows = list.querySelectorAll(SEL.nonEmptyChatRows);
-    const x = rooms[room].instance.K.X();
-    const me = String((x && x.login && x.login()) || '').toLowerCase();
-    rows.forEach((row) => {
-        const m = messagesById.get(row.dataset.mid);
-        if (!m) {
-            row.classList.remove('ping', 't7-filtered', 't7-filtered-blacklist');
-            const oldTag = row.querySelector(':scope > .t7-filter-label');
-            if (oldTag) oldTag.remove();
-            return;
-        }
-        const label = pingSystem.filterLabel(m.l, m.t);
-        row.classList.toggle('t7-filtered', !!label);
-        row.classList.toggle('t7-filtered-blacklist', label === 'В ЧС');
-        row.classList.toggle('ping', !label && pingSystem.isPinged(m.t, me ? [me] : []));
-        let tag = row.querySelector(':scope > .t7-filter-label');
-        if (!label) {
-            if (tag) tag.remove();
-            return;
-        }
-        if (!tag) {
-            tag = document.createElement('i');
-            tag.className = 't7-filter-label';
-            row.prepend(tag);
-        }
-        const text = label === 'В ЧС' ? `Пользователь ${m.n || m.l} в чёрном списке` : 'Сообщение скрыто фильтром';
-        if (tag.textContent !== text) tag.textContent = text;
-        tag.title = label === 'В ЧС' ? 'Отправитель в вашем черном списке' : 'В сообщении найдено слово или фраза из фильтра';
+        list.dataset.t7NoPings = String(pingOnly && !pageMessages.length);
     });
+    updateArchiveControls(state);
 }
 
-function keepPingList(room, mutate) {
-    const o = chatOf(room);
-    const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
-    if (list) chatScroller.keep(list, mutate);
-    else mutate();
-}
-
-function applyPingOnly(room) {
-    const o = chatOf(room);
-    const list = o && o.S.el && o.S.el.querySelector(SEL.chatList);
-    if (!list) return;
-    const messagesById = new Map(visibleChatMessages(o.C).map((message) => [String(message.id), message]));
-    const pageIds = new Set(archivePage(room, o.C).map((m) => String(m.id)));
-    let hasPing = false;
-    list.querySelectorAll(':scope > li').forEach((row) => {
-        if (row.classList.contains('cy-chat-0')) return;
-        const message = messagesById.get(row.dataset.mid);
-        const onPage = message && (message.id == null || pageIds.has(String(message.id)));
-        const keep = !pingOnly || row.classList.contains('ping') && onPage;
-        row.classList.toggle('t7-ping-hidden', !keep);
-        if (pingOnly && keep) hasPing = true;
-    });
-    list.dataset.t7NoPings = String(pingOnly && !hasPing);
-}
-
-function syncPingOnlyControls() {
-    for (const room of (hasUnifiedChat() ? ['one'] : ['city', 'mine'])) {
-        const o = chatOf(room);
-        const input = o && o.S.el && o.S.el.querySelector('.t7-chat-filter input');
-        if (input) input.checked = pingOnly;
-        refreshPingArchive(room);
-    }
-}
-
-function addPingOnlyControl(room, box) {
-    const header = box.querySelector(SEL.chatHeader);
+function ensureControls(state) {
+    const header = state.box.querySelector(SEL.chatHeader);
     if (!header) return;
-    let label = header.querySelector('.t7-chat-filter');
-    if (!label) {
-        label = document.createElement('label');
-        label.className = 't7-chat-filter';
-        label.title = 'Показывать только сообщения с упоминанием';
-        const input = document.createElement('input');
-        input.type = 'checkbox';
+
+    let filter = header.querySelector('.t7-chat-filter');
+    if (!filter) {
+        filter = document.createElement('label');
+        filter.className = 't7-chat-filter';
+        filter.title = 'Показывать только сообщения с упоминанием';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
         const text = document.createElement('span');
         text.textContent = 'Только пинги';
-        label.append(input, text);
-        label.addEventListener('click', (e) => e.stopPropagation());
-        label.querySelector('input').addEventListener('change', (e) => {
-            pingOnly = e.currentTarget.checked;
+        filter.append(checkbox, text);
+        filter.addEventListener('click', (event) => event.stopPropagation());
+        checkbox.addEventListener('change', () => {
+            pingOnly = checkbox.checked;
             store.set(PING_ONLY_KEY, pingOnly);
-            syncPingOnlyControls();
+            for (const current of states) {
+                const input = current.box.querySelector('.t7-chat-filter input');
+                if (input) input.checked = pingOnly;
+                current.page = 0;
+                renderArchivePage(current);
+            }
         });
     }
-    label.querySelector('input').checked = pingOnly;
+    filter.querySelector('input').checked = pingOnly;
     const close = header.querySelector(SEL.chatCloseButton);
-    if (!label.isConnected) header.insertBefore(label, close || null);
+    if (!filter.isConnected) header.insertBefore(filter, close || null);
 
     let nav = header.querySelector('.t7-ping-nav');
     if (!nav) {
@@ -310,117 +292,142 @@ function addPingOnlyControl(room, box) {
             button.textContent = symbol;
             nav.appendChild(button);
         }
-        nav.addEventListener('click', (e) => {
-            const button = e.target.closest('button[data-direction]');
+        nav.addEventListener('click', (event) => {
+            const button = event.target.closest('button[data-direction]');
             if (!button) return;
-            e.stopPropagation();
-            const roomState = rooms[room];
-            roomState.archivePage = Math.max(0, roomState.archivePage + (button.dataset.direction === 'older' ? 1 : -1));
-            refreshPingArchive(room);
-            updatePingArchiveControl(room);
+            event.stopPropagation();
+            state.page = Math.max(0, state.page + (button.dataset.direction === 'older' ? 1 : -1));
+            renderArchivePage(state);
         });
         header.insertBefore(nav, close || null);
     }
-    updatePingArchiveControl(room);
-    keepPingList(room, () => applyPingOnly(room));
-}
-function updatePingArchiveControl(room) {
-    const o = chatOf(room);
-    const header = o && o.S.el && o.S.el.querySelector(SEL.chatHeader);
-    const nav = header && header.querySelector('.t7-ping-nav');
-    if (!nav || !o.C) return;
-    const roomState = rooms[room];
-    const count = roomState.archive.filter((m) => tabOfMsg(o.C, m) === o.C.tab).length;
-    const pages = Math.ceil(count / PING_PAGE_SIZE);
-    roomState.archivePage = Math.min(roomState.archivePage, Math.max(0, pages - 1));
-    nav.hidden = !pingOnly || pages < 2;
-    const older = nav.querySelector('[data-direction="older"]');
-    const newer = nav.querySelector('[data-direction="newer"]');
-    if (older) older.disabled = roomState.archivePage >= pages - 1;
-    if (newer) newer.disabled = roomState.archivePage === 0;
 }
 
-const num = (n) => (n > 99 ? '99+' : String(n));
-function badge(parent, cls, n, title) {
-    let b = parent.querySelector(':scope > .' + cls);
-    if (!b) {
-        b = document.createElement('b');
-        b.className = cls;
-        parent.appendChild(b);
+function addBlacklistMenu(state) {
+    const list = state.list;
+    if (!list || list.dataset.t7BlacklistMenu) return;
+    list.dataset.t7BlacklistMenu = '1';
+    list.addEventListener('contextmenu', (event) => {
+        const nick = event.target.closest(SEL.nickButton);
+        if (!nick || !list.contains(nick)) return;
+        const login = String(nick.dataset.nick || '').trim();
+        if (!login) return;
+        requestAnimationFrame(() => {
+            const menu = document.querySelector('.cy-nm');
+            if (!menu || menu.dataset.t7BlacklistAction) return;
+            menu.dataset.t7BlacklistAction = '1';
+            const blocked = pingSystem.config.blacklist.includes(login.toLowerCase());
+            const action = document.createElement('button');
+            action.type = 'button';
+            action.setAttribute('role', 'menuitem');
+            action.dataset.nm = 't7-blacklist';
+            action.textContent = blocked ? 'Убрать из ЧС' : 'В чёрный список';
+            action.addEventListener('click', () => pingSystem.toggleBlacklist(login));
+            menu.appendChild(action);
+        });
+    }, true);
+}
+
+function refreshRows(state, notify = false) {
+    if (!state.box.isConnected) return;
+    const activeTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab || '';
+    if (state.activeTab !== activeTab) {
+        state.activeTab = activeTab;
+        state.page = 0;
+        notify = false;
     }
-    b.hidden = !n;
-    b.textContent = n ? num(n) : '';
-    b.title = n ? title + ': ' + n : '';
+    const tabs = state.box.querySelector(SEL.chatTabs);
+    if (tabs !== state.tabs) {
+        state.tabsObserver?.disconnect();
+        state.tabs = tabs;
+        if (tabs) {
+            state.tabsObserver = new MutationObserver(() => refreshRows(state, false));
+            state.tabsObserver.observe(tabs, {
+                attributes: true,
+                attributeFilter: ['aria-selected'],
+                subtree: true
+            });
+        }
+    }
+    const list = state.box.querySelector(SEL.chatList);
+    if (list !== state.list) {
+        state.listObserver?.disconnect();
+        state.list = list;
+        state.page = 0;
+        if (list) {
+            chatScroller.register(list);
+            addBlacklistMenu(state);
+            state.listObserver = new MutationObserver(() => {
+                const currentTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab || '';
+                if (currentTab !== state.activeTab) {
+                    refreshRows(state, false);
+                    return;
+                }
+                list.querySelectorAll(':scope > li:not(.t7-archive-row)').forEach((row) => processRow(state, row, true));
+                paint(state);
+                renderArchivePage(state);
+            });
+            state.listObserver.observe(list, { childList: true });
+        }
+    }
+    ensureControls(state);
+    if (state.list) {
+        state.list.querySelectorAll(':scope > li:not(.t7-archive-row)').forEach((row) => processRow(state, row, notify));
+        addBlacklistMenu(state);
+    }
+    paint(state);
+    renderArchivePage(state);
 }
-export function paint(room) {
-    const o = chatOf(room);
-    const box = o && o.S.el && o.S.el.querySelector('.cy-chat');
-    if (!box) return;
-    const pg = rooms[room].pings;
-    if (o.C.open) pg[o.C.tab] = 0;   // открытая вкладка прочитана
-    let total = 0;
-    box.querySelectorAll(SEL.chatTabButtons).forEach((b) => {
-        const n = pg[b.dataset.tab] || 0;
-        total += n;
-        badge(b, 'cy-chat-tp', n, 'Упоминаний');
-    });
-    const t = box.querySelector(SEL.chatToggleButton);
-    if (t) badge(t, 'cy-chat-pn', o.C.open ? 0 : total, 'Упоминаний');
-}
-export function pingBind(room) {
-    const o = chatOf(room);
-    const box = o && o.S.el && o.S.el.querySelector(SEL.chatRoot);
-    if (!box || box.dataset.t7pg) return;
-    box.dataset.t7pg = '1';
-    addPingOnlyControl(room, box);
+
+function observeBox(box) {
+    if (stateByBox.has(box)) return;
+    const state = { box, list: null, listObserver: null, counts: {}, page: 0, seen: new Set() };
+    stateByBox.set(box, state);
+    states.add(state);
+    state.boxObserver = new MutationObserver(() => refreshRows(state, true));
+    state.boxObserver.observe(box, { childList: true });
     box.addEventListener('click', (event) => {
         if (!(event.target instanceof Element)
             || !event.target.closest(`${SEL.chatTabButtons}, ${SEL.chatToggleButton}, ${SEL.chatCloseButton}`)) return;
-        refreshPingArchive(room);
-        updatePingArchiveControl(room);
-        paint(room);
-    });   // вкладка / «Чат» / × → пересчитать
-    const list = box.querySelector(SEL.chatList);
-    if (list && !list.dataset.t7BlacklistMenu) {
-        list.dataset.t7BlacklistMenu = '1';
-        list.addEventListener('contextmenu', (e) => {
-            const nick = e.target.closest(SEL.nickButton);
-            if (!nick || !list.contains(nick)) return;
-            const login = String(nick.dataset.nick || '').trim();
-            if (!login) return;
-            requestAnimationFrame(() => {
-                const menu = document.querySelector('.cy-nm');
-                if (!menu || menu.dataset.t7BlacklistAction) return;
-                menu.dataset.t7BlacklistAction = '1';
-                const blocked = pingSystem.config.blacklist.includes(login.toLowerCase());
-                const action = document.createElement('button');
-                action.type = 'button';
-                action.setAttribute('role', 'menuitem');
-                action.dataset.nm = 't7-blacklist';
-                action.textContent = blocked ? 'Убрать из ЧС' : 'В чёрный список';
-                action.addEventListener('click', () => pingSystem.toggleBlacklist(login));
-                menu.appendChild(action);
-            });
-        }, true);
-    }
-    const roomState = rooms[room];
-    if (list) chatScroller.register(list, room, true);
-    if (list && roomState.filterList !== list) {
-        if (roomState.filterObserver) roomState.filterObserver.disconnect();
-        roomState.filterObserver = new MutationObserver(() => {
-            chatScroller.keep(list, () => {
-                markFilteredMessages(room);
-                applyPingOnly(room);
-            });
-        });
-        roomState.filterObserver.observe(list, { childList: true });
-        roomState.filterList = list;
-    }
-    keepPingList(room, () => {
-        markFilteredMessages(room);
-        applyPingOnly(room);
+        queueMicrotask(() => refreshRows(state, false));
     });
-    updatePingArchiveControl(room);
+    refreshRows(state, false);
 }
 
-export const isPingOnly = () => pingOnly;
+function startDocumentObserver() {
+    if (documentObserver || !document.documentElement) return;
+    documentObserver = new MutationObserver((records) => {
+        for (const record of records) {
+            for (const node of record.removedNodes) {
+                if (node.nodeType !== Node.ELEMENT_NODE) continue;
+                const removedBoxes = [];
+                if (node.matches(SEL.chatRoot)) removedBoxes.push(node);
+                removedBoxes.push(...node.querySelectorAll(SEL.chatRoot));
+                for (const box of removedBoxes) {
+                    const state = stateByBox.get(box);
+                    if (!state || box.isConnected) continue;
+                    state.boxObserver.disconnect();
+                    state.listObserver?.disconnect();
+                    state.tabsObserver?.disconnect();
+                    states.delete(state);
+                    stateByBox.delete(box);
+                }
+            }
+            for (const node of record.addedNodes) {
+                if (node.nodeType !== Node.ELEMENT_NODE) continue;
+                if (node.matches(SEL.chatRoot)) observeBox(node);
+                node.querySelectorAll(SEL.chatRoot).forEach(observeBox);
+            }
+        }
+    });
+    documentObserver.observe(document.documentElement, { childList: true, subtree: true });
+    document.querySelectorAll(SEL.chatRoot).forEach(observeBox);
+}
+
+pingSystem.subscribe(() => {
+    for (const state of states) refreshRows(state, false);
+});
+
+export function startChatPingIntegration() {
+    startDocumentObserver();
+}
