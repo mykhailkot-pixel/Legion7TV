@@ -2,7 +2,6 @@ import { getChatTabPrefs } from '../prefs.js';
 import { EV, SEL, on } from '../../core/consts.js';
 
 const observers = new WeakMap();
-const failedFallbacks = new WeakMap();
 let documentObserver = null;
 
 function applyTabs(tabs) {
@@ -24,16 +23,6 @@ function applyTabs(tabs) {
         button.classList.toggle('t7-pref-hidden', hidden);
     }
 
-    const active = ordered.find((button) => button.getAttribute('aria-selected') === 'true');
-    if (!active || !prefs.hidden.has(active.dataset.tab)) {
-        failedFallbacks.delete(tabs);
-        return;
-    }
-    const fallback = ordered.find((button) =>
-        !prefs.hidden.has(button.dataset.tab) && !button.hidden && !button.disabled);
-    if (!fallback || failedFallbacks.get(tabs) === active.dataset.tab) return;
-    failedFallbacks.set(tabs, active.dataset.tab);
-    fallback.click();
 }
 
 function observeTabs(tabs) {

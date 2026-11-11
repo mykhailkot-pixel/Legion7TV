@@ -4263,7 +4263,6 @@
     };
   }
   var observers = /* @__PURE__ */ new WeakMap();
-  var failedFallbacks = /* @__PURE__ */ new WeakMap();
   var documentObserver = null;
   function applyTabs(tabs) {
     if (!tabs.isConnected) return;
@@ -4281,15 +4280,6 @@
       const hidden = prefs.hidden.has(button.dataset.tab);
       button.classList.toggle("t7-pref-hidden", hidden);
     }
-    const active = ordered.find((button) => button.getAttribute("aria-selected") === "true");
-    if (!active || !prefs.hidden.has(active.dataset.tab)) {
-      failedFallbacks.delete(tabs);
-      return;
-    }
-    const fallback = ordered.find((button) => !prefs.hidden.has(button.dataset.tab) && !button.hidden && !button.disabled);
-    if (!fallback || failedFallbacks.get(tabs) === active.dataset.tab) return;
-    failedFallbacks.set(tabs, active.dataset.tab);
-    fallback.click();
   }
   function observeTabs(tabs) {
     if (observers.has(tabs)) return;
@@ -4417,7 +4407,10 @@
     if (tag.textContent !== text) tag.textContent = text;
     tag.title = label === "\u0412 \u0427\u0421" ? "\u041E\u0442\u043F\u0440\u0430\u0432\u0438\u0442\u0435\u043B\u044C \u0432 \u0432\u0430\u0448\u0435\u043C \u0447\u0435\u0440\u043D\u043E\u043C \u0441\u043F\u0438\u0441\u043A\u0435" : "\u0412 \u0441\u043E\u043E\u0431\u0449\u0435\u043D\u0438\u0438 \u043D\u0430\u0439\u0434\u0435\u043D\u043E \u0441\u043B\u043E\u0432\u043E \u0438\u043B\u0438 \u0444\u0440\u0430\u0437\u0430 \u0438\u0437 \u0444\u0438\u043B\u044C\u0442\u0440\u0430";
   }
-  function processRow(state, row, notify) {
+  function playPingNotification() {
+    pingSystem.play().catch((error) => console.warn("[7TV] \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0437\u0432\u0443\u043A \u043F\u0438\u043D\u0433\u0430", error));
+  }
+  function processRow(state, row, notify, notificationBatch = null) {
     const message = getMessage(row);
     if (!message) return false;
     const room = getRoom(state.box, row);
@@ -4438,7 +4431,8 @@
       const currentTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab;
       if (!previouslySeen && notify) {
         state.counts[tab] = (state.counts[tab] || 0) + (tab === currentTab ? 0 : 1);
-        pingSystem.play().catch((error) => console.warn("[7TV] \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043E\u0441\u043F\u0440\u043E\u0438\u0437\u0432\u0435\u0441\u0442\u0438 \u0437\u0432\u0443\u043A \u043F\u0438\u043D\u0433\u0430", error));
+        if (notificationBatch) notificationBatch.play = true;
+        else playPingNotification();
       }
     }
     return pinged;
@@ -4633,6 +4627,7 @@
       state.listObserver?.disconnect();
       state.list = list;
       state.page = 0;
+      notify = false;
       if (list) {
         chatScroller.register(list);
         addBlacklistMenu(state);
@@ -4642,17 +4637,21 @@
             refreshRows(state, false);
             return;
           }
-          list.querySelectorAll(":scope > li:not(.t7-archive-row)").forEach((row) => processRow(state, row, true));
+          const notificationBatch = { play: false };
+          list.querySelectorAll(":scope > li:not(.t7-archive-row)").forEach((row) => processRow(state, row, true, notificationBatch));
           paint(state);
           renderArchivePage(state);
+          if (notificationBatch.play) playPingNotification();
         });
         state.listObserver.observe(list, { childList: true });
       }
     }
     ensureControls(state);
     if (state.list) {
-      state.list.querySelectorAll(":scope > li:not(.t7-archive-row)").forEach((row) => processRow(state, row, notify));
+      const notificationBatch = { play: false };
+      state.list.querySelectorAll(":scope > li:not(.t7-archive-row)").forEach((row) => processRow(state, row, notify, notificationBatch));
       addBlacklistMenu(state);
+      if (notificationBatch.play) playPingNotification();
     }
     paint(state);
     renderArchivePage(state);

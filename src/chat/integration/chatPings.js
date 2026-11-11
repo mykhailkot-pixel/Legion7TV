@@ -116,7 +116,12 @@ function addFilterLabel(row, label) {
         : 'В сообщении найдено слово или фраза из фильтра';
 }
 
-function processRow(state, row, notify) {
+function playPingNotification() {
+    pingSystem.play().catch((error) =>
+        console.warn('[7TV] не удалось воспроизвести звук пинга', error));
+}
+
+function processRow(state, row, notify, notificationBatch = null) {
     const message = getMessage(row);
     if (!message) return false;
     const room = getRoom(state.box, row);
@@ -140,8 +145,8 @@ function processRow(state, row, notify) {
         const currentTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab;
         if (!previouslySeen && notify) {
             state.counts[tab] = (state.counts[tab] || 0) + (tab === currentTab ? 0 : 1);
-            pingSystem.play().catch((error) =>
-                console.warn('[7TV] не удалось воспроизвести звук пинга', error));
+            if (notificationBatch) notificationBatch.play = true;
+            else playPingNotification();
         }
     }
     return pinged;
@@ -354,6 +359,7 @@ function refreshRows(state, notify = false) {
         state.listObserver?.disconnect();
         state.list = list;
         state.page = 0;
+        notify = false;
         if (list) {
             chatScroller.register(list);
             addBlacklistMenu(state);
@@ -363,17 +369,23 @@ function refreshRows(state, notify = false) {
                     refreshRows(state, false);
                     return;
                 }
-                list.querySelectorAll(':scope > li:not(.t7-archive-row)').forEach((row) => processRow(state, row, true));
+                const notificationBatch = { play: false };
+                list.querySelectorAll(':scope > li:not(.t7-archive-row)')
+                    .forEach((row) => processRow(state, row, true, notificationBatch));
                 paint(state);
                 renderArchivePage(state);
+                if (notificationBatch.play) playPingNotification();
             });
             state.listObserver.observe(list, { childList: true });
         }
     }
     ensureControls(state);
     if (state.list) {
-        state.list.querySelectorAll(':scope > li:not(.t7-archive-row)').forEach((row) => processRow(state, row, notify));
+        const notificationBatch = { play: false };
+        state.list.querySelectorAll(':scope > li:not(.t7-archive-row)')
+            .forEach((row) => processRow(state, row, notify, notificationBatch));
         addBlacklistMenu(state);
+        if (notificationBatch.play) playPingNotification();
     }
     paint(state);
     renderArchivePage(state);
