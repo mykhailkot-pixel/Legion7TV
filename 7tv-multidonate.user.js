@@ -1562,16 +1562,16 @@
   var IMAGE_PREVIEWS_KEY = STORE.imagePreviews;
   var previewCache = /* @__PURE__ */ new Map();
   var outgoingBindings = /* @__PURE__ */ new WeakMap();
+  var outgoingBindingCount = 0;
   var isLinkEncodingEnabled = () => store.get(LINK_ENCODING_KEY) === true;
   var setLinkEncodingEnabled = (enabled) => store.set(LINK_ENCODING_KEY, !!enabled);
   var areImagePreviewsEnabled = () => store.get(IMAGE_PREVIEWS_KEY) === true;
   var setImagePreviewsEnabled = (enabled) => store.set(IMAGE_PREVIEWS_KEY, !!enabled);
-  var HTTP_RE = /(?<![\p{L}\p{N}_])http:\/\/\S/iu;
   var URL_RE = /\[ref\]\{[^{}\s]+\}|https:\/\/[^\s<>"']+|www\.[^\s<>"']+/giu;
   var HOST_OK = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
   var TLD = "[a-z]{2}|com|net|org|info|dev|app|xyz|online|site|tech|gov|edu|club|shop|store|blog|cloud|live|link";
   var LINK_RE = new RegExp(
-    "(?<![\\p{L}\\p{N}_@/.:%-])(?:https:\\/\\/)?(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+(?:" + TLD + ")(?![\\p{L}\\p{N}-])(?::\\d{1,5})?(?:[/?#]\\S*)?",
+    "(?<![\\p{L}\\p{N}_@/.:%-])(?:https?:\\/\\/)?(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+(?:" + TLD + ")(?![\\p{L}\\p{N}-])(?::\\d{1,5})?(?:[/?#]\\S*)?",
     "giu"
   );
   function trimTrailingPunct(raw, options = {}) {
@@ -1608,7 +1608,7 @@
       stripQuotes: true,
       stripBrackets: true
     });
-    url = url.replace(/^https:\/\//i, "");
+    url = url.replace(/^https?:\/\//i, "");
     const i = url.search(/[/?#]/);
     const host = (i < 0 ? url : url.slice(0, i)).toLowerCase().replace(/\./g, "_");
     const rest = i < 0 ? "" : url.slice(i).replace(/\./g, "%2E").replace(/\{/g, "%7B").replace(/\}/g, "%7D");
@@ -1726,58 +1726,58 @@
       addImagePreview(anchor);
     });
   }
-  function showLinkWarning(form, message) {
-    let warning = form.querySelector(":scope > .t7-link-warning");
-    if (!warning) {
-      warning = document.createElement("div");
-      warning.className = "t7-link-warning";
-      warning.setAttribute("role", "alert");
-      form.appendChild(warning);
-    }
-    warning.textContent = message;
-    warning.hidden = false;
-  }
   function isExcludedChatSend(form, input) {
     const activeTab = form.closest(".cy-chat")?.querySelector('[data-tab][aria-selected="true"]');
     const tab = activeTab?.dataset.tab;
     return tab === "gl" || tab === "lg" || tab === "g" && input.value.trim().startsWith("/");
   }
+  function prepareOutgoingMessage(form, input) {
+    if (isExcludedChatSend(form, input)) return;
+    if (!isLinkEncodingEnabled()) {
+      rememberSentImages(input.value);
+      return;
+    }
+    const text = input.value;
+    rememberSentImages(text);
+    const encoded = encodeLinks(text);
+    if (encoded === text) return;
+    input.value = encoded;
+    setTimeout(() => {
+      if (input.isConnected && input.value === encoded) input.value = text;
+    });
+  }
+  function onDocumentKeyDown(event) {
+    if (event.key !== "Enter" || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey || event.isComposing || event.keyCode === 229) return;
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement)) return;
+    const form = input.form;
+    if (!form || outgoingBindings.get(form) !== input) return;
+    prepareOutgoingMessage(form, input);
+  }
+  function onDocumentSubmit(event) {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    const input = outgoingBindings.get(form);
+    if (input) prepareOutgoingMessage(form, input);
+  }
   function bindOutgoingLinkEncoding(form, input) {
-    if (outgoingBindings.has(form)) return outgoingBindings.get(form);
-    const prepare = (event) => {
-      if (isExcludedChatSend(form, input)) return;
-      if (!isLinkEncodingEnabled()) {
-        rememberSentImages(input.value);
-        return;
-      }
-      const text = input.value;
-      if (HTTP_RE.test(text)) {
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        showLinkWarning(form, "\u0421\u0441\u044B\u043B\u043A\u0438 http:// \u043D\u0435 \u043E\u0442\u043F\u0440\u0430\u0432\u043B\u044F\u044E\u0442\u0441\u044F \u2014 \u0438\u0441\u043F\u043E\u043B\u044C\u0437\u0443\u0439 https://");
-        return;
-      }
-      rememberSentImages(text);
-      const encoded = encodeLinks(text);
-      if (encoded === text) return;
-      input.value = encoded;
-      queueMicrotask(() => {
-        if (input.isConnected && input.value === encoded) input.value = text;
-      });
+    if (outgoingBindings.has(form)) return () => {
     };
-    const onKeyDown = (event) => {
-      if (event.key !== "Enter" || event.shiftKey || event.altKey || event.ctrlKey || event.metaKey || event.isComposing || event.keyCode === 229) return;
-      prepare(event);
-    };
-    const onSubmit = (event) => prepare(event);
-    input.addEventListener("keydown", onKeyDown, true);
-    form.addEventListener("submit", onSubmit, true);
+    if (outgoingBindingCount === 0) {
+      document.addEventListener("keydown", onDocumentKeyDown, true);
+      document.addEventListener("submit", onDocumentSubmit, true);
+    }
+    outgoingBindings.set(form, input);
+    outgoingBindingCount++;
     const dispose = () => {
-      input.removeEventListener("keydown", onKeyDown, true);
-      form.removeEventListener("submit", onSubmit, true);
+      if (!outgoingBindings.has(form)) return;
       outgoingBindings.delete(form);
+      outgoingBindingCount--;
+      if (outgoingBindingCount === 0) {
+        document.removeEventListener("keydown", onDocumentKeyDown, true);
+        document.removeEventListener("submit", onDocumentSubmit, true);
+      }
     };
-    outgoingBindings.set(form, dispose);
     return dispose;
   }
   var CONFIG_KEY = STORE.pingConfig;
@@ -1837,8 +1837,11 @@
       this.dmCustomBuffer = null;
       this.dmCustomBufferPromise = null;
       this.dmUser = "";
-      this.audioUnlockHandler = () => this.unlockAudio();
-      document.addEventListener("pointerdown", this.audioUnlockHandler, { capture: true, passive: true });
+      this.audioUnlockHandler = (event) => {
+        if (event.type === "keydown" && (!["Enter", " "].includes(event.key) || event.repeat || event.isComposing)) return;
+        this.unlockAudio(event);
+      };
+      document.addEventListener("click", this.audioUnlockHandler, true);
       document.addEventListener("keydown", this.audioUnlockHandler, true);
     }
     reloadConfig() {
@@ -1989,11 +1992,15 @@
       this.audioContext ||= new AudioContext();
       return this.audioContext;
     }
-    unlockAudio() {
+    unlockAudio(event) {
+      if (!event || !event.isTrusted || navigator.userActivation && !navigator.userActivation.isActive) return;
       try {
         const context = this.getAudioContext();
         if (context && context.state === "suspended") {
-          context.resume().catch((error) => console.warn("[7TV] \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0430\u0443\u0434\u0438\u043E", error));
+          context.resume().catch((error) => {
+            if (error?.name !== "NotAllowedError")
+              console.warn("[7TV] \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0430\u0443\u0434\u0438\u043E", error);
+          });
         }
       } catch (error) {
         console.warn("[7TV] \u043D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0432\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u0430\u0443\u0434\u0438\u043E", error);
@@ -2033,9 +2040,17 @@
     }
     async playSound(preset, customSound, isDm) {
       if (this.config.volume <= 0) return;
-      const context = this.getAudioContext();
+      const context = this.audioContext;
       if (!context) return;
-      if (context.state === "suspended") await context.resume();
+      if (context.state === "suspended") {
+        try {
+          await context.resume();
+        } catch (error) {
+          if (error.name === "NotAllowedError") return;
+          throw error;
+        }
+      }
+      if (context.state !== "running") return;
       if (preset === "custom" && customSound) {
         try {
           const source = context.createBufferSource();
@@ -3226,10 +3241,8 @@
       const b = e.target.closest("[data-act]");
       if (!b) return;
       if (b.dataset.act === "custom-sound") {
-        pingSystem.unlockAudio();
         pingFile.click();
       } else if (b.dataset.act === "custom-dm-sound") {
-        pingSystem.unlockAudio();
         dmPingFile.click();
       } else if (b.dataset.act === "chat-font") chatFontFile.click();
       else if (b.dataset.act === "chat-font-reset") {

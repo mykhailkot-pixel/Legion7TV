@@ -615,11 +615,9 @@ export function openSettings() {
         const b = e.target.closest('[data-act]');
         if (!b) return;
         if (b.dataset.act === 'custom-sound') {
-            pingSystem.unlockAudio();
             pingFile.click();
         }
         else if (b.dataset.act === 'custom-dm-sound') {
-            pingSystem.unlockAudio();
             dmPingFile.click();
         }
         else if (b.dataset.act === 'chat-font') chatFontFile.click();

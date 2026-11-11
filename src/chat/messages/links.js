@@ -10,19 +10,19 @@ const LINK_ENCODING_KEY = STORE.linkEncoding;
 const IMAGE_PREVIEWS_KEY = STORE.imagePreviews;
 const previewCache = new Map();
 const outgoingBindings = new WeakMap();
+let outgoingBindingCount = 0;
 
 export const isLinkEncodingEnabled = () => store.get(LINK_ENCODING_KEY) === true;
 export const setLinkEncodingEnabled = (enabled) => store.set(LINK_ENCODING_KEY, !!enabled);
 export const areImagePreviewsEnabled = () => store.get(IMAGE_PREVIEWS_KEY) === true;
 export const setImagePreviewsEnabled = (enabled) => store.set(IMAGE_PREVIEWS_KEY, !!enabled);
 
-const HTTP_RE = /(?<![\p{L}\p{N}_])http:\/\/\S/iu;
 const URL_RE = /\[ref\]\{[^{}\s]+\}|https:\/\/[^\s<>"']+|www\.[^\s<>"']+/giu;
 const HOST_OK = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/i;
 // bare-домены: 2 латинские буквы (ccTLD) или частые общие зоны; так "кто.то" и "main.txt" ссылками не считаются
 const TLD = '[a-z]{2}|com|net|org|info|dev|app|xyz|online|site|tech|gov|edu|club|shop|store|blog|cloud|live|link';
 const LINK_RE = new RegExp(
-    '(?<![\\p{L}\\p{N}_@/.:%-])(?:https:\\/\\/)?' +
+    '(?<![\\p{L}\\p{N}_@/.:%-])(?:https?:\\/\\/)?' +
     '(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+(?:' + TLD + ')(?![\\p{L}\\p{N}-])' +
     '(?::\\d{1,5})?(?:[/?#]\\S*)?', 'giu');
 
@@ -62,7 +62,7 @@ function encodeOne(raw) {
         stripQuotes: true,
         stripBrackets: true
     });
-    url = url.replace(/^https:\/\//i, '');
+    url = url.replace(/^https?:\/\//i, '');
     const i = url.search(/[/?#]/);
     const host = (i < 0 ? url : url.slice(0, i)).toLowerCase().replace(/\./g, '_');
     const rest = i < 0 ? '' : url.slice(i).replace(/\./g, '%2E').replace(/\{/g, '%7B').replace(/\}/g, '%7D');
@@ -188,64 +188,64 @@ export function processLinks({ content, room }) {
     if (showImages) content.querySelectorAll('a.t7-link').forEach((anchor) => { addImagePreview(anchor); });
 }
 
-function showLinkWarning(form, message) {
-    let warning = form.querySelector(':scope > .t7-link-warning');
-    if (!warning) {
-        warning = document.createElement('div');
-        warning.className = 't7-link-warning';
-        warning.setAttribute('role', 'alert');
-        form.appendChild(warning);
-    }
-    warning.textContent = message;
-    warning.hidden = false;
-}
-
 function isExcludedChatSend(form, input) {
     const activeTab = form.closest('.cy-chat')?.querySelector('[data-tab][aria-selected="true"]');
     const tab = activeTab?.dataset.tab;
     return tab === 'gl' || tab === 'lg' || (tab === 'g' && input.value.trim().startsWith('/'));
 }
 
+function prepareOutgoingMessage(form, input) {
+    if (isExcludedChatSend(form, input)) return;
+    if (!isLinkEncodingEnabled()) {
+        rememberSentImages(input.value);
+        return;
+    }
+
+    const text = input.value;
+    rememberSentImages(text);
+    const encoded = encodeLinks(text);
+    if (encoded === text) return;
+
+    input.value = encoded;
+    setTimeout(() => {
+        if (input.isConnected && input.value === encoded) input.value = text;
+    });
+}
+
+function onDocumentKeyDown(event) {
+    if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey
+        || event.metaKey || event.isComposing || event.keyCode === 229) return;
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement)) return;
+    const form = input.form;
+    if (!form || outgoingBindings.get(form) !== input) return;
+    prepareOutgoingMessage(form, input);
+}
+
+function onDocumentSubmit(event) {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    const input = outgoingBindings.get(form);
+    if (input) prepareOutgoingMessage(form, input);
+}
+
 export function bindOutgoingLinkEncoding(form, input) {
-    if (outgoingBindings.has(form)) return outgoingBindings.get(form);
+    if (outgoingBindings.has(form)) return () => {};
+    if (outgoingBindingCount === 0) {
+        document.addEventListener('keydown', onDocumentKeyDown, true);
+        document.addEventListener('submit', onDocumentSubmit, true);
+    }
+    outgoingBindings.set(form, input);
+    outgoingBindingCount++;
 
-    const prepare = (event) => {
-        if (isExcludedChatSend(form, input)) return;
-        if (!isLinkEncodingEnabled()) {
-            rememberSentImages(input.value);
-            return;
-        }
-        const text = input.value;
-        if (HTTP_RE.test(text)) {
-            event.preventDefault();
-            event.stopImmediatePropagation();
-            showLinkWarning(form, 'Ссылки http:// не отправляются — используй https://');
-            return;
-        }
-
-        rememberSentImages(text);
-        const encoded = encodeLinks(text);
-        if (encoded === text) return;
-
-        input.value = encoded;
-        queueMicrotask(() => {
-            if (input.isConnected && input.value === encoded) input.value = text;
-        });
-    };
-    const onKeyDown = (event) => {
-        if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey
-            || event.metaKey || event.isComposing || event.keyCode === 229) return;
-        prepare(event);
-    };
-    const onSubmit = (event) => prepare(event);
-
-    input.addEventListener('keydown', onKeyDown, true);
-    form.addEventListener('submit', onSubmit, true);
     const dispose = () => {
-        input.removeEventListener('keydown', onKeyDown, true);
-        form.removeEventListener('submit', onSubmit, true);
+        if (!outgoingBindings.has(form)) return;
         outgoingBindings.delete(form);
+        outgoingBindingCount--;
+        if (outgoingBindingCount === 0) {
+            document.removeEventListener('keydown', onDocumentKeyDown, true);
+            document.removeEventListener('submit', onDocumentSubmit, true);
+        }
     };
-    outgoingBindings.set(form, dispose);
     return dispose;
 }

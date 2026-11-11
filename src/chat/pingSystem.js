@@ -62,8 +62,12 @@ class PingSystem {
         this.dmCustomBuffer = null;
         this.dmCustomBufferPromise = null;
         this.dmUser = '';
-        this.audioUnlockHandler = () => this.unlockAudio();
-        document.addEventListener('pointerdown', this.audioUnlockHandler, { capture: true, passive: true });
+        this.audioUnlockHandler = (event) => {
+            if (event.type === 'keydown'
+                && (!['Enter', ' '].includes(event.key) || event.repeat || event.isComposing)) return;
+            this.unlockAudio(event);
+        };
+        document.addEventListener('click', this.audioUnlockHandler, true);
         document.addEventListener('keydown', this.audioUnlockHandler, true);
     }
 
@@ -236,12 +240,15 @@ class PingSystem {
         return this.audioContext;
     }
 
-    unlockAudio() {
+    unlockAudio(event) {
+        if (!event || !event.isTrusted || (navigator.userActivation && !navigator.userActivation.isActive)) return;
         try {
             const context = this.getAudioContext();
             if (context && context.state === 'suspended') {
-                context.resume().catch((error) =>
-                    console.warn('[7TV] не удалось включить аудио', error));
+                context.resume().catch((error) => {
+                    if (error?.name !== 'NotAllowedError')
+                        console.warn('[7TV] не удалось включить аудио', error);
+                });
             }
         } catch (error) {
             console.warn('[7TV] не удалось включить аудио', error);
@@ -287,9 +294,17 @@ class PingSystem {
 
     async playSound(preset, customSound, isDm) {
         if (this.config.volume <= 0) return;
-        const context = this.getAudioContext();
+        const context = this.audioContext;
         if (!context) return;
-        if (context.state === 'suspended') await context.resume();
+        if (context.state === 'suspended') {
+            try {
+                await context.resume();
+            } catch (error) {
+                if (error.name === 'NotAllowedError') return;
+                throw error;
+            }
+        }
+        if (context.state !== 'running') return;
 
         if (preset === 'custom' && customSound) {
             try {
