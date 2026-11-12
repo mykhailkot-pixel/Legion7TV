@@ -42,12 +42,47 @@
                         try {
                             var state = args[0].state();
                             var chat = state && state.chat;
+                            if (d && Array.isArray(d.chatDel) && d.chatDel.length) {
+                                var box = state && state.el && state.el.querySelector('.cy-chat');
+                                if (box) {
+                                    if (!box.dataset.t7Box) box.dataset.t7Box = 't7b' + (++uid);
+                                    var deletedIds = d.chatDel.slice(0, 100).map(function (id) {
+                                        return String(id);
+                                    });
+                                    var deletedSet = new Set(deletedIds);
+                                    var deletedMessages = [];
+                                    if (chat && Array.isArray(chat.list)) {
+                                        for (var j = 0; j < chat.list.length; j++) {
+                                            var deletedMessage = chat.list[j];
+                                            if (!deletedMessage || !deletedSet.has(String(deletedMessage.id))) continue;
+                                            var room = deletedMessage.rm === 'mine' || rm === 'mine' ? 'mine'
+                                                : deletedMessage.rm === 'city' || rm === 'city' ? 'city' : '';
+                                            deletedMessages.push({
+                                                id: String(deletedMessage.id),
+                                                l: String(deletedMessage.l || ''),
+                                                n: String(deletedMessage.n || deletedMessage.l || ''),
+                                                t: String(deletedMessage.t || ''),
+                                                tab: deletedMessage.tb || (room === 'mine' ? 'mn'
+                                                    : deletedMessage.k === 'tr' ? 'tr' : 'g')
+                                            });
+                                        }
+                                    }
+                                    emitMessage({
+                                        source: 't7-chat-del',
+                                        boxId: box.dataset.t7Box,
+                                        ids: deletedIds,
+                                        messages: deletedMessages
+                                    });
+                                }
+                            }
                             if (chat && Array.isArray(chat.list)) {
                                 before = new Set(chat.list.map(function (message) {
                                     return String(message.id);
                                 }));
                             }
-                        } catch (error) {}
+                        } catch (error) {
+                            console.warn('[t7 hook] не удалось прочитать состояние чата', error);
+                        }
 
                         var result = origApply.apply(this, arguments);
                         try {

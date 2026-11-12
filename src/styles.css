@@ -300,3 +300,7 @@ form.cy-chat-f .t7-btn, form.dm-f .t7-btn{
     white-space:nowrap;vertical-align:middle;cursor:pointer}
 form.cy-chat-f .t7-btn:hover, form.dm-f .t7-btn:hover{background:rgb(165,100,255)}
 form.dm-f{position:relative}
+.cy-chat-l>li.t7-deleted-message,
+.cy-chat-l>li.t7-deleted-message *{color:#aaa!important;font-style:italic!important}
+.cy-chat-l>li.t7-deleted-message{background:transparent!important;box-shadow:none!important}
+.cy-chat-l>li.t7-deleted-message>.t7-deleted-label{white-space:pre}

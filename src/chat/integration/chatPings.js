@@ -10,6 +10,7 @@ const PING_PAGE_SIZE = 50;
 const ROOM_IDS = ['city', 'mine', 'one'];
 const CHAT_TABS = new Set(['g', 'tr', 'mn', 'dm', 'gl', 'lg']);
 const NOTIFIED_LIMIT = 1000;
+const DELETED_LIMIT = 500;
 const PAGE_STARTED_AT = performance.timeOrigin || Date.now();
 const states = new Set();
 const stateByBox = new WeakMap();
@@ -104,6 +105,101 @@ function messageKey(id) {
     return String(id);
 }
 
+function cacheRow(state, row, tab) {
+    const id = row.dataset.mid;
+    if (!id || row.classList.contains('t7-archive-row')
+        || row.classList.contains('t7-deleted-message')) return;
+    const existing = state.deletedRows.get(id);
+    const children = row.parentElement ? [...row.parentElement.children] : [];
+    const index = children.indexOf(row);
+    const next = children.slice(index + 1).find((item) => item.dataset.mid);
+    const previous = children.slice(0, index).reverse().find((item) => item.dataset.mid);
+    state.deletedRows.set(id, {
+        node: row.cloneNode(true),
+        tab: existing ? existing.tab : tab,
+        beforeId: next?.dataset.mid || existing?.beforeId || '',
+        afterId: previous?.dataset.mid || existing?.afterId || ''
+    });
+    if (state.deletedRows.size > DELETED_LIMIT)
+        state.deletedRows.delete(state.deletedRows.keys().next().value);
+}
+
+function markDeletedRow(row) {
+    row.classList.add('t7-deleted-message');
+    row.dataset.t7Deleted = '1';
+    let label = row.querySelector(':scope > .t7-deleted-label');
+    if (!label) {
+        label = document.createElement('span');
+        label.className = 't7-deleted-label';
+        row.appendChild(label);
+    }
+    label.textContent = ' - deleted';
+}
+
+function createDeletedSnapshot(message) {
+    if (!CHAT_TABS.has(message.tab)) return null;
+    const row = document.createElement('li');
+    row.dataset.mid = message.id;
+    const nick = document.createElement('b');
+    nick.dataset.nick = message.l;
+    nick.tabIndex = 0;
+    nick.textContent = message.n || message.l;
+    const text = document.createElement('span');
+    text.textContent = message.t;
+    row.append(nick, document.createTextNode(' '), text);
+    const label = pingSystem.filterLabel(message.l, message.t);
+    if (label) {
+        row.classList.add('t7-filtered');
+        row.classList.toggle('t7-filtered-blacklist', label === 'В ЧС');
+        addFilterLabel(row, label);
+    } else if (pingSystem.isPinged(message.t)) {
+        row.classList.add('t7-ping');
+    }
+    return { node: row, tab: message.tab, beforeId: '', afterId: '' };
+}
+
+function restoreDeletedRows(state) {
+    if (!state.list) return;
+    for (const id of state.deletedIds) {
+        const cached = state.deletedRows.get(id);
+        if (!cached || cached.tab !== state.activeTab) continue;
+        let row = [...state.list.children].find((item) => item.dataset.mid === id
+            && !item.classList.contains('t7-archive-row'));
+        if (!row) {
+            row = cached.node.cloneNode(true);
+            row.classList.remove('t7-archive-row');
+            delete row.dataset.l7tvProcessed;
+            const next = cached.beforeId && [...state.list.children]
+                .find((item) => item.dataset.mid === cached.beforeId);
+            const previous = cached.afterId && [...state.list.children]
+                .find((item) => item.dataset.mid === cached.afterId);
+            if (next) state.list.insertBefore(row, next);
+            else if (previous) previous.after(row);
+            else state.list.appendChild(row);
+        }
+        markDeletedRow(row);
+    }
+}
+
+function handleExternalDelete(state, ids, messages) {
+    const messagesById = new Map(messages.map((message) => [message.id, message]));
+    for (const id of ids) {
+        if (!state.deletedRows.has(id)) {
+            const message = messagesById.get(id);
+            const snapshot = message && createDeletedSnapshot(message);
+            if (snapshot) {
+                state.deletedRows.set(id, snapshot);
+                if (state.deletedRows.size > DELETED_LIMIT)
+                    state.deletedRows.delete(state.deletedRows.keys().next().value);
+            }
+        }
+        if (!state.deletedIds.has(id)) state.deletedIds.add(id);
+        if (state.deletedIds.size > DELETED_LIMIT)
+            state.deletedIds.delete(state.deletedIds.values().next().value);
+    }
+    restoreDeletedRows(state);
+}
+
 function rememberNotified(key) {
     if (notifiedIds.has(key)) return;
     notifiedIds.add(key);
@@ -137,6 +233,7 @@ function playPingNotification() {
 }
 
 function processRow(state, row, notify, notificationBatch = null) {
+    if (row.classList.contains('t7-deleted-message')) return false;
     const message = getMessage(row);
     if (!message) return false;
     const room = getRoom(state.box, row);
@@ -167,6 +264,7 @@ function processRow(state, row, notify, notificationBatch = null) {
             else playPingNotification();
         }
     }
+    cacheRow(state, row, tab);
     return pinged;
 }
 
@@ -222,8 +320,30 @@ function handleExternalMessage(state, payload) {
 function onExternalMessage(event) {
     if (event.source !== window || event.origin !== location.origin) return;
     const data = event.data;
-    if (!data || data.source !== 't7-chat-msg'
-        || typeof data.boxId !== 'string' || !/^t7b\d{1,12}$/.test(data.boxId)
+    if (!data || typeof data.boxId !== 'string' || !/^t7b\d{1,12}$/.test(data.boxId)) return;
+
+    if (data.source === 't7-chat-del') {
+        if (!Array.isArray(data.ids) || data.ids.length > 100
+            || data.ids.some((id) => typeof id !== 'string' || !id || id.length > 200)
+            || !Array.isArray(data.messages) || data.messages.length > 100
+            || data.messages.some((message) => !message || typeof message !== 'object'
+                || typeof message.id !== 'string' || !message.id || message.id.length > 200
+                || typeof message.l !== 'string' || message.l.length > 64
+                || typeof message.n !== 'string' || message.n.length > 128
+                || typeof message.t !== 'string' || message.t.length > 2000
+                || typeof message.tab !== 'string' || !CHAT_TABS.has(message.tab))) return;
+        const box = document.querySelector(`[data-t7-box="${CSS.escape(data.boxId)}"]`);
+        if (!box) return;
+        let state = stateByBox.get(box);
+        if (!state) {
+            observeBox(box);
+            state = stateByBox.get(box);
+        }
+        if (state) handleExternalDelete(state, data.ids, data.messages);
+        return;
+    }
+
+    if (data.source !== 't7-chat-msg'
         || !data.msg || typeof data.msg !== 'object'
         || typeof data.msg.id !== 'string' || !data.msg.id || data.msg.id.length > 200
         || typeof data.msg.l !== 'string' || data.msg.l.length > 64
@@ -407,6 +527,7 @@ function refreshRows(state, notify = false) {
     if (!state.box.isConnected) return;
     const activeTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab || '';
     if (state.activeTab !== activeTab) {
+        if (state.activeTab) state.quietTab = activeTab;
         state.activeTab = activeTab;
         state.page = 0;
         notify = false;
@@ -433,15 +554,23 @@ function refreshRows(state, notify = false) {
         if (list) {
             chatScroller.register(list);
             addBlacklistMenu(state);
-            state.listObserver = new MutationObserver(() => {
+            state.listObserver = new MutationObserver((records) => {
+                for (const record of records) {
+                    for (const node of record.removedNodes) {
+                        if (node.nodeType === Node.ELEMENT_NODE && node.matches('li[data-mid]'))
+                            cacheRow(state, node, state.activeTab);
+                    }
+                }
                 const currentTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab || '';
                 if (currentTab !== state.activeTab) {
                     refreshRows(state, false);
                     return;
                 }
+                const quietLoad = state.quietTab === currentTab;
                 const notificationBatch = { play: false };
                 list.querySelectorAll(':scope > li:not(.t7-archive-row)')
-                    .forEach((row) => processRow(state, row, true, notificationBatch));
+                    .forEach((row) => processRow(state, row, !quietLoad, notificationBatch));
+                if (quietLoad) state.quietTab = null;
                 paint(state);
                 renderArchivePage(state);
                 if (notificationBatch.play) playPingNotification();
@@ -457,13 +586,24 @@ function refreshRows(state, notify = false) {
         addBlacklistMenu(state);
         if (notificationBatch.play) playPingNotification();
     }
+    restoreDeletedRows(state);
     paint(state);
     renderArchivePage(state);
 }
 
 function observeBox(box) {
     if (stateByBox.has(box)) return;
-    const state = { box, list: null, listObserver: null, counts: {}, page: 0, seen: new Set() };
+    const state = {
+        box,
+        list: null,
+        listObserver: null,
+        counts: {},
+        page: 0,
+        seen: new Set(),
+        deletedRows: new Map(),
+        deletedIds: new Set(),
+        quietTab: null
+    };
     stateByBox.set(box, state);
     states.add(state);
     state.boxObserver = new MutationObserver(() => refreshRows(state, true));
