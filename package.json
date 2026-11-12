@@ -4,12 +4,12 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node build.mjs",
+    "build": "npm run build:chromium && npm run build:firefox",
     "build:chromium": "node build-extension.mjs",
     "build:firefox": "node build-firefox.mjs",
-    "build:all": "npm run build && npm run build:chromium && npm run build:firefox",
-    "release": "npm version patch --no-git-tag-version && node build.mjs",
-    "release:minor": "npm version minor --no-git-tag-version && node build.mjs"
+    "build:all": "npm run build",
+    "release": "npm version patch --no-git-tag-version && npm run build",
+    "release:minor": "npm version minor --no-git-tag-version && npm run build"
   },
   "devDependencies": {
     "cssnano": "^9.9.0",

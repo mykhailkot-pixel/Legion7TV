@@ -61,6 +61,7 @@ class PingSystem {
         this.customBufferPromise = null;
         this.dmCustomBuffer = null;
         this.dmCustomBufferPromise = null;
+        this.pendingSound = null;
         this.dmUser = '';
         this.audioUnlockHandler = (event) => {
             if (event.type === 'keydown'
@@ -241,18 +242,28 @@ class PingSystem {
     }
 
     unlockAudio(event) {
-        if (!event || !event.isTrusted || (navigator.userActivation && !navigator.userActivation.isActive)) return;
+        if (!event || !event.isTrusted) return;
         try {
             const context = this.getAudioContext();
             if (context && context.state === 'suspended') {
-                context.resume().catch((error) => {
+                context.resume().then(() => this.flushPendingSound()).catch((error) => {
                     if (error?.name !== 'NotAllowedError')
                         console.warn('[7TV] не удалось включить аудио', error);
                 });
+            } else if (context && context.state === 'running') {
+                this.flushPendingSound();
             }
         } catch (error) {
             console.warn('[7TV] не удалось включить аудио', error);
         }
+    }
+
+    flushPendingSound() {
+        const pending = this.pendingSound;
+        if (!pending || !this.audioContext || this.audioContext.state !== 'running') return;
+        this.pendingSound = null;
+        this.playSound(pending.preset, pending.customSound, pending.isDm)
+            .catch((error) => console.warn('[7TV] не удалось воспроизвести отложенный звук', error));
     }
 
     async loadCustomBuffer(context) {
@@ -295,16 +306,10 @@ class PingSystem {
     async playSound(preset, customSound, isDm) {
         if (this.config.volume <= 0) return;
         const context = this.audioContext;
-        if (!context) return;
-        if (context.state === 'suspended') {
-            try {
-                await context.resume();
-            } catch (error) {
-                if (error.name === 'NotAllowedError') return;
-                throw error;
-            }
+        if (!context || context.state !== 'running') {
+            this.pendingSound = { preset, customSound, isDm };
+            return;
         }
-        if (context.state !== 'running') return;
 
         if (preset === 'custom' && customSound) {
             try {

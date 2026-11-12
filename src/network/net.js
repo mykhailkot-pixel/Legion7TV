@@ -35,62 +35,54 @@ function viaProxy(url) {
     return `${proxy}/${ROUTES[u.hostname]}${u.pathname}${u.search}`;
 }
 
-const gmOnce = (url, responseType, timeout) => new Promise((resolve, reject) => {
-    if (typeof GM_xmlhttpRequest !== 'function') {
-        const api = globalThis.browser || globalThis.chrome;
-        if (!api || !api.runtime || typeof api.runtime.sendMessage !== 'function') {
-            reject(new Error('no supported cross-origin request API is available'));
-            return;
-        }
-        const request = api.runtime.sendMessage({ type: 'LEGION7TV_FETCH', url, responseType, timeout });
-        Promise.resolve(request).then((result) => {
-            if (!result || !result.ok) {
-                reject(new Error(result && result.error || 'extension request failed'));
-                return;
-            }
-            if (responseType === 'blob') {
-                const binary = atob(result.body);
-                const bytes = new Uint8Array(binary.length);
-                for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-                resolve({ status: result.status, response: new Blob([bytes], { type: result.contentType }) });
-            } else {
-                resolve({ status: result.status, responseText: result.body });
-            }
-        }, reject);
+const extensionRequest = (url, responseType, timeout) => new Promise((resolve, reject) => {
+    const api = globalThis.browser || globalThis.chrome;
+    if (!api || !api.runtime || typeof api.runtime.sendMessage !== 'function') {
+        reject(new Error('no supported extension request API is available'));
         return;
     }
-    GM_xmlhttpRequest({
-        method: 'GET', url, responseType, timeout,
-        onload: (r) => (r.status >= 200 && r.status < 300) ? resolve(r) : reject(new Error(url + ' -> ' + r.status)),
-        onerror: reject, ontimeout: reject
-    });
+    const request = api.runtime.sendMessage({ type: 'LEGION7TV_FETCH', url, responseType, timeout });
+    Promise.resolve(request).then((result) => {
+        if (!result || !result.ok) {
+            reject(new Error(result && result.error || 'extension request failed'));
+            return;
+        }
+        if (responseType === 'blob') {
+            const binary = atob(result.body);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            resolve({ status: result.status, response: new Blob([bytes], { type: result.contentType }) });
+        } else {
+            resolve({ status: result.status, responseText: result.body });
+        }
+    }, reject);
 });
 
-const gm = async (url, responseType) => {
+const requestAllowed = async (url, responseType) => {
     if (!urlOk(url)) throw new Error('url not allowed');
     const route = ROUTES[new URL(url).hostname];
     if (proxy && route && Date.now() > proxyDownUntil) {
-        try { return await gmOnce(viaProxy(url), responseType, 6000); }
+        try { return await extensionRequest(viaProxy(url), responseType, 6000); }
         catch { proxyDownUntil = Date.now() + 120000; }   // 2 минуты идём напрямую
     }
-    return gmOnce(url, responseType, 15000);
+    return extensionRequest(url, responseType, 15000);
 };
 
 // проверка прокси из настроек
 export async function testProxy(v) {
     const p = normProxy(v);
     if (!p) throw new Error('нужен адрес вида https://имя.workers.dev');
-    const r = await gmOnce(p + '/api/v3/emote-sets/global', undefined, 8000);
+    const r = await extensionRequest(p + '/api/v3/emote-sets/global', undefined, 8000);
     const j = JSON.parse(r.responseText);
     if (!j || !Array.isArray(j.emotes)) throw new Error('ответ не похож на 7TV');
     return j.emotes.length;
 }
 
-export const getJson = async (url) => JSON.parse((await gm(url)).responseText);
-export const getText = async (url) => (await gm(url)).responseText;
+export const getJson = async (url) => JSON.parse((await requestAllowed(url)).responseText);
+export const getText = async (url) => (await requestAllowed(url)).responseText;
 
 export const getBuf = async (url) => {
-    const r = await gm(url, 'blob');
+    const r = await requestAllowed(url, 'blob');
     const type = (r.response && r.response.type) || 'image/webp';
     const buf = await new Promise((res, rej) => {
         const fr = new FileReader();

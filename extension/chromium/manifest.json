@@ -38,6 +38,12 @@
       "css": ["styles.css"],
       "js": ["content-bridge.js"],
       "run_at": "document_start"
+    },
+    {
+      "matches": ["https://play.multidonate.ru/*"],
+      "js": ["site-hook.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ]
 }

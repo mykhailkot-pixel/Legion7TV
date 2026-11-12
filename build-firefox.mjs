@@ -41,6 +41,7 @@ await Promise.all([
         logLevel: 'info'
     }),
     cp(resolve(root, 'src/styles.css'), resolve(output, 'styles.css')),
+    cp(resolve(shared, 'site-hook.js'), resolve(output, 'site-hook.js')),
     writeFile(resolve(output, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n'),
     ...[16, 32, 48, 128].map((size) =>
         cp(resolve(iconSource, `icon${size}.png`), resolve(output, `icons/icon${size}.png`)))

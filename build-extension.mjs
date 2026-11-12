@@ -60,6 +60,7 @@ await Promise.all([
         logLevel: 'info'
     }),
     cp(resolve(root, 'src/styles.css'), resolve(output, 'styles.css')),
+    cp(resolve(shared, 'site-hook.js'), resolve(output, 'site-hook.js')),
     writeFile(resolve(output, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n'),
     writeIcons()
 ]);

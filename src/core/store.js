@@ -32,12 +32,7 @@ export async function initializeExtensionStore() {
     if (!api || !api.storage || !api.storage.local) return false;
 
     try {
-        let values;
-        if (globalThis.browser) {
-            values = await api.storage.local.get(null);
-        } else {
-            values = await api.storage.local.get(null);
-        }
+        const values = await api.storage.local.get(null);
         configureExtensionStore(values, (key, value) => {
             return api.storage.local.set({ [key]: value });
         });
@@ -51,12 +46,7 @@ export async function initializeExtensionStore() {
 export const store = {
     get(key) {
         if (extensionValues) return extensionValues[key];
-        try {
-            return typeof GM_getValue === 'function' ? GM_getValue(key, undefined) : undefined;
-        } catch (error) {
-            logStorageError('read', error);
-            return undefined;
-        }
+        return undefined;
     },
     set(key, value) {
         if (extensionValues) {
@@ -73,11 +63,6 @@ export const store = {
             }
             return;
         }
-        try {
-            if (typeof GM_setValue !== 'function') throw new Error('GM_setValue is unavailable');
-            GM_setValue(key, value);
-        } catch (error) {
-            logStorageError('write', error);
-        }
+        logStorageError('write', new Error('extension storage is not initialized'));
     }
 };

@@ -8,8 +8,12 @@ const PING_ARCHIVE_KEY = STORE.pingArchive;
 const PING_ARCHIVE_LIMIT = 500;
 const PING_PAGE_SIZE = 50;
 const ROOM_IDS = ['city', 'mine', 'one'];
+const CHAT_TABS = new Set(['g', 'tr', 'mn', 'dm', 'gl', 'lg']);
+const NOTIFIED_LIMIT = 1000;
+const PAGE_STARTED_AT = performance.timeOrigin || Date.now();
 const states = new Set();
 const stateByBox = new WeakMap();
+const notifiedIds = new Set();
 let pingOnly = store.get(PING_ONLY_KEY) === true;
 let saveTimer = 0;
 let documentObserver = null;
@@ -78,22 +82,33 @@ function getMessage(row) {
     return { login, name: nick.textContent.trim() || login, text };
 }
 
-function archiveMessage(room, tab, row, message) {
-    if (!row.dataset.mid) return;
-    const id = `${room}:${row.dataset.mid}`;
+function archiveMessage(room, tab, message) {
+    if (!message.id) return;
+    const id = `${room}:${message.id}`;
     if (storedArchive[room].some((item) => `${room}:${item.id}` === id)) return;
     storedArchive[room].push({
-        id: row.dataset.mid,
+        id: message.id,
         login: message.login,
         name: message.name,
         text: message.text,
         tab,
-        at: Date.now()
+        at: Number(message.at) || Date.now()
     });
     storedArchive[room].sort((a, b) => a.at - b.at);
     if (storedArchive[room].length > PING_ARCHIVE_LIMIT)
         storedArchive[room].splice(0, storedArchive[room].length - PING_ARCHIVE_LIMIT);
     saveArchiveSoon();
+}
+
+function messageKey(id) {
+    return String(id);
+}
+
+function rememberNotified(key) {
+    if (notifiedIds.has(key)) return;
+    notifiedIds.add(key);
+    if (notifiedIds.size > NOTIFIED_LIMIT)
+        notifiedIds.delete(notifiedIds.values().next().value);
 }
 
 function addFilterLabel(row, label) {
@@ -126,7 +141,7 @@ function processRow(state, row, notify, notificationBatch = null) {
     if (!message) return false;
     const room = getRoom(state.box, row);
     const tab = getTab(state.box, row);
-    const key = row.dataset.mid ? `${room}:${row.dataset.mid}` : '';
+    const key = row.dataset.mid ? messageKey(row.dataset.mid) : '';
     const previouslySeen = key && state.seen.has(key);
     if (key) state.seen.add(key);
     row.dataset.t7PingProcessed = '1';
@@ -141,10 +156,13 @@ function processRow(state, row, notify, notificationBatch = null) {
         && (nativePing || pingSystem.isPinged(message.text));
     row.classList.toggle('t7-ping', pinged && !nativePing);
     if (pinged) {
-        archiveMessage(room, tab, row, message);
+        const id = row.dataset.mid || '';
+        archiveMessage(room, tab, { ...message, id });
         const currentTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab;
-        if (!previouslySeen && notify) {
-            state.counts[tab] = (state.counts[tab] || 0) + (tab === currentTab ? 0 : 1);
+        if (!previouslySeen && notify && (!key || !notifiedIds.has(key))) {
+            if (key) rememberNotified(key);
+            if (!(state.box.classList.contains('open') && tab === currentTab))
+                state.counts[tab] = (state.counts[tab] || 0) + 1;
             if (notificationBatch) notificationBatch.play = true;
             else playPingNotification();
         }
@@ -166,7 +184,7 @@ function badge(parent, className, count, title) {
 
 function paint(state) {
     const activeTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab;
-    if (activeTab) state.counts[activeTab] = 0;
+    if (state.box.classList.contains('open') && activeTab) state.counts[activeTab] = 0;
     let total = 0;
     state.box.querySelectorAll(SEL.chatTabButtons).forEach((button) => {
         const count = state.counts[button.dataset.tab] || 0;
@@ -175,6 +193,58 @@ function paint(state) {
     });
     const toggle = state.box.querySelector(SEL.chatToggleButton);
     if (toggle) badge(toggle, 'cy-chat-pn', state.box.classList.contains('open') ? 0 : total, 'Упоминаний');
+}
+
+function handleExternalMessage(state, payload) {
+    const { msg } = payload;
+    const room = msg.rm === 'mine' ? 'mine' : 'city';
+    const key = messageKey(msg.id);
+    if (notifiedIds.has(key)) return;
+
+    if (pingSystem.filterLabel(msg.l, msg.t)
+        || (!msg.nativePing && !pingSystem.isPinged(msg.t))) return;
+    rememberNotified(key);
+    if (payload.observedAt - PAGE_STARTED_AT < 3000 || Date.now() - msg.at > 60_000) return;
+
+    archiveMessage(room, msg.tab, {
+        id: msg.id,
+        login: msg.l,
+        name: msg.n,
+        text: msg.t,
+        at: msg.at
+    });
+    if (!(payload.open && msg.tab === payload.activeTab))
+        state.counts[msg.tab] = (state.counts[msg.tab] || 0) + 1;
+    paint(state);
+    playPingNotification();
+}
+
+function onExternalMessage(event) {
+    if (event.source !== window || event.origin !== location.origin) return;
+    const data = event.data;
+    if (!data || data.source !== 't7-chat-msg'
+        || typeof data.boxId !== 'string' || !/^t7b\d{1,12}$/.test(data.boxId)
+        || !data.msg || typeof data.msg !== 'object'
+        || typeof data.msg.id !== 'string' || !data.msg.id || data.msg.id.length > 200
+        || typeof data.msg.l !== 'string' || data.msg.l.length > 64
+        || typeof data.msg.n !== 'string' || data.msg.n.length > 128
+        || typeof data.msg.t !== 'string' || data.msg.t.length > 2000
+        || typeof data.msg.at !== 'number' || !Number.isFinite(data.msg.at)
+        || typeof data.msg.tab !== 'string' || !CHAT_TABS.has(data.msg.tab)
+        || typeof data.msg.rm !== 'string' || !['', 'city', 'mine'].includes(data.msg.rm)
+        || typeof data.msg.nativePing !== 'boolean'
+        || typeof data.open !== 'boolean'
+        || typeof data.activeTab !== 'string'
+        || typeof data.observedAt !== 'number' || !Number.isFinite(data.observedAt)) return;
+
+    const box = document.querySelector(`[data-t7-box="${CSS.escape(data.boxId)}"]`);
+    if (!box) return;
+    let state = stateByBox.get(box);
+    if (!state) {
+        observeBox(box);
+        state = stateByBox.get(box);
+    }
+    if (state) handleExternalMessage(state, data);
 }
 
 function visibleArchive(state) {
@@ -441,5 +511,7 @@ pingSystem.subscribe(() => {
 });
 
 export function startChatPingIntegration() {
+    window.addEventListener('message', onExternalMessage);
+    window.postMessage({ source: 't7-chat-ready' }, location.origin);
     startDocumentObserver();
 }
