@@ -1,4 +1,6 @@
 import { build } from 'esbuild';
+import { ZipArchive } from 'archiver';
+import { createWriteStream } from 'node:fs';
 import { access, cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import sharp from 'sharp';
@@ -55,6 +57,45 @@ const cssAsText = {
     }
 };
 
+async function syncManifestVersions() {
+    for (const name of Object.keys(targets)) {
+        const manifestPath = resolve(root, `extension/${targets[name].directory}/manifest.json`);
+        const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+        if (manifest.version === packageJson.version) continue;
+        manifest.version = packageJson.version;
+        await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+    }
+}
+
+function zipBuild(name, directory) {
+    const zipPath = resolve(root, 'dist', `Legion7TV-${name}-v${packageJson.version}.zip`);
+    const archive = new ZipArchive({ zlib: { level: 9 } });
+    const output = createWriteStream(zipPath);
+
+    return new Promise((resolvePromise, rejectPromise) => {
+        let settled = false;
+        const fail = (error) => {
+            if (settled) return;
+            settled = true;
+            archive.abort();
+            output.destroy();
+            rejectPromise(error);
+        };
+        archive.on('warning', fail);
+        archive.on('error', fail);
+        output.on('error', fail);
+        output.on('close', () => {
+            if (settled) return;
+            settled = true;
+            resolvePromise(zipPath);
+        });
+
+        archive.pipe(output);
+        archive.directory(directory, false);
+        archive.finalize().catch(fail);
+    });
+}
+
 async function buildTarget(name) {
     const target = targets[name];
     const source = resolve(root, `extension/${target.directory}`);
@@ -88,10 +129,17 @@ async function buildTarget(name) {
         target.copyIcons(output)
     ]);
 
-    console.log(`Built ${name} extension v${manifest.version} in dist/${target.directory}`);
+    const zipPath = await zipBuild(name, output);
+    console.log(`Built ${name} extension v${manifest.version}: dist/${target.directory} and ${zipPath}`);
 }
 
 const requestedTargets = process.argv.slice(2);
+if (requestedTargets.length === 1 && requestedTargets[0] === 'sync-version') {
+    await syncManifestVersions();
+    console.log(`Synchronized browser manifest versions to ${packageJson.version}`);
+    process.exit(0);
+}
+
 const targetNames = requestedTargets.length ? requestedTargets : Object.keys(targets);
 const unknownTargets = targetNames.filter((name) => !Object.hasOwn(targets, name));
 if (unknownTargets.length) {
