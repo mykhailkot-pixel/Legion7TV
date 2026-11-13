@@ -2,7 +2,7 @@ import { CACHE_TTL, EXTRA_EMOTES, EXTRA_SETS } from '../core/config.js';
 import { S, EM, st } from '../core/state.js';
 import { store } from '../core/store.js';
 import { getJson } from '../network/net.js';
-import { fetchImg } from './imgcache.js';
+import { fetchImg, getLoadedImgUrl } from './imgcache.js';
 import { STORE } from '../core/consts.js';
 
 function mk(host, flags, isGlobal, isExtra, meta = {}) {
@@ -116,6 +116,11 @@ export function setEmoteImage(image, em, n, loading = 'lazy', onError, isCurrent
     image.loading = loading;
     image.decoding = 'async';
     image.removeAttribute('srcset');
+    const cachedSrc = getLoadedImgUrl(src);
+    if (cachedSrc) {
+        if (isCurrent()) image.src = cachedSrc;
+        return;
+    }
     fetchImg(src, true, reusableUrlsFor(em, n)).then((cachedSrc) => {
         if (isCurrent()) image.src = cachedSrc;
     }, (error) => {

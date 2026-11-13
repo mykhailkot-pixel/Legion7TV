@@ -275,6 +275,7 @@
 .cy-chat-tabs>button[data-tab][hidden]{display:none!important}
 .cy-chat-tabs>button[data-tab].t7-pref-hidden{display:none!important}
 .t7-link-warning{flex-basis:100%;color:#ffb4a8;font:12px/1.35 system-ui,sans-serif}
+.t7-dm-chat-buttons{display:inline-flex;flex:0 1 auto;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:4px;min-width:0;max-width:100%;vertical-align:middle}
 /* Позицию в лентах контролирует скрипт, без конкурирующего нативного якорения. */
 .cy-chat-l,
 .dm-l {

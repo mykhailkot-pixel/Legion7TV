@@ -2,11 +2,11 @@ import { SIZES } from '../../core/config.js';
 import { S, EM } from '../../core/state.js';
 import { has } from '../../core/util.js';
 import { setEmoteImage, urlFor } from '../../emotes/emotes.js';
+import { getLoadedImgUrl } from '../../emotes/imgcache.js';
 import { setEmoteTooltipData } from '../../emotes/tooltip.js';
 import { cls, cssVar } from '../../core/ui.js';
 
 const emoteAspectRatios = new Map();
-const loadedEmoteImages = new Set();
 const pendingEmoteImages = new WeakMap();
 const imageObservers = new WeakMap();
 const imageObserverByTarget = new WeakMap();
@@ -20,15 +20,20 @@ function makeImg(name, em, className, pendingImages) {
     const url = urlFor(em, resolution);
     const knownRatio = em.r || emoteAspectRatios.get(url);
     if (className === 't7-e') img.style.setProperty(cssVar('r'), String(Math.max(1, knownRatio || 1)));
-    img.style.visibility = loadedEmoteImages.has(url) ? 'visible' : 'hidden';
+    img.style.visibility = 'hidden';
     img.addEventListener('load', () => {
-        loadedEmoteImages.add(url);
         if (className === 't7-e' && img.naturalHeight) {
             const ratio = img.naturalWidth / img.naturalHeight;
             emoteAspectRatios.set(url, ratio);
         }
         img.style.visibility = 'visible';
     });
+    const cachedSrc = getLoadedImgUrl(url);
+    if (cachedSrc) {
+        img.src = cachedSrc;
+        img.style.visibility = 'visible';
+        return img;
+    }
     pendingEmoteImages.set(img, { em, resolution, name });
     pendingImages.push(img);
     return img;

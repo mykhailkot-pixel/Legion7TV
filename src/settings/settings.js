@@ -277,6 +277,18 @@ function buildSettingsMarkup(root) {
         ),
         settingsSection('Личные сообщения',
             settingsField('Звук личных сообщений', dmPreset),
+            createNode('label', { className: 't7-fl t7-volume' }, [
+                'Громкость звука ЛС',
+                createNode('input', {
+                    className: 't7-dm-volume', type: 'range', min: '0', max: '1', step: '0.05'
+                }),
+                createNode('output', { className: 't7-dm-volume-value' })
+            ]),
+            createNode('div', { className: 't7-row t7-wrap' }, [
+                settingsButton('Загрузить звук для ЛС', 'custom-dm-sound'),
+                settingsButton('Проверить звук ЛС', 'test-dm-ping'),
+                createNode('input', { type: 'file', className: 't7-dm-ping-file', accept: 'audio/*', hidden: true })
+            ]),
             settingsField('Ники для звуковых уведомлений', createNode('textarea', {
                 className: 't7-dm-nick-list', rows: '2', placeholder: 'по одному нику на строку'
             })),
@@ -291,14 +303,9 @@ function buildSettingsMarkup(root) {
                 ]),
                 createNode('span', { className: 't7-dm-nick-mode-label' }, ['Белый список'])
             ]),
-            createNode('div', { className: 't7-row t7-wrap' }, [
-                settingsButton('Загрузить звук для ЛС', 'custom-dm-sound'),
-                settingsButton('Проверить звук ЛС', 'test-dm-ping'),
-                createNode('input', { type: 'file', className: 't7-dm-ping-file', accept: 'audio/*', hidden: true })
-            ]),
             createNode('div', { className: 't7-ping-status t7-dm-ping-status', role: 'status' }),
             createNode('div', { className: 't7-note' }, [
-                'Громкость уведомлений ЛС регулируется общей настройкой громкости выше. В чёрном режиме список исключает ники; в белом — разрешает сигналы только для них.'
+                'В чёрном режиме список исключает ники; в белом — разрешает сигналы только для них.'
             ])
         )
     );
@@ -440,6 +447,14 @@ export function openSettings() {
     volume.addEventListener('input', () => {
         pingSystem.setVolume(volume.value);
         volumeValue.value = Math.round(pingSystem.config.volume * 100) + '%';
+    });
+    const dmVolume = el.querySelector('.t7-dm-volume');
+    const dmVolumeValue = el.querySelector('.t7-dm-volume-value');
+    dmVolume.value = String(pingSystem.config.dmVolume);
+    dmVolumeValue.value = Math.round(pingSystem.config.dmVolume * 100) + '%';
+    dmVolume.addEventListener('input', () => {
+        pingSystem.setDmVolume(dmVolume.value);
+        dmVolumeValue.value = Math.round(pingSystem.config.dmVolume * 100) + '%';
     });
     const pingStatus = el.querySelector('.t7-ping-status');
     const pingFile = el.querySelector('.t7-ping-file');

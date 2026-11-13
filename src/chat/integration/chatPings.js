@@ -15,6 +15,7 @@ const CHAT_TABS = new Set(['g', 'tr', 'mn', 'dm', 'gl', 'lg']);
 const NOTIFIED_LIMIT = 1000;
 const DELETED_LIMIT = 500;
 const PAGE_STARTED_AT = performance.timeOrigin || Date.now();
+const STARTUP_NOTIFICATION_GRACE_MS = 3000;
 const CHAT_BOX_ATTRIBUTE = 'data-t7-box';
 const states = new Set();
 const stateByBox = new WeakMap();
@@ -304,12 +305,15 @@ function processRow(state, row, notify, notificationBatch = null) {
         const id = row.dataset.mid || '';
         archiveMessage(room, tab, { ...message, id });
         const currentTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab;
-        if (!previouslySeen && notify && (!key || !notifiedIds.has(key))) {
+        if (!previouslySeen && notify) {
+            const alreadyNotified = key && notifiedIds.has(key);
             if (key) rememberNotified(key);
-            if (!(state.box.classList.contains('open') && tab === currentTab))
-                state.counts[tab] = (state.counts[tab] || 0) + 1;
-            if (notificationBatch) notificationBatch.play = true;
-            else playPingNotification();
+            if (!alreadyNotified && Date.now() - PAGE_STARTED_AT >= STARTUP_NOTIFICATION_GRACE_MS) {
+                if (!(state.box.classList.contains('open') && tab === currentTab))
+                    state.counts[tab] = (state.counts[tab] || 0) + 1;
+                if (notificationBatch) notificationBatch.play = true;
+                else playPingNotification();
+            }
         }
     }
     cacheRow(state, row, tab);
@@ -350,7 +354,8 @@ function handleExternalMessage(state, payload) {
     if (pingSystem.filterLabel(msg.l, msg.t)
         || (!msg.nativePing && !pingSystem.isPinged(msg.t))) return;
     rememberNotified(key);
-    if (payload.observedAt - PAGE_STARTED_AT < 3000 || Date.now() - msg.at > 60_000) return;
+    if (payload.observedAt - PAGE_STARTED_AT < STARTUP_NOTIFICATION_GRACE_MS
+        || Date.now() - msg.at > 60_000) return;
 
     archiveMessage(room, msg.tab, {
         id: msg.id,

@@ -492,9 +492,12 @@ function disposeForm(form) {
     }
     if (buttons) {
         buttons.dispose.forEach((disposeButton) => disposeButton());
-        buttons.emote.host.remove();
-        buttons.image.host?.remove();
-        buttons.pastes.host.remove();
+        if (buttons.container) buttons.container.remove();
+        else {
+            buttons.emote.host.remove();
+            buttons.image.host?.remove();
+            buttons.pastes.host.remove();
+        }
         buttonsByForm.delete(form);
     }
 }
@@ -520,12 +523,18 @@ export function ensureButtons() {
         if (buttonsByForm.has(form)) return;
         const submit = form.querySelector(SEL.submitButton);
         const buttonRecords = [];
+        const buttonContainer = form.matches(SEL.dmForm) ? document.createElement('span') : null;
+        if (buttonContainer) {
+            buttonContainer.className = 't7-dm-chat-buttons';
+            if (submit) submit.before(buttonContainer);
+            else form.appendChild(buttonContainer);
+        }
         const createShadowButton = (text, title, onClick, visible = true) => {
             const host = document.createElement('span');
             const shadow = host.attachShadow({ mode: 'closed' });
             const sheet = new CSSStyleSheet();
             sheet.replaceSync(`
-                :host{display:inline-flex;flex:none;align-self:stretch;min-height:28px;margin:0 0 0 4px;vertical-align:middle}
+                :host{display:inline-flex;flex:none;align-self:stretch;min-height:28px;margin:${buttonContainer ? '0' : '0 0 0 4px'};vertical-align:middle}
                 button{box-sizing:border-box;min-height:28px;padding:0 8px;border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;font:700 11px/1 system-ui,sans-serif;white-space:nowrap;cursor:pointer}
                 button:hover{background:rgb(165,100,255)}
                 button[hidden]{display:none!important}
@@ -546,22 +555,24 @@ export function ensureButtons() {
                 onClick(innerButton);
             });
             shadow.appendChild(innerButton);
-            if (submit) submit.before(host);
+            if (buttonContainer) buttonContainer.appendChild(host);
+            else if (submit) submit.before(host);
             else form.appendChild(host);
             return { host, button: innerButton };
         };
 
         const emote = createShadowButton('7TV', 'Эмоуты 7TV', togglePop);
         const image = input ? createShadowButton('imgBB', 'Картинки imgBB',
-            () => openImagePicker(input), isImagePickerButtonEnabled() && !form.matches(SEL.dmForm)) : null;
+            () => openImagePicker(input), isImagePickerButtonEnabled()) : null;
         const pastes = createShadowButton('Пасты', 'Сохранённые пасты',
             () => openPastes(input), arePastesEnabled());
-        if (image) buttonRecords.push(registerChatButton('imagePicker', image.host, image.button, !form.matches(SEL.dmForm)));
+        if (image) buttonRecords.push(registerChatButton('imagePicker', image.host, image.button, true));
         buttonRecords.push(registerChatButton('pastes', pastes.host, pastes.button, true));
         buttonsByForm.set(form, {
             emote,
             image,
             pastes,
+            container: buttonContainer,
             dispose: buttonRecords
         });
     });

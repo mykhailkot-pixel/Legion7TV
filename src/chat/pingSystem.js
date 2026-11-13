@@ -7,6 +7,7 @@ const PRESETS = new Set(['bell', 'chime', 'pop', 'custom']);
 const MAX_CUSTOM_SOUND_SIZE = 20 * 1024 * 1024;
 const DEFAULTS = {
     volume: 0.5,
+    dmVolume: 0.5,
     selectedPreset: 'bell',
     customSound: '',
     pingSoundEnabled: true,
@@ -31,6 +32,9 @@ function readConfig() {
     const saved = store.get(CONFIG_KEY);
     const config = { ...DEFAULTS, ...(saved && typeof saved === 'object' ? saved : {}) };
     config.volume = Number.isFinite(config.volume) ? Math.max(0, Math.min(1, config.volume)) : DEFAULTS.volume;
+    config.dmVolume = Number.isFinite(saved && saved.dmVolume)
+        ? Math.max(0, Math.min(1, saved.dmVolume))
+        : config.volume;
     config.selectedPreset = PRESETS.has(config.selectedPreset) ? config.selectedPreset : DEFAULTS.selectedPreset;
     for (const key of ['customSound', 'dmCustomSound'])
         config[key] = typeof config[key] === 'string' && config[key].startsWith('data:audio/') ? config[key] : '';
@@ -133,6 +137,12 @@ class PingSystem {
     setVolume(value) {
         const volume = Number(value);
         this.config.volume = Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : DEFAULTS.volume;
+        this.save();
+    }
+
+    setDmVolume(value) {
+        const volume = Number(value);
+        this.config.dmVolume = Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : DEFAULTS.dmVolume;
         this.save();
     }
 
@@ -317,7 +327,8 @@ class PingSystem {
 
     async playSound(preset, customSound, isDm, force = false) {
         if (!force && !(isDm ? this.config.dmSoundEnabled : this.config.pingSoundEnabled)) return;
-        if (this.config.volume <= 0) return;
+        const volume = isDm ? this.config.dmVolume : this.config.volume;
+        if (volume <= 0) return;
         const context = this.audioContext;
         if (!context || context.state !== 'running') {
             this.pendingSound = { preset, customSound, isDm, force };
@@ -337,7 +348,7 @@ class PingSystem {
                 } else {
                     source.buffer = await this.loadCustomBuffer(context);
                 }
-                gain.gain.value = this.config.volume;
+                gain.gain.value = volume;
                 source.connect(gain);
                 gain.connect(context.destination);
                 source.start();
@@ -361,7 +372,7 @@ class PingSystem {
             oscillator.type = type;
             oscillator.frequency.setValueAtTime(frequency, start);
             gain.gain.setValueAtTime(0.0001, start);
-            gain.gain.exponentialRampToValueAtTime(Math.max(0.001, this.config.volume * 0.35), start + 0.015);
+            gain.gain.exponentialRampToValueAtTime(Math.max(0.001, volume * 0.35), start + 0.015);
             gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
             oscillator.connect(gain);
             gain.connect(context.destination);

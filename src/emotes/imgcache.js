@@ -16,9 +16,11 @@ function pump() {
 const enqueue = (fn, hi) => new Promise((res, rej) => { (hi ? Q.hi : Q.lo).push({ fn, res, rej }); pump(); });
 
 const imgCache = new Map();   // url -> Promise<blob: URL>
+const resolvedImgCache = new Map();
 const pendingCacheReads = [];
 let cacheReadScheduled = false;
 let cacheReadBatchesInFlight = 0;
+let imgCacheEpoch = 0;
 
 function extensionRuntime() {
     const api = globalThis.browser || globalThis.chrome;
@@ -118,8 +120,13 @@ async function putCachedImage(url, blob) {
     if (!result || !result.ok) throw new Error(result && result.error || 'image cache write failed');
 }
 
+export function getLoadedImgUrl(url) {
+    return resolvedImgCache.get(url) || '';
+}
+
 export function fetchImg(url, hi, reusableUrls = []) {
     if (imgCache.has(url)) return imgCache.get(url);
+    const epoch = imgCacheEpoch;
     const p = (async () => {
         let blob;
         try {
@@ -136,15 +143,21 @@ export function fetchImg(url, hi, reusableUrls = []) {
                 console.warn('[Images] image cache write failed', error);
             }
         }
-        return URL.createObjectURL(blob);
+        const objectUrl = URL.createObjectURL(blob);
+        if (epoch === imgCacheEpoch) resolvedImgCache.set(url, objectUrl);
+        return objectUrl;
     })();
-    p.catch(() => imgCache.delete(url));
+    p.catch(() => {
+        if (imgCache.get(url) === p) imgCache.delete(url);
+    });
     imgCache.set(url, p);
     return p;
 }
 
 export async function clearImgs() {
+    imgCacheEpoch++;
     imgCache.clear();
+    resolvedImgCache.clear();
     const result = await sendImageCacheMessage({ type: 'IMG_CLEAR' });
     if (result && !result.ok) throw new Error(result.error || 'image cache clear failed');
 }
