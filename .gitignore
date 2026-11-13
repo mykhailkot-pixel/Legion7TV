@@ -1,7 +1,17 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
+
+# Local development
+.vscode/
+
+# Local website files
 site_code/
 
-.vscode
-.zip
+# Archives
+*.zip
+
+# Personal notes
 TODO.md
