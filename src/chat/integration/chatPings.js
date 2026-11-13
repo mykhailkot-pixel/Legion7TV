@@ -638,6 +638,7 @@ function refreshRows(state, notify = false) {
                 list.querySelectorAll(`:scope > li:not(.${cls('archive-row')})`)
                     .forEach((row) => processRow(state, row, !quietLoad, notificationBatch));
                 if (quietLoad) state.quietTab = null;
+                restoreDeletedRows(state);
                 paint(state);
                 renderArchivePage(state);
                 if (notificationBatch.play) playPingNotification();
