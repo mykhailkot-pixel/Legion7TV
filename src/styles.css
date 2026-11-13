@@ -7,7 +7,6 @@
     object-fit: contain;
 }
 .t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:var(--t7-h,1.9em);width:auto;pointer-events:none}
-.t7-e:not([data-loaded]),.t7-zw:not([data-loaded]){visibility:hidden}
 .t7-spoiler{padding:0 3px;border-radius:4px;background:#c7c9ce;color:transparent!important;cursor:pointer;transition:background-color .12s ease,color .12s ease}
 .t7-spoiler:not(.t7-spoiler-revealed) img{visibility:hidden}
 .t7-spoiler:not(.t7-spoiler-revealed) *{color:transparent!important;text-shadow:none!important}
@@ -28,24 +27,14 @@
 .t7-image-link{display:inline-flex;flex-direction:column;align-items:flex-start;gap:4px;max-width:100%;vertical-align:top;font-size:0;line-height:0;text-decoration:none}
 .t7-image-preview{display:block;width:auto;height:auto;max-width:min(100%,400px);max-height:300px;object-fit:contain;border-radius:4px}
 
-/* ========== Кнопка 7TV в форме чата ========== */
-form.cy-chat-f .t7-btn{
-    flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;
-    box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;
-    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;
-    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;
-    white-space:nowrap;vertical-align:middle;cursor:pointer}
-form.cy-chat-f .t7-btn:hover{background:rgb(165,100,255)}
-form.dm-f .t7-pastes-btn{flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;font:700 11px/1 system-ui,sans-serif;white-space:nowrap;cursor:pointer}
-form.dm-f .t7-pastes-btn:hover{background:rgb(165,100,255)}
-form.cy-chat-f .t7-pastes-btn[hidden],form.dm-f .t7-pastes-btn[hidden],form.cy-chat-f .t7-images-btn[hidden],form.dm-f .t7-images-btn[hidden]{display:none!important}
-form.cy-chat-f{position:relative}
-form.cy-chat-f>.t7-ping-menu{position:absolute;left:auto;right:0;bottom:calc(100% + 5px);z-index:20;display:flex;flex-direction:column;width:min(210px,calc(100vw - 24px));max-height:132px;overflow-y:auto;padding:3px;border:1px solid rgba(255,255,255,.16);border-radius:6px;background:rgba(24,24,32,.88);box-shadow:0 5px 14px rgba(0,0,0,.28);backdrop-filter:blur(5px)}
-form.cy-chat-f>.t7-ping-menu[hidden]{display:none}
-form.cy-chat-f>.t7-ping-menu>.t7-ping-option{display:block;flex:none;width:100%;min-width:0;min-height:0;height:auto;margin:0;padding:4px 8px;border:0;border-radius:4px;background:transparent;color:#eee;text-align:left;text-transform:none;font:12px/1.25 system-ui,sans-serif;box-shadow:none}
-form.cy-chat-f>.t7-ping-menu>.t7-ping-option:hover,form.cy-chat-f>.t7-ping-menu>.t7-ping-option:focus-visible{background:rgba(255,255,255,.12);color:#fff;outline:none}
-form.cy-chat-f>.t7-emote-menu,form.dm-f>.t7-emote-menu{position:absolute;left:0;right:0;bottom:calc(100% + 5px);z-index:20;box-sizing:border-box;display:flex;align-items:center;gap:4px;width:min(620px,calc(100vw - 24px));max-width:100%;padding:5px;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:rgba(24,24,32,.94);box-shadow:0 5px 14px rgba(0,0,0,.32);backdrop-filter:blur(6px)}
-form.cy-chat-f>.t7-emote-menu[hidden],form.dm-f>.t7-emote-menu[hidden]{display:none}
+.t7-blacklist-action{position:fixed;z-index:2147483647;display:block;box-sizing:border-box;min-height:28px;padding:6px 10px;border:1px solid rgba(255,255,255,.16);border-radius:4px;background:#201d2b;color:#eee;text-align:left;font:12px/1.2 system-ui,sans-serif;cursor:pointer;box-shadow:0 5px 14px rgba(0,0,0,.28)}
+.t7-blacklist-action:hover,.t7-blacklist-action:focus-visible{background:#393344;color:#fff;outline:none}
+.t7-ping-menu{position:fixed;z-index:20;display:flex;flex-direction:column;width:min(210px,calc(100vw - 24px));max-height:132px;overflow-y:auto;padding:3px;border:1px solid rgba(255,255,255,.16);border-radius:6px;background:rgba(24,24,32,.88);box-shadow:0 5px 14px rgba(0,0,0,.28);backdrop-filter:blur(5px)}
+.t7-ping-menu[hidden]{display:none}
+.t7-ping-menu>.t7-ping-option{display:block;flex:none;width:100%;min-width:0;min-height:0;height:auto;margin:0;padding:4px 8px;border:0;border-radius:4px;background:transparent;color:#eee;text-align:left;text-transform:none;font:12px/1.25 system-ui,sans-serif;box-shadow:none}
+.t7-ping-menu>.t7-ping-option:hover,.t7-ping-menu>.t7-ping-option:focus-visible{background:rgba(255,255,255,.12);color:#fff;outline:none}
+.t7-emote-menu{position:fixed;z-index:20;box-sizing:border-box;display:flex;align-items:center;gap:4px;width:min(620px,calc(100vw - 24px));max-width:100%;padding:5px;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:rgba(24,24,32,.94);box-shadow:0 5px 14px rgba(0,0,0,.32);backdrop-filter:blur(6px)}
+.t7-emote-menu[hidden]{display:none}
 .t7-emote-strip{display:flex;flex:1;gap:4px;min-width:0;overflow:hidden}
 .t7-emote-nav,.t7-emote-option{flex:none;min-width:0;height:auto;margin:0;border:0;border-radius:5px;background:transparent;color:#eee;box-shadow:none;text-transform:none;cursor:pointer}
 .t7-emote-nav{width:24px;padding:4px;font:20px/1 system-ui,sans-serif}
@@ -56,9 +45,9 @@ form.cy-chat-f>.t7-emote-menu[hidden],form.dm-f>.t7-emote-menu[hidden]{display:n
 .t7-emote-option{display:flex;flex:1 1 62px;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:58px;min-height:56px;padding:1.5px;font:9px/1.15 system-ui,sans-serif}
 .t7-emote-option img{width:26px;height:26px;object-fit:contain}
 .t7-emote-option span{display:block;width:9ch;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;font-size:8px}
-form.cy-chat-f>.t7-emote-menu .t7-emote-option,form.dm-f>.t7-emote-menu .t7-emote-option{box-sizing:border-box;min-height:56px!important;height:auto!important;margin:0!important;padding:1.5px!important}
-form.cy-chat-f>.t7-banword-warning{position:absolute;left:0;right:0;bottom:calc(100% + 5px);z-index:21;padding:7px 9px;border:1px solid rgba(255,201,77,.38);border-left:3px solid #ffc94d;border-radius:4px;background:rgba(24,24,32,.96);color:#f2dda0;font:12px/1.35 system-ui,sans-serif;box-shadow:0 5px 14px rgba(0,0,0,.28)}
-form.cy-chat-f>.t7-banword-warning[hidden]{display:none}
+.t7-emote-menu .t7-emote-option{box-sizing:border-box;min-height:56px!important;height:auto!important;margin:0!important;padding:1.5px!important}
+.t7-banword-warning{position:fixed;z-index:21;width:min(620px,calc(100vw - 16px));padding:7px 9px;border:1px solid rgba(255,201,77,.38);border-left:3px solid #ffc94d;border-radius:4px;background:rgba(24,24,32,.96);color:#f2dda0;font:12px/1.35 system-ui,sans-serif;box-shadow:0 5px 14px rgba(0,0,0,.28)}
+.t7-banword-warning[hidden]{display:none}
 .t7-paste-overlay{position:fixed;inset:0;z-index:2147483100;display:grid;place-items:center;padding:12px;background:rgba(0,0,0,.58);font:13px/1.35 system-ui,sans-serif}
 .t7-paste-dialog{display:flex;flex-direction:column;gap:10px;width:min(440px,100%);max-height:min(620px,90vh);overflow-y:auto;padding:12px;border:1px solid rgba(255,255,255,.18);border-radius:8px;background:#1b1b24;color:#eee;box-shadow:0 10px 32px rgba(0,0,0,.48)}
 .t7-paste-header,.t7-paste-row,.t7-paste-actions{display:flex;align-items:center;gap:6px}
@@ -273,7 +262,6 @@ form.cy-chat-f>.t7-banword-warning[hidden]{display:none}
 .cy-chat .cy-chat-pn[hidden]{display:none!important}
 .cy-chat-l>li.t7-ping-hidden{display:none!important}
 .cy-chat-l>li.t7-ping{background:rgba(255,201,77,.14);border-radius:6px;box-shadow:inset 3px 0 0 #ffc94d;padding-left:6px}
-.cy-chat-l[data-t7-no-pings="true"]:after{display:block;padding:12px 6px;color:#aaa;font:12px/1.4 system-ui,sans-serif;text-align:center;content:"Пингов пока нет"}
 .cy-chat-l,.dm-l{font-family:var(--t7-chat-font,inherit);font-size:var(--t7-chat-font-size,14px);font-synthesis:weight style}
 .t7-mention{color:var(--t7-ping-color,#e89aa3);font-weight:600}
 .cy-chat-l>li.t7-filtered{font-style:italic}
@@ -291,15 +279,6 @@ form.cy-chat-f>.t7-banword-warning[hidden]{display:none}
   overflow-anchor: none;
 }
 
-/* ========== Кнопка 7TV в форме чата и ЛС ========== */
-form.cy-chat-f .t7-btn, form.dm-f .t7-btn{
-    flex:none;align-self:stretch;display:inline-flex;align-items:center;justify-content:center;
-    box-sizing:border-box;width:auto;height:auto;min-height:28px;margin:0 0 0 4px;padding:0 8px;
-    border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;
-    font:700 11px/1 system-ui,sans-serif;letter-spacing:0;text-indent:0;text-transform:none;
-    white-space:nowrap;vertical-align:middle;cursor:pointer}
-form.cy-chat-f .t7-btn:hover, form.dm-f .t7-btn:hover{background:rgb(165,100,255)}
-form.dm-f{position:relative}
 .cy-chat-l>li.t7-deleted-message,
 .cy-chat-l>li.t7-deleted-message *{color:#aaa!important;font-style:italic!important}
 .cy-chat-l>li.t7-deleted-message{background:transparent!important;box-shadow:none!important}

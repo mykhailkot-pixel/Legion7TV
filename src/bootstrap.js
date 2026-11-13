@@ -13,15 +13,13 @@ import { applyChatFont } from './chat/ui/chatFonts.js';
 import { pingSystem } from './chat/pingSystem.js';
 import { initEmoteTooltip } from './emotes/tooltip.js';
 import { startSiteChatIntegration } from './chat/integration/siteChat.js';
+import { initializeUiIdentity, installUiStyles } from './core/ui.js';
 
 let started = false;
 
 function initialize() {
-    if (css) {
-        const style = document.createElement('style');
-        style.textContent = css;
-        document.head.appendChild(style);
-    }
+    initializeUiIdentity();
+    installUiStyles(css);
 
     const size = store.get(STORE.emoteSize);
     if (SIZES[size]) S.size = size;

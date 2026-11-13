@@ -7,6 +7,8 @@ import { openSettings } from '../settings/settings.js';
 import { getRecentLimit } from '../chat/prefs.js';
 import { EV, STORE, on } from '../core/consts.js';
 import { setEmoteTooltipData } from './tooltip.js';
+import { cssVar, getOverlayRoot } from '../core/ui.js';
+import { insertText } from '../core/insertText.js';
 
 const FAVORITES_KEY = STORE.favorites;
 const RECENT_KEY = STORE.recentEmotes;
@@ -64,7 +66,8 @@ export function updateStatus(t) {
 
 /* ---------- вставка эмоута в поле чата ---------- */
 function chatInput() {
-    const f = st.anchor && st.anchor.closest('form');
+    const anchor = st.anchor;
+    const f = anchor && (anchor.closest('form') || anchor.getRootNode().host?.closest('form'));
     return f && f.querySelector('input[type=text]');
 }
 
@@ -76,14 +79,7 @@ function insertEmote(name) {
     const b = inp.selectionEnd != null ? inp.selectionEnd : a;
     const pre = v.slice(0, a), post = v.slice(b);
     const add = (pre && !/\s$/.test(pre) ? ' ' : '') + name + (/^\s/.test(post) ? '' : ' ');
-    const nv = pre + add + post;
-    if (inp.maxLength > 0 && nv.length > inp.maxLength) return false;
-    inp.value = nv;
-    const pos = (pre + add).length;
-    try { inp.setSelectionRange(pos, pos); } catch {}
-    inp.dispatchEvent(new Event('input', { bubbles: true }));
-    if (!matchMedia('(pointer: coarse)').matches) inp.focus({ preventScroll: true });
-    return true;
+    return insertText(inp, add);
 }
 
 /* ---------- список эмоутов ---------- */
@@ -377,7 +373,7 @@ function openPop(btn) {
     const pop = document.createElement('div');
     st.pop = pop;
     pop.className = 't7-pop';
-    pop.style.setProperty('--t7-tile', SIZES[S.size].p + 'px');
+    pop.style.setProperty(cssVar('tile'), SIZES[S.size].p + 'px');
     pop.setAttribute('role', 'dialog');
     pop.setAttribute('aria-label', 'Эмоуты 7TV');
     const header = document.createElement('div');
@@ -468,7 +464,7 @@ function openPop(btn) {
     });
     st.io = new IntersectionObserver(onVis, { root: gr, rootMargin: '120px' });
 
-    document.body.appendChild(pop);
+    getOverlayRoot().appendChild(pop);
     renderGrid();
     place();
     document.addEventListener('keydown', onKey, true);

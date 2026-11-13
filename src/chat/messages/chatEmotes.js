@@ -3,27 +3,28 @@ import { S, EM } from '../../core/state.js';
 import { has } from '../../core/util.js';
 import { setEmoteImage, urlFor } from '../../emotes/emotes.js';
 import { setEmoteTooltipData } from '../../emotes/tooltip.js';
+import { cls, cssVar } from '../../core/ui.js';
 
 const emoteAspectRatios = new Map();
 const loadedEmoteImages = new Set();
 
-function makeImg(name, em, cls) {
+function makeImg(name, em, className) {
     const img = document.createElement('img');
-    img.className = cls;
+    img.className = cls(className === 't7-e' ? 'e' : 'zw');
     img.alt = name;
-    if (cls === 't7-e') setEmoteTooltipData(img, name, em);
+    if (className === 't7-e') setEmoteTooltipData(img, name, em);
     const resolution = SIZES[S.size].n;
     const url = urlFor(em, resolution);
     const knownRatio = em.r || emoteAspectRatios.get(url);
-    if (cls === 't7-e') img.style.setProperty('--t7-r', String(Math.max(1, knownRatio || 1)));
-    if (loadedEmoteImages.has(url)) img.dataset.loaded = '1';
+    if (className === 't7-e') img.style.setProperty(cssVar('r'), String(Math.max(1, knownRatio || 1)));
+    img.style.visibility = loadedEmoteImages.has(url) ? 'visible' : 'hidden';
     img.addEventListener('load', () => {
         loadedEmoteImages.add(url);
-        if (cls === 't7-e' && img.naturalHeight) {
+        if (className === 't7-e' && img.naturalHeight) {
             const ratio = img.naturalWidth / img.naturalHeight;
             emoteAspectRatios.set(url, ratio);
         }
-        img.dataset.loaded = '1';
+        img.style.visibility = 'visible';
     });
     setEmoteImage(img, em, resolution, 'lazy', (error) => {
         console.warn('[7TV] картинка не загрузилась', name, error);
@@ -53,8 +54,8 @@ export function processEmotes({ content, kind }) {
             }
             if (emote) {
                 const wrapper = document.createElement('span');
-                wrapper.className = 't7-w';
-                wrapper.style.setProperty('--t7-h', SIZES[S.size].h);
+                wrapper.className = cls('w');
+                wrapper.style.setProperty(cssVar('h'), SIZES[S.size].h);
                 wrapper.appendChild(makeImg(part, emote, 't7-e'));
                 fragment.appendChild(wrapper);
                 lastWrap = wrapper;

@@ -14,6 +14,7 @@ import { STORE } from '../core/consts.js';
 import { arePastesEnabled, setPastesEnabled } from '../chat/ui/pastes.js';
 import { clearResolvedImageCache } from '../chat/ui/imageProviders.js';
 import { isImagePickerButtonEnabled, setImagePickerButtonEnabled } from '../chat/ui/imagePicker.js';
+import { getOverlayRoot } from '../core/ui.js';
 
 // смещение окна настроек от центра экрана
 let SOFF = (() => {
@@ -651,7 +652,7 @@ export function openSettings() {
         }
     });
 
-    document.body.appendChild(el);
+    getOverlayRoot().appendChild(el);
     const px = el.querySelector('.t7-px'), pxs = el.querySelector('.t7-pxs');
     setupDrag(el);
     updateSetStatus(st.status);

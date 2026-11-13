@@ -19,8 +19,8 @@ await rm(resolve(output, 'page-bridge.js'), { force: true });
 const cssAsText = {
     name: 'extension-css-as-text',
     setup(build) {
-        build.onLoad({ filter: /\.css$/ }, () => ({
-            contents: '',
+        build.onLoad({ filter: /\.css$/ }, async (args) => ({
+            contents: await readFile(args.path, 'utf8'),
             loader: 'text'
         }));
     }
@@ -37,10 +37,11 @@ await Promise.all([
         target: 'firefox128',
         outdir: output,
         legalComments: 'none',
+        drop: ['console'],
         plugins: [cssAsText],
         logLevel: 'info'
     }),
-    cp(resolve(root, 'src/styles.css'), resolve(output, 'styles.css')),
+    rm(resolve(output, 'styles.css'), { force: true }),
     cp(resolve(shared, 'site-hook.js'), resolve(output, 'site-hook.js')),
     writeFile(resolve(output, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n'),
     ...[16, 32, 48, 128].map((size) =>

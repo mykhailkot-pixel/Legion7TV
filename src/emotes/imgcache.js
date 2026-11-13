@@ -1,34 +1,7 @@
 import { getBuf } from '../network/net.js';
 
-// IndexedDB: картинки хранятся навсегда (адрес содержит ID эмоута, содержимое не меняется)
-const DB = (() => {
-    let p;
-    const open = () => p || (p = new Promise((res) => {
-        try {
-            const r = indexedDB.open('t7img', 1);
-            r.onupgradeneeded = () => r.result.createObjectStore('i');
-            r.onsuccess = () => res(r.result);
-            r.onerror = () => res(null);
-        } catch { res(null); }
-    }));
-    const tx = async (mode, fn) => {
-        const db = await open();
-        if (!db) return undefined;
-        return new Promise((res) => {
-            try {
-                const t = db.transaction('i', mode);
-                const rq = fn(t.objectStore('i'));
-                t.oncomplete = () => res(rq && rq.result);
-                t.onerror = t.onabort = () => res(undefined);
-            } catch { res(undefined); }
-        });
-    };
-    return {
-        get: (k) => tx('readonly', (s) => s.get(k)),
-        set: (k, v) => tx('readwrite', (s) => s.put(v, k)),
-        clear: () => tx('readwrite', (s) => s.clear())
-    };
-})();
+const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
+const MAX_BASE64_LENGTH = Math.ceil(MAX_IMAGE_BYTES / 3) * 4;
 
 // очередь: 8 запросов параллельно, эмоуты из чата (hi) обгоняют картинки окошка (lo)
 const Q = { hi: [], lo: [], run: 0, max: 8 };
@@ -44,17 +17,80 @@ const enqueue = (fn, hi) => new Promise((res, rej) => { (hi ? Q.hi : Q.lo).push(
 
 const imgCache = new Map();   // url -> Promise<blob: URL>
 
+function extensionRuntime() {
+    const api = globalThis.browser || globalThis.chrome;
+    return api && api.runtime && typeof api.runtime.sendMessage === 'function'
+        ? api.runtime
+        : null;
+}
+
+async function sendImageCacheMessage(message) {
+    const runtime = extensionRuntime();
+    return runtime ? runtime.sendMessage(message) : null;
+}
+
+function decodeBase64(value, contentType) {
+    if (typeof value !== 'string' || value.length > MAX_BASE64_LENGTH)
+        throw new Error('cached image exceeds the 12 MiB limit');
+    const binary = atob(value);
+    if (binary.length > MAX_IMAGE_BYTES)
+        throw new Error('cached image exceeds the 12 MiB limit');
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: contentType || 'application/octet-stream' });
+}
+
+async function encodeBase64(blob) {
+    if (!(blob instanceof Blob) || blob.size > MAX_IMAGE_BYTES)
+        throw new Error('image exceeds the 12 MiB cache limit');
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let offset = 0; offset < bytes.length; offset += chunkSize)
+        binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+    return btoa(binary);
+}
+
+async function getCachedImage(url) {
+    const result = await sendImageCacheMessage({ type: 'IMG_GET', url });
+    if (!result) return null;
+    if (!result.ok) throw new Error(result.error || 'image cache read failed');
+    return result.found ? decodeBase64(result.body, result.contentType) : null;
+}
+
+async function putCachedImage(url, blob) {
+    const runtime = extensionRuntime();
+    if (!runtime || blob.size > MAX_IMAGE_BYTES) return;
+    const body = await encodeBase64(blob);
+    const result = await runtime.sendMessage({
+        type: 'IMG_PUT',
+        url,
+        contentType: blob.type || 'application/octet-stream',
+        body
+    });
+    if (!result || !result.ok) throw new Error(result && result.error || 'image cache write failed');
+}
+
 export function fetchImg(url, hi, reusableUrls = []) {
     if (imgCache.has(url)) return imgCache.get(url);
     const p = (async () => {
-        let blob = await DB.get(url);
-        for (const candidate of reusableUrls) {
-            if (blob) break;
-            if (candidate !== url) blob = await DB.get(candidate);
+        let blob;
+        try {
+            blob = await getCachedImage(url);
+            for (const candidate of reusableUrls) {
+                if (blob) break;
+                if (candidate !== url) blob = await getCachedImage(candidate);
+            }
+        } catch (error) {
+            console.warn('[Images] image cache read failed', error);
         }
         if (!blob) {
             blob = await enqueue(() => getBuf(url), hi);
-            DB.set(url, blob);
+            try {
+                await putCachedImage(url, blob);
+            } catch (error) {
+                console.warn('[Images] image cache write failed', error);
+            }
         }
         return URL.createObjectURL(blob);
     })();
@@ -65,5 +101,6 @@ export function fetchImg(url, hi, reusableUrls = []) {
 
 export async function clearImgs() {
     imgCache.clear();
-    await DB.clear();
+    const result = await sendImageCacheMessage({ type: 'IMG_CLEAR' });
+    if (result && !result.ok) throw new Error(result.error || 'image cache clear failed');
 }

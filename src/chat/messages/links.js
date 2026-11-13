@@ -5,12 +5,13 @@ import { fetchImg } from '../../emotes/imgcache.js';
 import { resolveImageUrl, supportsImageUrl } from '../ui/imageProviders.js';
 import { rememberSentImages } from '../ui/imagePicker.js';
 import { chatScroller } from './scrollState.js';
+import { cls } from '../../core/ui.js';
 
 const LINK_ENCODING_KEY = STORE.linkEncoding;
 const IMAGE_PREVIEWS_KEY = STORE.imagePreviews;
 const previewCache = new Map();
-const outgoingBindings = new WeakMap();
-let outgoingBindingCount = 0;
+const imagePreviewStates = new WeakMap();
+const outgoingBindings = new WeakSet();
 
 export const isLinkEncodingEnabled = () => store.get(LINK_ENCODING_KEY) === true;
 export const setLinkEncodingEnabled = (enabled) => store.set(LINK_ENCODING_KEY, !!enabled);
@@ -107,15 +108,15 @@ function linkifyText(root, showImages) {
             fragment.appendChild(document.createTextNode(text.slice(offset, start)));
             if (isSafeHttpsUrl(href)) {
                 const anchor = document.createElement('a');
-                anchor.className = 't7-link';
+                anchor.className = cls('link');
                 anchor.href = href;
                 anchor.title = href;
                 anchor.target = '_blank';
                 anchor.rel = 'noopener noreferrer';
                 anchor.textContent = label;
                 if (showImages && supportsImageUrl(href)) {
-                    anchor.classList.add('t7-image-pending');
-                    anchor.dataset.t7ImagePreview = 'pending';
+                    anchor.classList.add(cls('image-pending'));
+                    imagePreviewStates.set(anchor, 'queued');
                 }
                 fragment.appendChild(anchor);
                 offset = start + url.length;
@@ -131,22 +132,36 @@ function linkifyText(root, showImages) {
 
 function buildPreview(anchor, src, w, h) {
     const image = document.createElement('img');
-    image.className = 't7-image-preview';
+    image.className = cls('image-preview');
     image.alt = 'Изображение по ссылке';
     image.decoding = 'sync';
     image.width = w;
     image.height = h;
     image.src = src;
     anchor.replaceChildren(image);
-    anchor.classList.remove('t7-image-pending');
-    anchor.classList.add('t7-image-link');
-    anchor.dataset.t7ImagePreview = 'done';
+    anchor.classList.remove(cls('image-pending'));
+    anchor.classList.add(cls('image-link'));
+    imagePreviewStates.set(anchor, 'done');
+}
+
+async function toDataUrl(objectUrl) {
+    const response = await fetch(objectUrl);
+    if (!response.ok) throw new Error('image preview data could not be read');
+    const blob = await response.blob();
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error || new Error('image preview could not be encoded'));
+        reader.readAsDataURL(blob);
+    });
 }
 
 async function addImagePreview(anchor) {
-    if (anchor.dataset.t7ImagePreview === 'done') return;
+    const state = imagePreviewStates.get(anchor);
+    if (state === 'done' || state === 'loading') return;
     if (!supportsImageUrl(anchor.href)) return;
     try {
+        imagePreviewStates.set(anchor, 'loading');
         const cached = previewCache.get(anchor.href);
         if (cached) {
             if (anchor.isConnected) {
@@ -154,26 +169,34 @@ async function addImagePreview(anchor) {
             }
             return;
         }
-        anchor.dataset.t7ImagePreview = 'pending';
         const imageUrl = await resolveImageUrl(anchor.href);
         if (!imageUrl || !anchor.isConnected) {
-            anchor.classList.remove('t7-image-pending');
-            delete anchor.dataset.t7ImagePreview;
+            anchor.classList.remove(cls('image-pending'));
+            imagePreviewStates.delete(anchor);
             return;
         }
-        const imageSrc = await fetchImg(imageUrl, true);
+        const objectUrl = await fetchImg(imageUrl, true);
         if (!anchor.isConnected) return;
         const image = document.createElement('img');
-        image.src = imageSrc;
-        await image.decode();
+        let imageSrc;
+        try {
+            imageSrc = await toDataUrl(objectUrl);
+            image.src = imageSrc;
+            await image.decode();
+        } catch {
+            // Data URLs preserve animation and avoid exposing blob URLs, but strict page CSP may block them.
+            imageSrc = objectUrl;
+            image.src = objectUrl;
+            await image.decode();
+        }
         if (!anchor.isConnected) return;
         const preview = { src: imageSrc, w: image.naturalWidth, h: image.naturalHeight };
         previewCache.set(anchor.href, preview);
         chatScroller.preserve(anchor, () => buildPreview(anchor, preview.src, preview.w, preview.h));
     } catch (error) {
         if (anchor.isConnected) {
-            anchor.classList.remove('t7-image-pending');
-            delete anchor.dataset.t7ImagePreview;
+            anchor.classList.remove(cls('image-pending'));
+            imagePreviewStates.delete(anchor);
         }
         console.warn('[Images] не удалось обработать ссылку', anchor.href, error);
     }
@@ -185,7 +208,7 @@ export function processLinks({ content, room }) {
     const showImages = previewsEnabled && room !== 'dm';
     if (!parseLinks && !previewsEnabled) return;
     linkifyText(content, showImages);
-    if (showImages) content.querySelectorAll('a.t7-link').forEach((anchor) => { addImagePreview(anchor); });
+    if (showImages) content.querySelectorAll(`a.${cls('link')}`).forEach((anchor) => { addImagePreview(anchor); });
 }
 
 function isExcludedChatSend(form, input) {
@@ -212,40 +235,26 @@ function prepareOutgoingMessage(form, input) {
     });
 }
 
-function onDocumentKeyDown(event) {
+function onFormKeyDown(form, input, event) {
     if (event.key !== 'Enter' || event.shiftKey || event.altKey || event.ctrlKey
         || event.metaKey || event.isComposing || event.keyCode === 229) return;
-    const input = event.target;
-    if (!(input instanceof HTMLInputElement)) return;
-    const form = input.form;
-    if (!form || outgoingBindings.get(form) !== input) return;
+    if (event.target !== input) return;
     prepareOutgoingMessage(form, input);
-}
-
-function onDocumentSubmit(event) {
-    const form = event.target;
-    if (!(form instanceof HTMLFormElement)) return;
-    const input = outgoingBindings.get(form);
-    if (input) prepareOutgoingMessage(form, input);
 }
 
 export function bindOutgoingLinkEncoding(form, input) {
     if (outgoingBindings.has(form)) return () => {};
-    if (outgoingBindingCount === 0) {
-        document.addEventListener('keydown', onDocumentKeyDown, true);
-        document.addEventListener('submit', onDocumentSubmit, true);
-    }
-    outgoingBindings.set(form, input);
-    outgoingBindingCount++;
+    outgoingBindings.add(form);
+    const onKeyDown = (event) => onFormKeyDown(form, input, event);
+    const onSubmit = () => prepareOutgoingMessage(form, input);
+    form.addEventListener('keydown', onKeyDown, true);
+    form.addEventListener('submit', onSubmit, true);
 
     const dispose = () => {
         if (!outgoingBindings.has(form)) return;
         outgoingBindings.delete(form);
-        outgoingBindingCount--;
-        if (outgoingBindingCount === 0) {
-            document.removeEventListener('keydown', onDocumentKeyDown, true);
-            document.removeEventListener('submit', onDocumentSubmit, true);
-        }
+        form.removeEventListener('keydown', onKeyDown, true);
+        form.removeEventListener('submit', onSubmit, true);
     };
     return dispose;
 }

@@ -1,7 +1,8 @@
 import { store } from '../../core/store.js';
 import { STORE } from '../../core/consts.js';
+import { cssVar, getUiInstallId } from '../../core/ui.js';
 
-const CUSTOM_FAMILY = 'T7UploadedChatFont';
+const CUSTOM_FAMILY = `Font${getUiInstallId()}`;
 const FONT_MIME = { woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf', otf: 'font/otf' };
 const FONT_CHOICES = new Set(['site', 'nunito', 'open-sans', 'roboto', 'lato', 'montserrat', 'custom']);
 const MAX_FONT_SIZE = 2 * 1024 * 1024;
@@ -35,8 +36,8 @@ export function setChatFontSize(value) {
 
 function setFamily(value) {
     document.querySelectorAll('.cy-chat-l, .dm-l').forEach((list) => {
-        if (value) list.style.setProperty('--t7-chat-font', value);
-        else list.style.removeProperty('--t7-chat-font');
+        if (value) list.style.setProperty(cssVar('chat-font'), value);
+        else list.style.removeProperty(cssVar('chat-font'));
     });
 }
 
@@ -47,9 +48,9 @@ function applyFontSettings(root = document) {
     if (root instanceof Element && root.matches('.cy-chat-l, .dm-l')) lists.push(root);
     if (root.querySelectorAll) lists.push(...root.querySelectorAll('.cy-chat-l, .dm-l'));
     for (const list of lists) {
-        if (family) list.style.setProperty('--t7-chat-font', family);
-        else list.style.removeProperty('--t7-chat-font');
-        list.style.setProperty('--t7-chat-font-size', size);
+        if (family) list.style.setProperty(cssVar('chat-font'), family);
+        else list.style.removeProperty(cssVar('chat-font'));
+        list.style.setProperty(cssVar('chat-font-size'), size);
     }
 }
 

@@ -1,4 +1,5 @@
 export const STORE = Object.freeze({
+    installId: 'l7tvInstallId',
     emoteSize: 't7size',
     popupPosition: 't7pos',
     popupSize: 't7win',
@@ -37,12 +38,8 @@ export const SEL = Object.freeze({
     chatRoot: '.cy-chat',
     chatList: '.cy-chat-l',
     chatRows: '.cy-chat-l li',
-    freshChatRows: '.cy-chat-l li:not([data-l7tv-processed])',
-    processedChatRows: '.cy-chat-l li[data-l7tv-processed]',
     dmRoot: '.cy-chat-dmx, .dm-l',
     dmRows: '.cy-chat-dmx li, .dm-l > li',
-    freshDmRows: '.cy-chat-dmx li:not([data-l7tv-processed]), .dm-l > li:not([data-l7tv-processed])',
-    processedDmRows: '.cy-chat-dmx li[data-l7tv-processed], .dm-l > li[data-l7tv-processed]',
     messageContent: ':scope > span:not([class])',
     nonEmptyChatRows: ':scope > li:not(.cy-chat-0)',
     chatForm: 'form.cy-chat-f',

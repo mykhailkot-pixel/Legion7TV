@@ -1,4 +1,5 @@
 import { pingSystem } from '../pingSystem.js';
+import { cls } from '../../core/ui.js';
 
 const MENTION_RE = /(?<![\p{L}\p{N}_])@[a-z0-9_]{1,25}(?![\p{L}\p{N}_])/giu;
 
@@ -21,7 +22,7 @@ export function processMentions({ content, kind }) {
             const start = match.index;
             if (start > offset) fragment.appendChild(document.createTextNode(text.slice(offset, start)));
             const mention = document.createElement('span');
-            mention.className = 't7-mention';
+            mention.className = cls('mention');
             mention.style.color = pingSystem.config.pingColor;
             mention.textContent = match[0];
             fragment.appendChild(mention);

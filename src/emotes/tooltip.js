@@ -1,4 +1,5 @@
 import { setEmoteImage } from './emotes.js';
+import { cls, getOverlayRoot } from '../core/ui.js';
 
 const tooltipData = new WeakMap();
 let tooltip = null;
@@ -11,7 +12,7 @@ export function setEmoteTooltipData(element, name, emote) {
 }
 
 function findTarget(node) {
-    const element = node instanceof Element ? node.closest('.t7-e, .t7-it') : null;
+    const element = node instanceof Element ? node.closest(`.${cls('e')}, .t7-it`) : null;
     return element && tooltipData.has(element) ? element : null;
 }
 
@@ -19,7 +20,6 @@ function ensureTooltip() {
     if (tooltip) return tooltip;
     tooltip = document.createElement('div');
     tooltip.className = 't7-tip';
-    tooltip.id = 't7-emote-tooltip';
     tooltip.setAttribute('role', 'tooltip');
     tooltip.hidden = true;
     const preview = document.createElement('div');
@@ -38,7 +38,7 @@ function ensureTooltip() {
     type.className = 't7-tip-type';
     info.append(name, author, type);
     tooltip.append(preview, info);
-    document.body.appendChild(tooltip);
+    getOverlayRoot().appendChild(tooltip);
     return tooltip;
 }
 
@@ -57,7 +57,6 @@ function position(target) {
 function show(target) {
     const data = tooltipData.get(target);
     if (!data) return;
-    if (current && current !== target) current.removeAttribute('aria-describedby');
     current = target;
     const tip = ensureTooltip();
     const { name, emote } = data;
@@ -87,7 +86,6 @@ function show(target) {
     image.removeAttribute('srcset');
     image.classList.add('t7-tip-loading');
     tip.hidden = false;
-    target.setAttribute('aria-describedby', tip.id);
     position(target);
     image.onload = () => {
         if (current === target && token === imageToken) image.classList.remove('t7-tip-loading');
@@ -101,7 +99,6 @@ function show(target) {
 }
 
 function hide() {
-    if (current) current.removeAttribute('aria-describedby');
     current = null;
     imageToken++;
     if (tooltip) tooltip.hidden = true;
@@ -110,23 +107,30 @@ function hide() {
 export function initEmoteTooltip() {
     if (initialized) return;
     initialized = true;
-    document.addEventListener('mouseover', (event) => {
+    const root = getOverlayRoot();
+    const onMouseOver = (event) => {
         const target = findTarget(event.target);
         if (!target || target === current) return;
         show(target);
-    });
-    document.addEventListener('mouseout', (event) => {
+    };
+    const onMouseOut = (event) => {
         if (!current) return;
         if (findTarget(event.relatedTarget) === current) return;
         hide();
-    });
-    document.addEventListener('focusin', (event) => {
+    };
+    const onFocusIn = (event) => {
         const target = findTarget(event.target);
         if (target) show(target);
-    });
-    document.addEventListener('focusout', (event) => {
+    };
+    const onFocusOut = (event) => {
         if (current === findTarget(event.target)) hide();
-    });
+    };
+    for (const target of [document, root]) {
+        target.addEventListener('mouseover', onMouseOver);
+        target.addEventListener('mouseout', onMouseOut);
+        target.addEventListener('focusin', onFocusIn);
+        target.addEventListener('focusout', onFocusOut);
+    }
     document.addEventListener('scroll', () => {
         if (current) hide();
     }, true);

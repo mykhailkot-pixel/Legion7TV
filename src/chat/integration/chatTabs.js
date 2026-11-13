@@ -1,5 +1,6 @@
 import { getChatTabPrefs } from '../prefs.js';
 import { EV, SEL, on } from '../../core/consts.js';
+import { cls } from '../../core/ui.js';
 
 const observers = new WeakMap();
 let documentObserver = null;
@@ -20,7 +21,7 @@ function applyTabs(tabs) {
 
     for (const button of ordered) {
         const hidden = prefs.hidden.has(button.dataset.tab);
-        button.classList.toggle('t7-pref-hidden', hidden);
+        button.classList.toggle(cls('pref-hidden'), hidden);
     }
 
 }

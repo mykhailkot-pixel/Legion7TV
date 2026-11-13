@@ -7,10 +7,27 @@ import { pingSystem } from '../pingSystem.js';
 import { bindOutgoingLinkEncoding } from '../messages/links.js';
 import { arePastesEnabled, openPastes } from './pastes.js';
 import { disposeImagePicker, isImagePickerButtonEnabled, openImagePicker } from './imagePicker.js';
+import { getOverlayRoot } from '../../core/ui.js';
+import { registerChatButton } from './chatButtonState.js';
+import { insertText } from '../../core/insertText.js';
 
 const bindings = new WeakMap();
 const emoteBindings = new WeakMap();
 const linkBindings = new WeakMap();
+const buttonsByForm = new WeakMap();
+const warningsByForm = new WeakMap();
+
+function positionOverlay(element, input, alignRight = false) {
+    const rect = input.getBoundingClientRect();
+    const width = element.getBoundingClientRect().width;
+    const left = alignRight ? rect.right - width : rect.left;
+    element.style.left = Math.max(8, Math.min(innerWidth - width - 8, left)) + 'px';
+    element.style.right = 'auto';
+    element.style.bottom = 'auto';
+    const height = element.getBoundingClientRect().height;
+    const top = rect.top >= height + 12 ? rect.top - height - 6 : rect.bottom + 6;
+    element.style.top = Math.max(8, Math.min(innerHeight - height - 8, top)) + 'px';
+}
 function normalizeBanword(value) {
     return String(value || '').normalize('NFKC').toLowerCase().replace(/\s+/gu, ' ').trim();
 }
@@ -27,20 +44,18 @@ function findTwitchBanword(message) {
     return '';
 }
 
-function showTwitchBanwordWarning(form, word) {
-    let warning = form.querySelector(':scope > .t7-banword-warning');
+function showTwitchBanwordWarning(form, input, word) {
+    let warning = warningsByForm.get(form);
     if (!warning) {
         warning = document.createElement('div');
         warning.className = 't7-banword-warning';
         warning.setAttribute('role', 'alert');
-        form.appendChild(warning);
+        getOverlayRoot().appendChild(warning);
+        warningsByForm.set(form, warning);
     }
     warning.textContent = `Сообщение не отправлено: найдено запрещённое слово «${word}».`;
     warning.hidden = false;
-    const menu = form.querySelector('.t7-ping-menu');
-    if (menu) menu.hidden = true;
-    const emoteMenu = form.querySelector('.t7-emote-menu');
-    if (emoteMenu) emoteMenu.hidden = true;
+    positionOverlay(warning, input);
 }
 
 function bindMessageHistory(input) {
@@ -51,10 +66,11 @@ function bindMessageHistory(input) {
 
     const setValue = (value) => {
         changingHistory = true;
-        input.value = value;
-        input.setSelectionRange(value.length, value.length);
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        changingHistory = false;
+        try {
+            insertText(input, value, { replaceRange: { start: 0, end: input.value.length } });
+        } finally {
+            changingHistory = false;
+        }
     };
     const remember = (value) => {
         const message = String(value || '').trim();
@@ -103,7 +119,12 @@ function bindPingAutocomplete(form, input) {
     menu.className = 't7-ping-menu';
     menu.setAttribute('role', 'listbox');
     menu.hidden = true;
-    form.appendChild(menu);
+    getOverlayRoot().appendChild(menu);
+    const reposition = () => {
+        if (!menu.hidden) positionOverlay(menu, input, true);
+    };
+    addEventListener('resize', reposition);
+    document.addEventListener('scroll', reposition, true);
 
     const getToken = () => {
         const caret = input.selectionStart == null ? input.value.length : input.selectionStart;
@@ -130,11 +151,7 @@ function bindPingAutocomplete(form, input) {
     const complete = (name) => {
         const token = getToken();
         if (!token) return;
-        input.value = input.value.slice(0, token.start) + '@' + name + ' ' + input.value.slice(token.end);
-        const caret = token.start + name.length + 2;
-        input.setSelectionRange(caret, caret);
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.focus({ preventScroll: true });
+        insertText(input, '@' + name + ' ', { replaceRange: token });
         menu.hidden = true;
     };
     const update = () => {
@@ -161,6 +178,7 @@ function bindPingAutocomplete(form, input) {
             menu.appendChild(option);
         }
         menu.hidden = false;
+        reposition();
     };
     const onKeyDown = (event) => {
         if (event.key === 'Escape' && !menu.hidden) {
@@ -187,6 +205,8 @@ function bindPingAutocomplete(form, input) {
             input.removeEventListener('input', update);
             input.removeEventListener('keydown', onKeyDown, true);
             unsubscribe();
+            removeEventListener('resize', reposition);
+            document.removeEventListener('scroll', reposition, true);
             menu.remove();
         }
     };
@@ -215,7 +235,7 @@ function bindEmoteAutocomplete(form, input) {
     next.title = 'Следующие эмоуты';
     next.setAttribute('aria-label', next.title);
     menu.append(previous, strip, next);
-    form.appendChild(menu);
+    getOverlayRoot().appendChild(menu);
 
     let matches = [];
     let selectedIndex = -1;
@@ -237,11 +257,7 @@ function bindEmoteAutocomplete(form, input) {
         const after = input.value.slice(token.end);
         const suffix = /^\s/.test(after) ? '' : ' ';
         const replacement = name + suffix;
-        input.value = input.value.slice(0, token.start) + replacement + after;
-        const caret = token.start + replacement.length;
-        input.setSelectionRange(caret, caret);
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.focus({ preventScroll: true });
+        insertText(input, replacement, { replaceRange: token });
         menu.hidden = true;
     };
     const render = () => {
@@ -288,6 +304,7 @@ function bindEmoteAutocomplete(form, input) {
         previous.hidden = matches.length <= pageSize;
         next.hidden = matches.length <= pageSize;
         menu.hidden = !pingSystem.config.emoteCompletion || !requested || dismissed;
+        if (!menu.hidden) positionOverlay(menu, input);
     };
     const update = () => {
         requested = false;
@@ -368,12 +385,19 @@ function bindEmoteAutocomplete(form, input) {
     const unsubscribe = on(EV.emoteCompletionChange, update);
     const resizeObserver = new ResizeObserver(render);
     resizeObserver.observe(form);
+    const reposition = () => {
+        if (!menu.hidden) positionOverlay(menu, input);
+    };
+    addEventListener('resize', reposition);
+    document.addEventListener('scroll', reposition, true);
     update();
     return () => {
         input.removeEventListener('input', update);
         input.removeEventListener('keydown', onKeyDown, true);
         unsubscribe();
         resizeObserver.disconnect();
+        removeEventListener('resize', reposition);
+        document.removeEventListener('scroll', reposition, true);
         menu.remove();
     };
 }
@@ -390,7 +414,7 @@ function bindChatForm(form, input) {
         if (!word) return false;
         event.preventDefault();
         event.stopImmediatePropagation();
-        showTwitchBanwordWarning(form, word);
+        showTwitchBanwordWarning(form, input, word);
         return true;
     };
 
@@ -406,7 +430,7 @@ function bindChatForm(form, input) {
     };
     const onInput = () => {
         if (input.value.trim() !== lastRecentMessage) recentRecorded = false;
-        warning = form.querySelector(':scope > .t7-banword-warning');
+        warning = warningsByForm.get(form);
         if (warning) warning.hidden = true;
     };
     const onSubmit = (event) => {
@@ -448,8 +472,12 @@ function disposeForm(form) {
     const dispose = bindings.get(form);
     const disposeEmotes = emoteBindings.get(form);
     const disposeLinks = linkBindings.get(form);
-    if (dispose && st.anchor && form.contains(st.anchor)) closePop();
+    const buttons = buttonsByForm.get(form);
+    if (dispose && st.anchor && buttons && buttons.emote.button === st.anchor) closePop();
     disposeImagePicker(form);
+    const warning = warningsByForm.get(form);
+    if (warning) warning.remove();
+    warningsByForm.delete(form);
     if (dispose) {
         dispose();
         bindings.delete(form);
@@ -461,6 +489,13 @@ function disposeForm(form) {
     if (disposeLinks) {
         disposeLinks();
         linkBindings.delete(form);
+    }
+    if (buttons) {
+        buttons.dispose.forEach((disposeButton) => disposeButton());
+        buttons.emote.host.remove();
+        buttons.image.host?.remove();
+        buttons.pastes.host.remove();
+        buttonsByForm.delete(form);
     }
 }
 
@@ -482,62 +517,53 @@ export function ensureButtons() {
         if (input && !linkBindings.has(form))
             linkBindings.set(form, bindOutgoingLinkEncoding(form, input));
 
+        if (buttonsByForm.has(form)) return;
         const submit = form.querySelector(SEL.submitButton);
-        let button = form.querySelector('.t7-btn');
-        if (!button) {
-            button = document.createElement('button');
-            button.type = 'button';
-            button.className = 't7-btn';
-            button.textContent = '7TV';
-            button.title = 'Эмоуты 7TV';
-            button.setAttribute('aria-label', 'Эмоуты 7TV');
-            button.setAttribute('aria-haspopup', 'dialog');
-            button.addEventListener('click', (event) => {
+        const buttonRecords = [];
+        const createShadowButton = (text, title, onClick, visible = true) => {
+            const host = document.createElement('span');
+            const shadow = host.attachShadow({ mode: 'closed' });
+            const sheet = new CSSStyleSheet();
+            sheet.replaceSync(`
+                :host{display:inline-flex;flex:none;align-self:stretch;min-height:28px;margin:0 0 0 4px;vertical-align:middle}
+                button{box-sizing:border-box;min-height:28px;padding:0 8px;border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;font:700 11px/1 system-ui,sans-serif;white-space:nowrap;cursor:pointer}
+                button:hover{background:rgb(165,100,255)}
+                button[hidden]{display:none!important}
+            `);
+            shadow.adoptedStyleSheets = [sheet];
+            const innerButton = document.createElement('button');
+            innerButton.type = 'button';
+            innerButton.textContent = text;
+            innerButton.title = title;
+            innerButton.setAttribute('aria-label', title);
+            innerButton.setAttribute('aria-haspopup', 'dialog');
+            innerButton.hidden = !visible;
+            ['keydown', 'keyup', 'keypress'].forEach((type) =>
+                innerButton.addEventListener(type, (event) => event.stopPropagation()));
+            innerButton.addEventListener('click', (event) => {
                 event.preventDefault();
                 event.stopPropagation();
-                togglePop(button);
+                onClick(innerButton);
             });
-            if (submit) submit.before(button);
-            else form.appendChild(button);
-        }
+            shadow.appendChild(innerButton);
+            if (submit) submit.before(host);
+            else form.appendChild(host);
+            return { host, button: innerButton };
+        };
 
-        let imagesButton = form.querySelector('.t7-images-btn');
-        if (input && !imagesButton) {
-            imagesButton = document.createElement('button');
-            imagesButton.type = 'button';
-            imagesButton.className = 't7-btn t7-images-btn';
-            imagesButton.textContent = 'imgBB';
-            imagesButton.hidden = !isImagePickerButtonEnabled() || !!form.closest('.dm-f');
-            imagesButton.title = 'Картинки imgBB';
-            imagesButton.setAttribute('aria-label', 'Картинки imgBB');
-            imagesButton.setAttribute('aria-haspopup', 'dialog');
-            imagesButton.addEventListener('click', (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                openImagePicker(input);
-            });
-            if (submit) submit.before(imagesButton);
-            else form.appendChild(imagesButton);
-        }
-        if (imagesButton) imagesButton.hidden = !isImagePickerButtonEnabled() || !!form.closest('.dm-f');
-
-        let pastesButton = form.querySelector('.t7-pastes-btn');
-        if (!pastesButton) {
-            pastesButton = document.createElement('button');
-            pastesButton.type = 'button';
-            pastesButton.className = 't7-btn t7-pastes-btn';
-            pastesButton.textContent = 'Пасты';
-            pastesButton.title = 'Сохранённые пасты';
-            pastesButton.setAttribute('aria-label', 'Сохранённые пасты');
-            pastesButton.hidden = !arePastesEnabled();
-            pastesButton.addEventListener('click', (event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                openPastes(input);
-            });
-            if (submit) submit.before(pastesButton);
-            else form.appendChild(pastesButton);
-        }
+        const emote = createShadowButton('7TV', 'Эмоуты 7TV', togglePop);
+        const image = input ? createShadowButton('imgBB', 'Картинки imgBB',
+            () => openImagePicker(input), isImagePickerButtonEnabled() && !form.matches(SEL.dmForm)) : null;
+        const pastes = createShadowButton('Пасты', 'Сохранённые пасты',
+            () => openPastes(input), arePastesEnabled());
+        if (image) buttonRecords.push(registerChatButton('imagePicker', image.host, image.button, !form.matches(SEL.dmForm)));
+        buttonRecords.push(registerChatButton('pastes', pastes.host, pastes.button, true));
+        buttonsByForm.set(form, {
+            emote,
+            image,
+            pastes,
+            dispose: buttonRecords
+        });
     });
 
     if (st.pop && st.anchor && !st.anchor.isConnected) closePop();

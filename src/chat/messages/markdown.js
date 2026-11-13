@@ -1,9 +1,11 @@
+import { cls } from '../../core/ui.js';
+
 const MARKERS = [
     { token: '***', tag: 'strong', nestedTag: 'em' },
     { token: '**', tag: 'strong' },
     { token: '__', tag: 'u' },
     { token: '~~', tag: 's' },
-    { token: '||', tag: 'span', className: 't7-spoiler' },
+    { token: '||', tag: 'span', className: cls('spoiler') },
     { token: '*', tag: 'em' },
     { token: '_', tag: 'em' }
 ];
@@ -34,8 +36,8 @@ function createWrapper(marker) {
         wrapper.setAttribute('aria-label', 'Раскрыть спойлер');
         wrapper.setAttribute('aria-expanded', 'false');
         const toggle = () => {
-            if (wrapper.classList.contains('t7-spoiler-revealed')) return;
-            wrapper.classList.add('t7-spoiler-revealed');
+            if (wrapper.classList.contains(cls('spoiler-revealed'))) return;
+            wrapper.classList.add(cls('spoiler-revealed'));
             wrapper.removeAttribute('role');
             wrapper.removeAttribute('tabindex');
             wrapper.removeAttribute('aria-expanded');

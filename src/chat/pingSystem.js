@@ -1,5 +1,6 @@
 import { store } from '../core/store.js';
 import { EV, STORE, emit } from '../core/consts.js';
+import { cls } from '../core/ui.js';
 
 const CONFIG_KEY = STORE.pingConfig;
 const PRESETS = new Set(['bell', 'chime', 'pop', 'custom']);
@@ -138,13 +139,13 @@ class PingSystem {
         if (!/^#[0-9a-f]{6}$/i.test(color)) return;
         this.config.pingColor = color.toLowerCase();
         this.save();
-        document.querySelectorAll('.t7-mention').forEach((mention) => {
+        document.querySelectorAll(`.${cls('mention')}`).forEach((mention) => {
             mention.style.color = this.config.pingColor;
         });
     }
 
     applyPingColor() {
-        document.querySelectorAll('.t7-mention').forEach((mention) => {
+        document.querySelectorAll(`.${cls('mention')}`).forEach((mention) => {
             mention.style.color = this.config.pingColor;
         });
     }

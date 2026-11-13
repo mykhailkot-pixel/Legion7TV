@@ -2,6 +2,9 @@ import { store } from '../../core/store.js';
 import { STORE } from '../../core/consts.js';
 import { fetchImg } from '../../emotes/imgcache.js';
 import { resolveImageUrl } from './imageProviders.js';
+import { getOverlayRoot } from '../../core/ui.js';
+import { updateChatButtons } from './chatButtonState.js';
+import { insertText } from '../../core/insertText.js';
 
 const IMAGE_ID = /^[a-z0-9]{1,32}$/i;
 const RECENT_LIMIT = 10;
@@ -15,9 +18,7 @@ export function isImagePickerButtonEnabled() {
 export function setImagePickerButtonEnabled(enabled) {
     const visible = !!enabled;
     store.set(STORE.imagePickerButton, visible);
-    document.querySelectorAll('.t7-images-btn').forEach((button) => {
-        button.hidden = !visible || !!button.closest('.dm-f');
-    });
+    updateChatButtons('imagePicker', visible);
 }
 
 function readIds(key, limit = FAVORITE_LIMIT) {
@@ -94,13 +95,7 @@ function insertUrl(input, url) {
     const before = input.value.slice(0, start);
     const after = input.value.slice(end);
     const insertion = (before && !/\s$/.test(before) ? ' ' : '') + url + (after && !/^\s/.test(after) ? ' ' : '');
-    const value = before + insertion + after;
-    if (input.maxLength > 0 && value.length > input.maxLength) return false;
-    input.value = value;
-    const caret = start + insertion.length;
-    input.setSelectionRange(caret, caret);
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    return true;
+    return insertText(input, insertion);
 }
 
 export function disposeImagePicker(form) {
@@ -349,7 +344,7 @@ export function openImagePicker(input) {
     dialog.addEventListener('keydown', (event) => event.stopPropagation());
 
     document.addEventListener('keydown', onKeyDown, true);
-    document.body.appendChild(overlay);
+    getOverlayRoot().appendChild(overlay);
     renderLibrary();
     urlInput.focus();
 }

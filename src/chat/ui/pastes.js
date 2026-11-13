@@ -1,5 +1,8 @@
 import { store } from '../../core/store.js';
 import { STORE } from '../../core/consts.js';
+import { getOverlayRoot } from '../../core/ui.js';
+import { updateChatButtons } from './chatButtonState.js';
+import { insertText } from '../../core/insertText.js';
 
 const PASTES_KEY = STORE.pastes;
 const PASTES_ENABLED_KEY = STORE.pastesEnabled;
@@ -12,7 +15,7 @@ export function arePastesEnabled() {
 export function setPastesEnabled(enabled) {
     const active = !!enabled;
     store.set(PASTES_ENABLED_KEY, active);
-    document.querySelectorAll('.t7-pastes-btn').forEach((button) => { button.hidden = !active; });
+    updateChatButtons('pastes', active);
     if (!active && closeActiveDialog) closeActiveDialog();
 }
 
@@ -24,15 +27,7 @@ function readPastes() {
 
 function insertPaste(input, text) {
     if (!input || input.disabled || !input.isConnected) return;
-    const start = input.selectionStart == null ? input.value.length : input.selectionStart;
-    const end = input.selectionEnd == null ? start : input.selectionEnd;
-    const value = input.value.slice(0, start) + text + input.value.slice(end);
-    if (input.maxLength > 0 && value.length > input.maxLength) return;
-    input.value = value;
-    const caret = start + text.length;
-    try { input.setSelectionRange(caret, caret); } catch {}
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.focus({ preventScroll: true });
+    insertText(input, text);
 }
 
 export function openPastes(input) {
@@ -213,5 +208,5 @@ export function openPastes(input) {
 
     renderList();
     document.addEventListener('keydown', onKeyDown, true);
-    document.body.appendChild(overlay);
+    getOverlayRoot().appendChild(overlay);
 }
