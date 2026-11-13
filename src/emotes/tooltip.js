@@ -1,4 +1,4 @@
-import { setEmoteImage } from './emotes.js';
+import { getEmoteCreatedAt, setEmoteImage } from './emotes.js';
 import { cls, getOverlayRoot } from '../core/ui.js';
 
 const tooltipData = new WeakMap();
@@ -34,9 +34,11 @@ function ensureTooltip() {
     name.className = 't7-tip-name';
     const author = document.createElement('div');
     author.className = 't7-tip-author';
+    const added = document.createElement('div');
+    added.className = 't7-tip-added';
     const type = document.createElement('div');
     type.className = 't7-tip-type';
-    info.append(name, author, type);
+    info.append(name, author, type, added);
     tooltip.append(preview, info);
     getOverlayRoot().appendChild(tooltip);
     return tooltip;
@@ -79,6 +81,16 @@ function show(target) {
     }
     tip.querySelector('.t7-tip-type').textContent = emote.tw ? 'Twitch Global Emote'
         : emote.x ? 'Imported Emote' : emote.g ? 'Global Emote' : 'Channel Emote';
+    const createdAt = getEmoteCreatedAt(emote);
+    const addedAt = tip.querySelector('.t7-tip-added');
+    addedAt.hidden = !Number.isFinite(createdAt) || createdAt <= 0;
+    if (!addedAt.hidden) {
+        addedAt.textContent = `Added ${new Date(createdAt).toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        })}`;
+    }
 
     const image = tip.querySelector('img');
     const token = ++imageToken;
@@ -90,12 +102,24 @@ function show(target) {
     image.onload = () => {
         if (current === target && token === imageToken) image.classList.remove('t7-tip-loading');
     };
-    setEmoteImage(image, emote, 4, 'eager', (error) => {
-        if (current === target && token === imageToken) {
-            image.classList.remove('t7-tip-loading');
-            console.warn('[7TV] не удалось загрузить превью эмоута', name, error);
-        }
-    });
+    const sourceImage = target.matches('img') ? target : target.querySelector('img');
+    const isCurrent = () => current === target && token === imageToken;
+    const syncSourceImage = () => {
+        if (!isCurrent() || !sourceImage || !sourceImage.getAttribute('src')) return false;
+        const src = sourceImage.currentSrc || sourceImage.src;
+        if (!src) return false;
+        if (image.src !== src) image.src = src;
+        return true;
+    };
+    if (!syncSourceImage()) {
+        if (sourceImage) sourceImage.addEventListener('load', syncSourceImage, { once: true });
+        setEmoteImage(image, emote, 4, 'eager', (error) => {
+            if (isCurrent()) {
+                image.classList.remove('t7-tip-loading');
+                console.warn('[7TV] не удалось загрузить превью эмоута', name, error);
+            }
+        }, () => isCurrent() && !(sourceImage && sourceImage.getAttribute('src')));
+    }
 }
 
 function hide() {

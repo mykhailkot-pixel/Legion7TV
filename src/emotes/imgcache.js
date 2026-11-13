@@ -16,6 +16,9 @@ function pump() {
 const enqueue = (fn, hi) => new Promise((res, rej) => { (hi ? Q.hi : Q.lo).push({ fn, res, rej }); pump(); });
 
 const imgCache = new Map();   // url -> Promise<blob: URL>
+const pendingCacheReads = [];
+let cacheReadScheduled = false;
+let cacheReadBatchesInFlight = 0;
 
 function extensionRuntime() {
     const api = globalThis.browser || globalThis.chrome;
@@ -51,11 +54,55 @@ async function encodeBase64(blob) {
     return btoa(binary);
 }
 
-async function getCachedImage(url) {
-    const result = await sendImageCacheMessage({ type: 'IMG_GET', url });
-    if (!result) return null;
-    if (!result.ok) throw new Error(result.error || 'image cache read failed');
-    return result.found ? decodeBase64(result.body, result.contentType) : null;
+function flushCacheReads() {
+    if (cacheReadBatchesInFlight >= 4) return;
+    const batch = pendingCacheReads.splice(0, 3);
+    if (!batch.length) return;
+    cacheReadBatchesInFlight++;
+    sendImageCacheMessage({
+        type: 'IMG_GET_BATCH',
+        requests: batch.map((item) => ({ urls: item.urls }))
+    }).then((result) => {
+        if (!result) {
+            batch.forEach((item) => item.resolve(null));
+            return;
+        }
+        if (!result.ok || !Array.isArray(result.results) || result.results.length !== batch.length)
+            throw new Error(result.error || 'image cache batch response is invalid');
+        batch.forEach((item, index) => {
+            const cached = result.results[index];
+            try {
+                if (!cached || typeof cached.found !== 'boolean')
+                    throw new Error('image cache batch entry is invalid');
+                item.resolve(cached.found
+                    ? decodeBase64(cached.body, cached.contentType)
+                    : null);
+            } catch (error) {
+                item.reject(error);
+            }
+        });
+    }).catch((error) => {
+        batch.forEach((item) => item.reject(error));
+    }).finally(() => {
+        cacheReadBatchesInFlight--;
+        if (pendingCacheReads.length) scheduleCacheReadFlush();
+    });
+}
+
+function scheduleCacheReadFlush() {
+    if (cacheReadScheduled) return;
+    cacheReadScheduled = true;
+    queueMicrotask(() => {
+        cacheReadScheduled = false;
+        flushCacheReads();
+    });
+}
+
+function getCachedImage(urls) {
+    return new Promise((resolve, reject) => {
+        pendingCacheReads.push({ urls, resolve, reject });
+        scheduleCacheReadFlush();
+    });
 }
 
 async function putCachedImage(url, blob) {
@@ -76,11 +123,8 @@ export function fetchImg(url, hi, reusableUrls = []) {
     const p = (async () => {
         let blob;
         try {
-            blob = await getCachedImage(url);
-            for (const candidate of reusableUrls) {
-                if (blob) break;
-                if (candidate !== url) blob = await getCachedImage(candidate);
-            }
+            const cacheUrls = [...new Set([url, ...reusableUrls])].slice(0, 8);
+            blob = await getCachedImage(cacheUrls);
         } catch (error) {
             console.warn('[Images] image cache read failed', error);
         }

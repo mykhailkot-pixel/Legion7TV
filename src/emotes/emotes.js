@@ -18,10 +18,26 @@ function mk(host, flags, isGlobal, isExtra, meta = {}) {
         zw: !!(flags & 256),   // zero-width эмоут
         g: isGlobal,
         id: String(meta.id || ''),
+        createdAt: getEmoteCreatedAt(meta),
         owner: String(owner.display_name || owner.username || ''),
         animated: typeof meta.animated === 'boolean' ? meta.animated : null,
         ...(isExtra ? { x: true } : {})
     };
+}
+
+export function getEmoteCreatedAt(meta) {
+    const version = Array.isArray(meta.versions)
+        ? meta.versions.find((item) => item && String(item.id) === String(meta.id)) || meta.versions[0]
+        : null;
+    const value = Number(version && version.createdAt || meta.createdAt || meta.created_at || meta.timestamp);
+    if (Number.isFinite(value) && value > 0) return value < 1e12 ? value * 1000 : value;
+
+    const id = String(meta.id || '').toUpperCase();
+    const alphabet = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
+    if (!/^[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(id)) return 0;
+    let timestamp = 0;
+    for (const char of id.slice(0, 10)) timestamp = timestamp * 32 + alphabet.indexOf(char);
+    return timestamp;
 }
 
 function addSet(map, set, isGlobal, isExtra) {
@@ -30,6 +46,8 @@ function addSet(map, set, isGlobal, isExtra) {
         if (!host || !host.url || e.name === '__proto__') continue;
         map[e.name] = mk(host, e.data.flags, isGlobal, isExtra, {
             id: e.id || e.data.id,
+            createdAt: e.data.createdAt || e.createdAt,
+            versions: e.data.versions || e.versions,
             owner: e.data.owner,
             animated: e.data.animated
         });
@@ -43,6 +61,8 @@ function addOne(map, em, alias) {
     if (!host || !host.url || !name || /\s/.test(name) || name === '__proto__') return false;
     map[name] = mk(host, em.flags, true, true, {
         id: em.id,
+        createdAt: em.createdAt,
+        versions: em.versions,
         owner: em.owner,
         animated: em.animated
     });
@@ -91,13 +111,13 @@ export function urlFor(em, n) {
     return em.base + '/' + (best || em.f[0]);
 }
 
-export function setEmoteImage(image, em, n, loading = 'lazy', onError) {
+export function setEmoteImage(image, em, n, loading = 'lazy', onError, isCurrent = () => true) {
     const src = urlFor(em, n);
     image.loading = loading;
     image.decoding = 'async';
     image.removeAttribute('srcset');
     fetchImg(src, true, reusableUrlsFor(em, n)).then((cachedSrc) => {
-        image.src = cachedSrc;
+        if (isCurrent()) image.src = cachedSrc;
     }, (error) => {
         if (onError) onError(error);
         else console.warn('[7TV] картинка эмоута не загрузилась', src, error);

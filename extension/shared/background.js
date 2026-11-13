@@ -97,11 +97,20 @@ async function imageDatabaseTransaction(mode, operation) {
         try {
             const transaction = database.transaction(IMAGE_STORE_NAME, mode);
             const request = operation(transaction.objectStore(IMAGE_STORE_NAME));
-            if (request) {
+            if (Array.isArray(request)) {
+                const results = new Array(request.length);
+                request.forEach((item, index) => {
+                    item.onsuccess = () => { results[index] = item.result; };
+                    item.onerror = () => reject(item.error || new Error('image cache request failed'));
+                });
+                transaction.oncomplete = () => resolve(results);
+            } else if (request) {
                 request.onsuccess = () => { result = request.result; };
                 request.onerror = () => reject(request.error || new Error('image cache request failed'));
+                transaction.oncomplete = () => resolve(result);
+            } else {
+                transaction.oncomplete = () => resolve(result);
             }
-            transaction.oncomplete = () => resolve(result);
             transaction.onerror = transaction.onabort = () =>
                 reject(transaction.error || new Error('image cache transaction failed'));
         } catch (error) {
@@ -132,8 +141,13 @@ function encodeImageBase64(blob) {
 
 async function handleImageCacheMessage(message) {
     if (message.type === 'IMG_GET') {
-        if (typeof message.url !== 'string') throw new Error('image cache key is invalid');
-        const blob = await imageDatabaseTransaction('readonly', (store) => store.get(message.url));
+        const urls = Array.isArray(message.urls) ? message.urls : [message.url];
+        if (!urls.length || urls.length > 8
+            || urls.some((url) => typeof url !== 'string' || !isAllowedUrl(url)))
+            throw new Error('image cache key is invalid');
+        const blobs = await imageDatabaseTransaction('readonly', (store) =>
+            urls.map((url) => store.get(url)));
+        const blob = blobs.find(Boolean);
         if (!blob) return { ok: true, found: false };
         if (!(blob instanceof Blob) || blob.size > MAX_IMAGE_BYTES)
             throw new Error('cached image exceeds the 12 MiB limit');
@@ -143,6 +157,35 @@ async function handleImageCacheMessage(message) {
             contentType: blob.type || 'application/octet-stream',
             body: encodeImageBase64(await blob.arrayBuffer())
         };
+    }
+
+    if (message.type === 'IMG_GET_BATCH') {
+        if (!Array.isArray(message.requests) || !message.requests.length
+            || message.requests.length > 3
+            || message.requests.some((request) => !request || !Array.isArray(request.urls)
+                || !request.urls.length || request.urls.length > 8
+                || request.urls.some((url) => typeof url !== 'string' || !isAllowedUrl(url))))
+            throw new Error('image cache batch is invalid');
+        const urls = [...new Set(message.requests.flatMap((request) => request.urls))];
+        const blobs = await imageDatabaseTransaction('readonly', (store) =>
+            urls.map((url) => store.get(url)));
+        const cached = new Map(urls.map((url, index) => [url, blobs[index]]));
+        const results = [];
+        for (const request of message.requests) {
+            const blob = request.urls.map((url) => cached.get(url)).find(Boolean);
+            if (!blob) {
+                results.push({ found: false });
+                continue;
+            }
+            if (!(blob instanceof Blob) || blob.size > MAX_IMAGE_BYTES)
+                throw new Error('cached image exceeds the 12 MiB limit');
+            results.push({
+                found: true,
+                contentType: blob.type || 'application/octet-stream',
+                body: encodeImageBase64(await blob.arrayBuffer())
+            });
+        }
+        return { ok: true, results };
     }
 
     if (message.type === 'IMG_PUT') {
@@ -176,7 +219,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         );
         return true;
     }
-    if (!['IMG_GET', 'IMG_PUT', 'IMG_CLEAR'].includes(message.type)) return false;
+    if (!['IMG_GET', 'IMG_GET_BATCH', 'IMG_PUT', 'IMG_CLEAR'].includes(message.type)) return false;
     if (!isAllowedPageSender(sender)) {
         sendResponse({ ok: false, error: 'request sender is not an allowed page' });
         return false;

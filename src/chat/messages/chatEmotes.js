@@ -7,8 +7,11 @@ import { cls, cssVar } from '../../core/ui.js';
 
 const emoteAspectRatios = new Map();
 const loadedEmoteImages = new Set();
+const pendingEmoteImages = new WeakMap();
+const imageObservers = new WeakMap();
+const imageObserverByTarget = new WeakMap();
 
-function makeImg(name, em, className) {
+function makeImg(name, em, className, pendingImages) {
     const img = document.createElement('img');
     img.className = cls(className === 't7-e' ? 'e' : 'zw');
     img.alt = name;
@@ -26,10 +29,64 @@ function makeImg(name, em, className) {
         }
         img.style.visibility = 'visible';
     });
-    setEmoteImage(img, em, resolution, 'lazy', (error) => {
-        console.warn('[7TV] картинка не загрузилась', name, error);
-    });
+    pendingEmoteImages.set(img, { em, resolution, name });
+    pendingImages.push(img);
     return img;
+}
+
+function loadEmoteImage(img) {
+    const pending = pendingEmoteImages.get(img);
+    if (!pending) return;
+    pendingEmoteImages.delete(img);
+    imageObserverByTarget.delete(img);
+    setEmoteImage(img, pending.em, pending.resolution, 'lazy', (error) => {
+        console.warn('[7TV] картинка не загрузилась', pending.name, error);
+    });
+}
+
+function observeEmoteImages(images) {
+    const groups = new Map();
+    for (const image of images) {
+        const list = image.closest('.cy-chat-l');
+        if (!list || typeof IntersectionObserver !== 'function') {
+            loadEmoteImage(image);
+            continue;
+        }
+        if (!groups.has(list)) groups.set(list, []);
+        groups.get(list).push(image);
+    }
+
+    for (const [list, targets] of groups) {
+        let observer = imageObservers.get(list);
+        if (!observer) {
+            observer = new IntersectionObserver((entries) => {
+                for (const entry of entries) {
+                    if (!entry.isIntersecting) continue;
+                    observer.unobserve(entry.target);
+                    loadEmoteImage(entry.target);
+                }
+            }, { root: list, rootMargin: '300px 0px' });
+            imageObservers.set(list, observer);
+        }
+        for (const target of targets) {
+            imageObserverByTarget.set(target, observer);
+            observer.observe(target);
+        }
+    }
+}
+
+export function disposePendingEmoteImages(root) {
+    if (!(root instanceof Element)) return;
+    const targets = [];
+    if (root.matches('img')) targets.push(root);
+    targets.push(...root.querySelectorAll('img'));
+    for (const target of targets) {
+        const observer = imageObserverByTarget.get(target);
+        if (!observer) continue;
+        observer.unobserve(target);
+        imageObserverByTarget.delete(target);
+        pendingEmoteImages.delete(target);
+    }
 }
 
 export function processEmotes({ content, kind }) {
@@ -37,6 +94,7 @@ export function processEmotes({ content, kind }) {
 
     const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
     const nodes = [];
+    const pendingImages = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
 
     for (const node of nodes) {
@@ -49,14 +107,14 @@ export function processEmotes({ content, kind }) {
         for (const part of parts) {
             const emote = has(EM, part) ? EM[part] : null;
             if (emote && emote.zw && lastWrap) {
-                lastWrap.appendChild(makeImg(part, emote, 't7-zw'));
+                lastWrap.appendChild(makeImg(part, emote, 't7-zw', pendingImages));
                 continue;
             }
             if (emote) {
                 const wrapper = document.createElement('span');
                 wrapper.className = cls('w');
                 wrapper.style.setProperty(cssVar('h'), SIZES[S.size].h);
-                wrapper.appendChild(makeImg(part, emote, 't7-e'));
+                wrapper.appendChild(makeImg(part, emote, 't7-e', pendingImages));
                 fragment.appendChild(wrapper);
                 lastWrap = wrapper;
                 continue;
@@ -73,4 +131,5 @@ export function processEmotes({ content, kind }) {
         }
         node.replaceWith(fragment);
     }
+    observeEmoteImages(pendingImages);
 }
