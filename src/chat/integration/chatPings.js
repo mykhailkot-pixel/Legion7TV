@@ -7,6 +7,7 @@ import { cls, getOverlayRoot } from '../../core/ui.js';
 
 const PING_ONLY_KEY = STORE.pingOnly;
 const PING_ARCHIVE_KEY = STORE.pingArchive;
+const DELETED_MESSAGES_KEY = STORE.deletedMessagesEnabled;
 const PING_ARCHIVE_LIMIT = 500;
 const PING_PAGE_SIZE = 50;
 const ROOM_IDS = ['city', 'mine', 'one'];
@@ -27,6 +28,17 @@ let blacklistAction = null;
 let blacklistMenu = null;
 let blacklistMenuObserver = null;
 let storedArchive = readArchive();
+
+export function areDeletedMessagesEnabled() {
+    return store.get(DELETED_MESSAGES_KEY) !== false;
+}
+
+export function setDeletedMessagesEnabled(enabled) {
+    const active = !!enabled;
+    store.set(DELETED_MESSAGES_KEY, active);
+    if (active) return;
+    for (const state of states) clearDeletedRows(state);
+}
 
 function readArchive() {
     const saved = store.get(PING_ARCHIVE_KEY);
@@ -115,7 +127,7 @@ function messageKey(id) {
 
 function cacheRow(state, row, tab) {
     const id = row.dataset.mid;
-    if (!id || row.classList.contains(cls('archive-row'))
+    if (!areDeletedMessagesEnabled() || !id || row.classList.contains(cls('archive-row'))
         || row.classList.contains(cls('deleted-message'))) return;
     const existing = state.deletedRows.get(id);
     const children = row.parentElement ? [...row.parentElement.children] : [];
@@ -171,16 +183,20 @@ function createDeletedSnapshot(message) {
 }
 
 function restoreDeletedRows(state) {
-    if (!state.list) return;
+    if (!areDeletedMessagesEnabled() || !state.list) return;
     for (const id of state.deletedIds) {
         const cached = state.deletedRows.get(id);
         if (!cached || cached.tab !== state.activeTab) continue;
-        let row = [...state.list.children].find((item) => item.dataset.mid === id
-            && !item.classList.contains(cls('archive-row')));
+        const trackedRow = state.restoredDeletedRows.get(id);
+        let row = trackedRow && trackedRow.isConnected && trackedRow.parentElement === state.list
+            ? trackedRow
+            : [...state.list.children].find((item) => item.dataset.mid === id
+                && !item.classList.contains(cls('archive-row')));
         if (!row) {
             row = cached.node.cloneNode(true);
             row.classList.remove(cls('archive-row'));
             unmarkMessageProcessed(row);
+            state.restoredDeletedRows.set(id, row);
             const next = cached.beforeId && [...state.list.children]
                 .find((item) => item.dataset.mid === cached.beforeId);
             const previous = cached.afterId && [...state.list.children]
@@ -188,12 +204,33 @@ function restoreDeletedRows(state) {
             if (next) state.list.insertBefore(row, next);
             else if (previous) previous.after(row);
             else state.list.appendChild(row);
+        } else if (row !== trackedRow) {
+            state.restoredDeletedRows.delete(id);
         }
         markDeletedRow(row);
     }
 }
 
+function clearDeletedRows(state) {
+    const deletedIds = new Set(state.deletedIds);
+    const restoredRows = new Set(state.restoredDeletedRows.values());
+    for (const row of restoredRows) {
+        if (row.isConnected) row.remove();
+    }
+    if (state.list) {
+        state.list.querySelectorAll(':scope > li[data-mid]').forEach((row) => {
+            if (!deletedIds.has(row.dataset.mid) || restoredRows.has(row)) return;
+            row.classList.remove(cls('deleted-message'));
+            row.querySelector(`:scope > .${cls('deleted-label')}`)?.remove();
+        });
+    }
+    state.deletedRows.clear();
+    state.deletedIds.clear();
+    state.restoredDeletedRows.clear();
+}
+
 function handleExternalDelete(state, ids, messages) {
+    if (!areDeletedMessagesEnabled()) return;
     const messagesById = new Map(messages.map((message) => [message.id, message]));
     for (const id of ids) {
         if (!state.deletedRows.has(id)) {
@@ -670,6 +707,7 @@ function observeBox(box) {
         seen: new Set(),
         deletedRows: new Map(),
         deletedIds: new Set(),
+        restoredDeletedRows: new Map(),
         quietTab: null
     };
     stateByBox.set(box, state);

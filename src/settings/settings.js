@@ -15,6 +15,7 @@ import { arePastesEnabled, setPastesEnabled } from '../chat/ui/pastes.js';
 import { clearResolvedImageCache } from '../chat/ui/imageProviders.js';
 import { isImagePickerButtonEnabled, setImagePickerButtonEnabled } from '../chat/ui/imagePicker.js';
 import { getOverlayRoot } from '../core/ui.js';
+import { areDeletedMessagesEnabled, setDeletedMessagesEnabled } from '../chat/integration/chatPings.js';
 
 // смещение окна настроек от центра экрана
 let SOFF = (() => {
@@ -196,6 +197,9 @@ function buildSettingsMarkup(root) {
             settingsToggle('t7-pastes-enabled', 'Показывать кнопку паст в чате'),
             settingsToggle('t7-image-picker-enabled', 'Показывать кнопку imgBB в чате')
         ),
+        settingsSection('Удалённые сообщения',
+            settingsToggle('t7-deleted-messages-enabled', 'Сохранять удалённые сообщения в чате')
+        ),
         settingsSection('Ссылки',
             settingsToggle('t7-link-encoding', 'Обрабатывать ссылки при отправке и отображении'),
             settingsToggle('t7-image-previews', 'Показывать изображения по ссылкам (imgbb; в ЛС не отправляем)'),
@@ -238,6 +242,10 @@ function buildSettingsMarkup(root) {
         ['bell', 'Колокольчик'], ['chime', 'Звон'], ['pop', 'Короткий сигнал'], ['custom', 'Свой звук для ЛС']
     ].map(([value, title]) => createNode('option', { value }, [title])));
     pingsPanel.append(
+        settingsSection('Звуки уведомлений',
+            settingsToggle('t7-ping-sound-enabled', 'Звук пингов в общем чате'),
+            settingsToggle('t7-dm-sound-enabled', 'Звук новых сообщений в ЛС')
+        ),
         settingsSection('Упоминания и фильтры',
             settingsToggle('t7-tab-completion', 'Дополнять ник по Tab'),
             settingsField('Ники и варианты для пинга', createNode('textarea', {
@@ -268,7 +276,6 @@ function buildSettingsMarkup(root) {
             createNode('div', { className: 't7-ping-status', role: 'status' })
         ),
         settingsSection('Личные сообщения',
-            settingsToggle('t7-dm-sound-enabled', 'Звук при новом сообщении в ЛС'),
             settingsField('Звук личных сообщений', dmPreset),
             settingsField('Ники для звуковых уведомлений', createNode('textarea', {
                 className: 't7-dm-nick-list', rows: '2', placeholder: 'по одному нику на строку'
@@ -380,6 +387,10 @@ export function openSettings() {
     imagePickerEnabled.addEventListener('change', () => {
         setImagePickerButtonEnabled(imagePickerEnabled.checked);
     });
+    const deletedMessagesEnabled = el.querySelector('.t7-deleted-messages-enabled');
+    deletedMessagesEnabled.checked = areDeletedMessagesEnabled();
+    deletedMessagesEnabled.addEventListener('change', () =>
+        setDeletedMessagesEnabled(deletedMessagesEnabled.checked));
 
     const nickInp = el.querySelector('.t7-nick');
     nickInp.value = S.nick;
@@ -410,6 +421,10 @@ export function openSettings() {
     const emoteCompletion = el.querySelector('.t7-emote-completion');
     emoteCompletion.checked = pingSystem.config.emoteCompletion;
     emoteCompletion.addEventListener('change', () => pingSystem.setEmoteCompletion(emoteCompletion.checked));
+    const pingSoundEnabled = el.querySelector('.t7-ping-sound-enabled');
+    pingSoundEnabled.checked = pingSystem.config.pingSoundEnabled;
+    pingSoundEnabled.addEventListener('change', () =>
+        pingSystem.setPingSoundEnabled(pingSoundEnabled.checked));
     const pingColor = el.querySelector('.t7-ping-color');
     pingColor.value = pingSystem.config.pingColor;
     pingColor.addEventListener('input', () => pingSystem.setPingColor(pingColor.value));
@@ -629,9 +644,9 @@ export function openSettings() {
             chatFontStatus.textContent = 'Свой шрифт удалён';
         }
         else if (b.dataset.act === 'test-ping') {
-            pingSystem.play().catch((error) => console.warn('[7TV] не удалось воспроизвести звук пинга', error));
+            pingSystem.play(true).catch((error) => console.warn('[7TV] не удалось воспроизвести звук пинга', error));
         } else if (b.dataset.act === 'test-dm-ping') {
-            pingSystem.playDm().catch((error) => console.warn('[7TV] не удалось воспроизвести звук ЛС', error));
+            pingSystem.playDm(true).catch((error) => console.warn('[7TV] не удалось воспроизвести звук ЛС', error));
         }
         else if (b.dataset.act === 'refresh') reload(true);
         else if (b.dataset.act === 'cache') {

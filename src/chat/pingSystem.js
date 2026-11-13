@@ -9,6 +9,7 @@ const DEFAULTS = {
     volume: 0.5,
     selectedPreset: 'bell',
     customSound: '',
+    pingSoundEnabled: true,
     dmSoundEnabled: false,
     dmSelectedPreset: 'chime',
     dmCustomSound: '',
@@ -33,7 +34,8 @@ function readConfig() {
     config.selectedPreset = PRESETS.has(config.selectedPreset) ? config.selectedPreset : DEFAULTS.selectedPreset;
     for (const key of ['customSound', 'dmCustomSound'])
         config[key] = typeof config[key] === 'string' && config[key].startsWith('data:audio/') ? config[key] : '';
-    config.dmSoundEnabled = config.dmSoundEnabled !== false;
+    config.pingSoundEnabled = config.pingSoundEnabled !== false;
+    config.dmSoundEnabled = config.dmSoundEnabled === true;
     config.dmSelectedPreset = PRESETS.has(config.dmSelectedPreset) ? config.dmSelectedPreset : DEFAULTS.dmSelectedPreset;
     if (config.dmSelectedPreset === 'custom' && !config.dmCustomSound) {
         config.dmSelectedPreset = DEFAULTS.dmSelectedPreset;
@@ -156,8 +158,17 @@ class PingSystem {
         this.save();
     }
 
+    setPingSoundEnabled(enabled) {
+        this.config.pingSoundEnabled = !!enabled;
+        if (!this.config.pingSoundEnabled && this.pendingSound && !this.pendingSound.isDm)
+            this.pendingSound = null;
+        this.save();
+    }
+
     setDmSoundEnabled(enabled) {
         this.config.dmSoundEnabled = !!enabled;
+        if (!this.config.dmSoundEnabled && this.pendingSound && this.pendingSound.isDm)
+            this.pendingSound = null;
         this.save();
     }
 
@@ -263,7 +274,7 @@ class PingSystem {
         const pending = this.pendingSound;
         if (!pending || !this.audioContext || this.audioContext.state !== 'running') return;
         this.pendingSound = null;
-        this.playSound(pending.preset, pending.customSound, pending.isDm)
+        this.playSound(pending.preset, pending.customSound, pending.isDm, pending.force)
             .catch((error) => console.warn('[7TV] не удалось воспроизвести отложенный звук', error));
     }
 
@@ -283,12 +294,12 @@ class PingSystem {
         return this.customBuffer;
     }
 
-    async play() {
-        return this.playSound(this.config.selectedPreset, this.config.customSound, false);
+    async play(force = false) {
+        return this.playSound(this.config.selectedPreset, this.config.customSound, false, force);
     }
 
-    async playDm() {
-        return this.playSound(this.config.dmSelectedPreset, this.config.dmCustomSound, true);
+    async playDm(force = false) {
+        return this.playSound(this.config.dmSelectedPreset, this.config.dmCustomSound, true, force);
     }
 
     async decodeCustomBuffer(context, encodedSound) {
@@ -304,11 +315,12 @@ class PingSystem {
         return this.saveCustomSound(file, true);
     }
 
-    async playSound(preset, customSound, isDm) {
+    async playSound(preset, customSound, isDm, force = false) {
+        if (!force && !(isDm ? this.config.dmSoundEnabled : this.config.pingSoundEnabled)) return;
         if (this.config.volume <= 0) return;
         const context = this.audioContext;
         if (!context || context.state !== 'running') {
-            this.pendingSound = { preset, customSound, isDm };
+            this.pendingSound = { preset, customSound, isDm, force };
             return;
         }
 
