@@ -1,6 +1,10 @@
 import { pingSystem } from '../pingSystem.js';
 import { chatScroller } from '../messages/scrollState.js';
-import { copyOriginalMessageSource, unmarkMessageProcessed } from '../messages/messageState.js';
+import {
+    copyOriginalMessageSource,
+    getOriginalMessageSource,
+    unmarkMessageProcessed
+} from '../messages/messageState.js';
 import { store } from '../../core/store.js';
 import { SEL, STORE } from '../../core/consts.js';
 import { cls } from '../../core/ui.js';
@@ -9,12 +13,15 @@ import { savePlayerMessage } from '../messages/playerHistory.js';
 const PING_ONLY_KEY = STORE.pingOnly;
 const PING_ARCHIVE_KEY = STORE.pingArchive;
 const DELETED_MESSAGES_KEY = STORE.deletedMessagesEnabled;
+const DELETED_MESSAGES_LIMIT_KEY = STORE.deletedMessagesLimit;
+const DELETED_MESSAGES_STORE_KEY = STORE.deletedMessages;
 const PING_ARCHIVE_LIMIT = 500;
 const PING_PAGE_SIZE = 50;
 const ROOM_IDS = ['city', 'mine', 'one'];
 const CHAT_TABS = new Set(['g', 'tr', 'mn', 'dm', 'gl', 'lg']);
 const NOTIFIED_LIMIT = 1000;
-const DELETED_LIMIT = 500;
+const DEFAULT_DELETED_LIMIT = 500;
+const MAX_DELETED_LIMIT = 5000;
 const PAGE_STARTED_AT = performance.timeOrigin || Date.now();
 const STARTUP_NOTIFICATION_GRACE_MS = 3000;
 const CHAT_BOX_ATTRIBUTE = 'data-t7-box';
@@ -22,19 +29,45 @@ const states = new Set();
 const stateByBox = new WeakMap();
 const notifiedIds = new Set();
 const noPingIndicators = new WeakMap();
+let pointerSelectionTarget = null;
 let pingOnly = store.get(PING_ONLY_KEY) === true;
 let saveTimer = 0;
 let documentObserver = null;
 let storedArchive = readArchive();
+let storedDeletedMessages = readDeletedMessages();
 
 export function areDeletedMessagesEnabled() {
     return store.get(DELETED_MESSAGES_KEY) !== false;
+}
+
+function normalizeDeletedMessagesLimit(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed)
+        ? Math.max(1, Math.min(MAX_DELETED_LIMIT, Math.round(parsed)))
+        : DEFAULT_DELETED_LIMIT;
+}
+
+export function getDeletedMessagesLimit() {
+    const value = Number(store.get(DELETED_MESSAGES_LIMIT_KEY));
+    return Number.isInteger(value)
+        ? Math.max(1, Math.min(MAX_DELETED_LIMIT, value))
+        : DEFAULT_DELETED_LIMIT;
+}
+
+export function setDeletedMessagesLimit(value) {
+    const limit = normalizeDeletedMessagesLimit(value);
+    store.set(DELETED_MESSAGES_LIMIT_KEY, limit);
+    trimStoredDeletedMessages(limit);
+    for (const state of states) trimDeletedMessages(state, limit);
+    return limit;
 }
 
 export function setDeletedMessagesEnabled(enabled) {
     const active = !!enabled;
     store.set(DELETED_MESSAGES_KEY, active);
     if (active) return;
+    storedDeletedMessages = emptyDeletedMessages();
+    store.set(DELETED_MESSAGES_STORE_KEY, storedDeletedMessages);
     for (const state of states) clearDeletedRows(state);
 }
 
@@ -62,6 +95,48 @@ function readArchive() {
     return archive;
 }
 
+function emptyDeletedMessages() {
+    return Object.fromEntries(ROOM_IDS.map((room) => [room, []]));
+}
+
+function readDeletedMessages() {
+    const saved = store.get(DELETED_MESSAGES_STORE_KEY);
+    const messages = emptyDeletedMessages();
+    let pruned = false;
+    const limit = getDeletedMessagesLimit();
+    for (const room of ROOM_IDS) {
+        const values = saved && Array.isArray(saved[room]) ? saved[room] : [];
+        for (const message of values) {
+            if (!message || typeof message !== 'object' || message.id == null) continue;
+            const id = String(message.id).slice(0, 200);
+            const login = String(message.login || '').trim().slice(0, 64);
+            const name = String(message.name || login).slice(0, 128);
+            const text = typeof message.text === 'string' ? message.text.slice(0, 2000) : '';
+            const tab = String(message.tab || '');
+            if (!id || !login || !CHAT_TABS.has(tab)) continue;
+            messages[room].push({
+                room,
+                id,
+                login,
+                name,
+                text,
+                tab,
+                beforeId: String(message.beforeId || '').slice(0, 200),
+                afterId: String(message.afterId || '').slice(0, 200),
+                position: Number.isInteger(message.position) && message.position >= 0
+                    ? message.position
+                    : -1
+            });
+        }
+        if (messages[room].length > limit) {
+            messages[room].splice(0, messages[room].length - limit);
+            pruned = true;
+        }
+    }
+    if (pruned) store.set(DELETED_MESSAGES_STORE_KEY, messages);
+    return messages;
+}
+
 function inferTab(message) {
     if (message.rm === 'mine') return 'mn';
     if (message.k === 'tr') return 'tr';
@@ -81,6 +156,12 @@ function getRoom(box, row) {
     if (box.closest('.co-host, .co-float')) return 'one';
     if (row.dataset.rm === 'mine' || box.closest('.mn')) return 'mine';
     if (row.dataset.rm === 'city') return 'city';
+    return 'city';
+}
+
+function getBoxRoom(box) {
+    if (box.closest('.co-host, .co-float')) return 'one';
+    if (box.closest('.mn')) return 'mine';
     return 'city';
 }
 
@@ -130,8 +211,10 @@ function cacheRow(state, row, tab) {
     const existing = state.deletedRows.get(id);
     const children = row.parentElement ? [...row.parentElement.children] : [];
     const index = children.indexOf(row);
-    const next = children.slice(index + 1).find((item) => item.dataset.mid);
-    const previous = children.slice(0, index).reverse().find((item) => item.dataset.mid);
+    const isMessageRow = (item) => item.dataset.mid
+        && !item.classList.contains(cls('archive-row'));
+    const next = children.slice(index + 1).find(isMessageRow);
+    const previous = children.slice(0, index).reverse().find(isMessageRow);
     const clone = row.cloneNode(true);
     const sourceSpans = row.querySelectorAll(SEL.messageContent);
     const cloneSpans = clone.querySelectorAll(SEL.messageContent);
@@ -139,12 +222,13 @@ function cacheRow(state, row, tab) {
         copyOriginalMessageSource(sourceSpans[sourceSpans.length - 1], cloneSpans[cloneSpans.length - 1]);
     state.deletedRows.set(id, {
         node: clone,
+        room: getRoom(state.box, row),
         tab: existing ? existing.tab : tab,
         beforeId: next?.dataset.mid || existing?.beforeId || '',
-        afterId: previous?.dataset.mid || existing?.afterId || ''
+        afterId: previous?.dataset.mid || existing?.afterId || '',
+        position: index >= 0 ? index : existing?.position ?? -1
     });
-    if (state.deletedRows.size > DELETED_LIMIT)
-        state.deletedRows.delete(state.deletedRows.keys().next().value);
+    trimDeletedMessages(state);
 }
 
 function markDeletedRow(row) {
@@ -172,36 +256,127 @@ function createDeletedSnapshot(message) {
     if (pingSystem.isPinged(message.t)) {
         row.classList.add(cls('ping'));
     }
-    return { node: row, tab: message.tab, beforeId: '', afterId: '' };
+    return { node: row, tab: message.tab, beforeId: '', afterId: '', position: -1 };
+}
+
+function snapshotFromStoredMessage(message) {
+    const snapshot = createDeletedSnapshot({
+        id: message.id,
+        l: message.login,
+        n: message.name,
+        t: message.text,
+        tab: message.tab
+    });
+    if (!snapshot) return null;
+    snapshot.room = message.room;
+    snapshot.beforeId = message.beforeId;
+    snapshot.afterId = message.afterId;
+    snapshot.position = message.position;
+    return snapshot;
+}
+
+function serializeDeletedRow(id, cached) {
+    const nick = cached.node.querySelector(':scope > b[data-nick]');
+    const content = cached.node.querySelector(SEL.messageContent);
+    if (!nick || !content) return null;
+    return {
+        room: cached.room,
+        id,
+        login: String(nick.dataset.nick || '').trim().slice(0, 64),
+        name: (nick.textContent.trim() || nick.dataset.nick || '').slice(0, 128),
+        text: String(getOriginalMessageSource(content, content.textContent)).slice(0, 2000),
+        tab: cached.tab,
+        beforeId: String(cached.beforeId || '').slice(0, 200),
+        afterId: String(cached.afterId || '').slice(0, 200),
+        position: Number.isInteger(cached.position) ? cached.position : -1
+    };
+}
+
+function persistDeletedMessages(state, entries) {
+    if (!entries.length) return;
+    const removedMessages = [];
+    let changed = false;
+    for (const { id, cached } of entries) {
+        const message = serializeDeletedRow(id, cached);
+        if (!message || !message.login) continue;
+        const roomMessages = storedDeletedMessages[message.room || state.room];
+        const index = roomMessages.findIndex((item) => item.id === id);
+        if (index < 0) roomMessages.push(message);
+        else roomMessages[index] = message;
+        state.persistedDeletedRows.set(id, cached);
+        const removed = roomMessages.splice(0, Math.max(0, roomMessages.length - getDeletedMessagesLimit()));
+        for (const item of removed) removedMessages.push({ room: message.room || state.room, item });
+        changed = true;
+    }
+
+    for (const { room, item } of removedMessages) {
+        for (const current of states) {
+            if (current.room === room || current.persistedDeletedRows.get(item.id)?.room === room)
+                forgetStateDeletedMessage(current, item.id);
+        }
+    }
+    if (changed || removedMessages.length) store.set(DELETED_MESSAGES_STORE_KEY, storedDeletedMessages);
+}
+
+function hydrateDeletedMessages(state) {
+    if (!areDeletedMessagesEnabled()) return;
+    for (const message of storedDeletedMessages[state.room]) {
+        const cached = snapshotFromStoredMessage(message);
+        if (!cached) continue;
+        state.persistedDeletedRows.set(message.id, cached);
+        state.deletedIds.add(message.id);
+    }
 }
 
 function restoreDeletedRows(state) {
     if (!areDeletedMessagesEnabled() || !state.list) return;
+    const pending = [];
     for (const id of state.deletedIds) {
-        const cached = state.deletedRows.get(id);
+        const cached = state.deletedRows.get(id) || state.persistedDeletedRows.get(id);
         if (!cached || cached.tab !== state.activeTab) continue;
         const trackedRow = state.restoredDeletedRows.get(id);
         let row = trackedRow && trackedRow.isConnected && trackedRow.parentElement === state.list
             ? trackedRow
             : [...state.list.children].find((item) => item.dataset.mid === id
                 && !item.classList.contains(cls('archive-row')));
-        if (!row) {
-            row = cached.node.cloneNode(true);
+        if (row) {
+            if (row !== trackedRow) state.restoredDeletedRows.delete(id);
+            markDeletedRow(row);
+        } else pending.push({ id, cached });
+    }
+
+    pending.sort((left, right) => {
+        const leftPosition = left.cached.position >= 0 ? left.cached.position : Number.MAX_SAFE_INTEGER;
+        const rightPosition = right.cached.position >= 0 ? right.cached.position : Number.MAX_SAFE_INTEGER;
+        return leftPosition - rightPosition;
+    });
+    if (!pending.length) return;
+
+    chatScroller.keep(state.list, () => {
+        for (const { id, cached } of pending) {
+            const row = cached.node.cloneNode(true);
             row.classList.remove(cls('archive-row'));
             unmarkMessageProcessed(row);
+            const children = [...state.list.children];
+            const next = cached.beforeId && children.find((item) =>
+                item.dataset.mid === cached.beforeId
+                && !item.classList.contains(cls('archive-row')));
+            const previous = cached.afterId && children.find((item) =>
+                item.dataset.mid === cached.afterId
+                && !item.classList.contains(cls('archive-row')));
+            if (next) {
+                state.list.insertBefore(row, next);
+            } else if (previous) {
+                previous.after(row);
+            } else if (cached.position >= 0) {
+                state.list.insertBefore(row, children[Math.min(cached.position, children.length)] || null);
+            } else {
+                state.list.appendChild(row);
+            }
             state.restoredDeletedRows.set(id, row);
-            const next = cached.beforeId && [...state.list.children]
-                .find((item) => item.dataset.mid === cached.beforeId);
-            const previous = cached.afterId && [...state.list.children]
-                .find((item) => item.dataset.mid === cached.afterId);
-            if (next) state.list.insertBefore(row, next);
-            else if (previous) previous.after(row);
-            else state.list.appendChild(row);
-        } else if (row !== trackedRow) {
-            state.restoredDeletedRows.delete(id);
+            markDeletedRow(row);
         }
-        markDeletedRow(row);
-    }
+    });
 }
 
 function clearDeletedRows(state) {
@@ -220,25 +395,98 @@ function clearDeletedRows(state) {
     state.deletedRows.clear();
     state.deletedIds.clear();
     state.restoredDeletedRows.clear();
+    state.persistedDeletedRows.clear();
+}
+
+function discardDeletedRow(state, id) {
+    const restored = state.restoredDeletedRows.get(id);
+    if (restored) {
+        if (restored.isConnected) restored.remove();
+        state.restoredDeletedRows.delete(id);
+    }
+    if (!state.list) return;
+    const row = [...state.list.querySelectorAll(':scope > li[data-mid]')]
+        .find((item) => item.dataset.mid === id);
+    if (!row) return;
+    row.classList.remove(cls('deleted-message'));
+    row.querySelector(`:scope > .${cls('deleted-label')}`)?.remove();
+}
+
+function forgetStateDeletedMessage(state, id) {
+    const forget = () => {
+        state.deletedRows.delete(id);
+        state.deletedIds.delete(id);
+        state.persistedDeletedRows.delete(id);
+        discardDeletedRow(state, id);
+    };
+    if (state.list) chatScroller.keep(state.list, forget);
+    else forget();
+}
+
+function removeStoredDeletedMessage(room, id) {
+    const messages = storedDeletedMessages[room];
+    const index = messages.findIndex((message) => message.id === id);
+    if (index < 0) return false;
+    messages.splice(index, 1);
+    return true;
+}
+
+function trimDeletedMessages(state, limit = getDeletedMessagesLimit()) {
+    let storedMessagesChanged = false;
+    while (state.deletedRows.size > limit) {
+        const id = state.deletedRows.keys().next().value;
+        state.deletedRows.delete(id);
+        if (state.deletedIds.has(id) && !state.persistedDeletedRows.has(id))
+            forgetStateDeletedMessage(state, id);
+    }
+    while (state.deletedIds.size > limit) {
+        const id = state.deletedIds.values().next().value;
+        const persisted = state.persistedDeletedRows.get(id);
+        forgetStateDeletedMessage(state, id);
+        if (persisted) storedMessagesChanged = removeStoredDeletedMessage(persisted.room || state.room, id)
+            || storedMessagesChanged;
+    }
+    if (storedMessagesChanged) store.set(DELETED_MESSAGES_STORE_KEY, storedDeletedMessages);
+}
+
+function trimStoredDeletedMessages(limit) {
+    let changed = false;
+    for (const room of ROOM_IDS) {
+        const messages = storedDeletedMessages[room];
+        const removed = messages.splice(0, Math.max(0, messages.length - limit));
+        if (!removed.length) continue;
+        changed = true;
+        for (const message of removed) {
+            for (const state of states) {
+                if (state.room === room || state.persistedDeletedRows.get(message.id)?.room === room)
+                    forgetStateDeletedMessage(state, message.id);
+            }
+        }
+    }
+    if (changed) store.set(DELETED_MESSAGES_STORE_KEY, storedDeletedMessages);
 }
 
 function handleExternalDelete(state, ids, messages) {
     if (!areDeletedMessagesEnabled()) return;
     const messagesById = new Map(messages.map((message) => [message.id, message]));
+    const toPersist = [];
     for (const id of ids) {
         if (!state.deletedRows.has(id)) {
             const message = messagesById.get(id);
             const snapshot = message && createDeletedSnapshot(message);
             if (snapshot) {
+                snapshot.room = state.room === 'one' ? 'one'
+                    : message.tab === 'mn' ? 'mine' : state.room;
                 state.deletedRows.set(id, snapshot);
-                if (state.deletedRows.size > DELETED_LIMIT)
-                    state.deletedRows.delete(state.deletedRows.keys().next().value);
             }
         }
+        const cached = state.deletedRows.get(id) || state.persistedDeletedRows.get(id);
+        if (cached && !cached.room) cached.room = state.room;
         if (!state.deletedIds.has(id)) state.deletedIds.add(id);
-        if (state.deletedIds.size > DELETED_LIMIT)
-            state.deletedIds.delete(state.deletedIds.values().next().value);
+        if (cached) toPersist.push({ id, cached });
     }
+    persistDeletedMessages(state, toPersist);
+    trimDeletedMessages(state);
     restoreDeletedRows(state);
 }
 
@@ -285,6 +533,109 @@ function processRow(state, row, notify, notificationBatch = null) {
     }
     cacheRow(state, row, tab);
     return pinged;
+}
+
+function nickAtSelectionPoint(node) {
+    const element = node instanceof Element ? node : node && node.parentElement;
+    return element && element.closest('b[data-nick]');
+}
+
+function selectionOffset(nick, node, offset) {
+    const range = document.createRange();
+    range.selectNodeContents(nick);
+    range.setEnd(node, offset);
+    return range.toString().length;
+}
+
+function rememberNickSelection(state) {
+    if (pointerSelectionTarget && pointerSelectionTarget.state !== state) return;
+    if (!pointerSelectionTarget && state.nickSelection) return;
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || !selection.rangeCount || !state.list) return;
+    const anchorNick = nickAtSelectionPoint(selection.anchorNode);
+    const focusNick = nickAtSelectionPoint(selection.focusNode);
+    if (!anchorNick || anchorNick !== focusNick) return;
+    const row = anchorNick.closest('li[data-mid]');
+    if (!row || !state.list.contains(row)
+        || (pointerSelectionTarget && (row.dataset.mid !== pointerSelectionTarget.id
+            || anchorNick.dataset.nick !== pointerSelectionTarget.login))) return;
+
+    state.nickSelection = {
+        id: row.dataset.mid,
+        login: anchorNick.dataset.nick,
+        anchorOffset: selectionOffset(anchorNick, selection.anchorNode, selection.anchorOffset),
+        focusOffset: selectionOffset(focusNick, selection.focusNode, selection.focusOffset)
+    };
+}
+
+function restoreNickSelection(state) {
+    const saved = state.nickSelection;
+    if (!saved || !state.list) return;
+    const selection = window.getSelection();
+    const row = [...state.list.querySelectorAll(':scope > li[data-mid]')]
+        .find((item) => item.dataset.mid === saved.id);
+    const nick = row && row.querySelector(':scope > b[data-nick]');
+    const text = nick && nick.firstChild;
+    if (!nick || nick.dataset.nick !== saved.login || !text || text.nodeType !== Node.TEXT_NODE) {
+        state.nickSelection = null;
+        return;
+    }
+
+    const anchorOffset = Math.min(saved.anchorOffset, text.length);
+    const focusOffset = Math.min(saved.focusOffset, text.length);
+    if (!selection) return;
+    if (typeof selection.setBaseAndExtent === 'function') {
+        selection.setBaseAndExtent(text, anchorOffset, text, focusOffset);
+    } else {
+        const range = document.createRange();
+        range.setStart(text, Math.min(anchorOffset, focusOffset));
+        range.setEnd(text, Math.max(anchorOffset, focusOffset));
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+}
+
+function rememberSelectionInChats() {
+    for (const state of states) rememberNickSelection(state);
+}
+
+function clearSelectionsInChats() {
+    for (const state of states) state.nickSelection = null;
+    pointerSelectionTarget = null;
+}
+
+function beginNickSelection(event) {
+    clearSelectionsInChats();
+    if (event.button !== 0 || !(event.target instanceof Element)) return;
+    const nick = event.target.closest('b[data-nick]');
+    const row = nick && nick.closest('li[data-mid]');
+    if (!nick || !row) return;
+    const state = [...states].find((item) => item.list && item.list.contains(row));
+    if (state) pointerSelectionTarget = {
+        state,
+        id: row.dataset.mid,
+        login: nick.dataset.nick
+    };
+}
+
+function finishNickSelection() {
+    const target = pointerSelectionTarget;
+    if (!target) return;
+    rememberSelectionInChats();
+    window.setTimeout(() => {
+        if (pointerSelectionTarget !== target) return;
+        rememberSelectionInChats();
+        pointerSelectionTarget = null;
+    }, 100);
+}
+
+function cancelNickSelection() {
+    pointerSelectionTarget = null;
+}
+
+function clearSelectionOnKey(event) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'c') return;
+    clearSelectionsInChats();
 }
 
 function badge(parent, className, count, title) {
@@ -613,6 +964,7 @@ function refreshRows(state, notify = false) {
                 paint(state);
                 renderArchivePage(state);
                 if (notificationBatch.play) playPingNotification();
+                restoreNickSelection(state);
             });
             state.listObserver.observe(list, { childList: true });
         }
@@ -633,6 +985,7 @@ function observeBox(box) {
     if (stateByBox.has(box)) return;
     const state = {
         box,
+        room: getBoxRoom(box),
         list: null,
         listObserver: null,
         counts: {},
@@ -641,12 +994,23 @@ function observeBox(box) {
         deletedRows: new Map(),
         deletedIds: new Set(),
         restoredDeletedRows: new Map(),
+        persistedDeletedRows: new Map(),
         quietTab: null
     };
     stateByBox.set(box, state);
     states.add(state);
+    hydrateDeletedMessages(state);
     state.boxObserver = new MutationObserver(() => refreshRows(state, true));
     state.boxObserver.observe(box, { childList: true });
+    box.addEventListener('click', (event) => {
+        if (!(event.target instanceof Element)) return;
+        const nick = event.target.closest('b[data-nick]');
+        const selection = window.getSelection();
+        if (!nick || !selection || selection.isCollapsed || !selection.rangeCount
+            || !selection.getRangeAt(0).intersectsNode(nick)) return;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    }, true);
     box.addEventListener('click', (event) => {
         if (!(event.target instanceof Element)
             || !event.target.closest(`${SEL.chatTabButtons}, ${SEL.chatToggleButton}, ${SEL.chatCloseButton}`)) return;
@@ -691,6 +1055,12 @@ pingSystem.subscribe(() => {
 
 export function startChatPingIntegration() {
     window.addEventListener('message', onExternalMessage);
+    document.addEventListener('selectionchange', rememberSelectionInChats);
+    document.addEventListener('pointerdown', beginNickSelection, true);
+    document.addEventListener('pointerup', finishNickSelection, true);
+    document.addEventListener('mouseup', finishNickSelection, true);
+    document.addEventListener('pointercancel', cancelNickSelection, true);
+    document.addEventListener('keydown', clearSelectionOnKey, true);
     window.postMessage({ source: 't7-chat-ready' }, location.origin);
     startDocumentObserver();
 }

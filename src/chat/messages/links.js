@@ -13,7 +13,7 @@ const previewCache = new Map();
 const imagePreviewStates = new WeakMap();
 const outgoingBindings = new WeakSet();
 
-export const isLinkEncodingEnabled = () => store.get(LINK_ENCODING_KEY) === true;
+export const isLinkEncodingEnabled = () => store.get(LINK_ENCODING_KEY) !== false;
 export const setLinkEncodingEnabled = (enabled) => store.set(LINK_ENCODING_KEY, !!enabled);
 export const areImagePreviewsEnabled = () => store.get(IMAGE_PREVIEWS_KEY) === true;
 export const setImagePreviewsEnabled = (enabled) => store.set(IMAGE_PREVIEWS_KEY, !!enabled);

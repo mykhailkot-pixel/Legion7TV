@@ -286,6 +286,7 @@
 .cy-chat-l,.dm-l{font-family:var(--t7-chat-font,inherit);font-size:var(--t7-chat-font-size,14px);font-synthesis:weight style}
 .t7-mention{color:var(--t7-ping-color,#e89aa3);font-weight:600}
 .mn .cy-chat-l,.mn .cy-chat-l li,.mn .cy-chat-l li *{-webkit-user-select:text!important;user-select:text!important}
+.cy-chat-l li b[data-nick]{-webkit-user-select:text!important;user-select:text!important}
 
 .cy-chat-l a.t7-link{color:#8edbff;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .cy-chat-tabs>button[data-tab][hidden]{display:none!important}

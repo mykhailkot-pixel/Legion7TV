@@ -4,6 +4,10 @@
     var wrappedLibraries = [];
     var bridgeReady = false;
     var pendingMessages = [];
+    var activeContext = null;
+    var guildSeenIds = new Set();
+    var guildScopes = new WeakMap();
+    var guildMonitor = 0;
 
     function emitMessage(payload) {
         if (!bridgeReady) {
@@ -21,6 +25,113 @@
         while (pendingMessages.length) window.postMessage(pendingMessages.shift(), location.origin);
     });
 
+    function rememberGuildId(id) {
+        guildSeenIds.add(id);
+        if (guildSeenIds.size > 1000)
+            guildSeenIds.delete(guildSeenIds.values().next().value);
+    }
+
+    function emitGuildMessage(context, chat, box, message, id) {
+        if (guildSeenIds.has(id)) return;
+        rememberGuildId(id);
+        var login = String(message.l || '').toLowerCase().slice(0, 64);
+        if (!login) return;
+        var me = String(context.X().login() || '').toLowerCase();
+
+        var text = String(message.t || '').slice(0, 2000);
+        var payload = {
+            id: id,
+            l: login,
+            n: String(message.n || message.l).slice(0, 128),
+            t: text,
+            at: Number(message.at) || Date.now()
+        };
+        emitMessage({
+            source: 't7-chat-history-msg',
+            boxId: box.dataset.t7Box,
+            msg: Object.assign({}, payload, {
+                tb: 'gl',
+                cn: String(message.cn || message.c || '').slice(0, 64),
+                gt: String(message.gt || '').slice(0, 64)
+            })
+        });
+        if ((chat.ign && chat.ign.has(login)) || login === me) return;
+        var escapedMe = me.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        var nativePingMatcher = me
+            ? new RegExp('(^|\\s)@' + escapedMe + '(\\b|$)', 'i')
+            : null;
+        emitMessage({
+            source: 't7-chat-msg',
+            boxId: box.dataset.t7Box,
+            msg: Object.assign({}, payload, {
+                tab: 'gl',
+                rm: '',
+                nativePing: !!(nativePingMatcher && nativePingMatcher.test(text))
+            }),
+            open: !!chat.open,
+            activeTab: String(chat.tab || ''),
+            observedAt: Date.now()
+        });
+    }
+
+    function scanGuildMessages() {
+        var context = activeContext;
+        if (!context || typeof context.state !== 'function') return;
+        try {
+            var state = context.state();
+            var chat = state && state.chat;
+            if (!chat || !chat.on || !chat.gl || !chat.glInit || !Array.isArray(chat.list)) return;
+            var box = state.el && state.el.querySelector('.cy-chat');
+            if (!box) return;
+            if (!box.dataset.t7Box) box.dataset.t7Box = 't7b' + (++uid);
+
+            var scope = String(chat.glG || '');
+            if (guildScopes.get(chat) !== scope) {
+                guildScopes.set(chat, scope);
+                for (var i = 0; i < chat.list.length; i++) {
+                    var existing = chat.list[i];
+                    if (existing && existing.tb === 'gl' && existing.id != null)
+                        rememberGuildId(String(existing.id));
+                }
+                return;
+            }
+            for (var j = 0; j < chat.list.length; j++) {
+                var message = chat.list[j];
+                if (!message || message.tb !== 'gl' || message.sys || message.ev || message.id == null) continue;
+                emitGuildMessage(context, chat, box, message, String(message.id));
+            }
+        } catch (error) {
+            console.warn('[t7 hook] не удалось проверить сообщения гильдии', error);
+        }
+    }
+
+    window.addEventListener('lg-gchat', function (event) {
+        var detail = event.detail;
+        var context = activeContext;
+        if (!detail || detail.k !== 'msgs' || !Array.isArray(detail.msgs)
+            || !context || typeof context.state !== 'function') return;
+
+        try {
+            var state = context.state();
+            var chat = state && state.chat;
+            if (!chat || !chat.on || !chat.gl || !chat.glInit
+                || (chat.glG && String(detail.g) !== String(chat.glG))) return;
+            var box = state.el && state.el.querySelector('.cy-chat');
+            if (!box) return;
+            if (!box.dataset.t7Box) box.dataset.t7Box = 't7b' + (++uid);
+
+            for (var i = 0; i < detail.msgs.length; i++) {
+                var message = detail.msgs[i];
+                if (!message || message.id == null || String(message.tid) === '0'
+                    || !message.l || String(message.id).length > 199
+                    || (chat.glLast && !(+message.id > +chat.glLast))) continue;
+                emitGuildMessage(context, chat, box, message, 'g' + String(message.id));
+            }
+        } catch (error) {
+            console.warn('[t7 hook] не удалось обработать сообщения гильдии', error);
+        }
+    }, true);
+
     function isWrapped(lib) {
         return wrappedLibraries.indexOf(lib) !== -1;
     }
@@ -32,6 +143,8 @@
         var wrapped = Object.assign({}, lib, {
             make: function () {
                 var args = arguments;
+                activeContext = args[0] || activeContext;
+                if (!guildMonitor) guildMonitor = window.setInterval(scanGuildMessages, 500);
                 var api = make.apply(this, args);
                 if (!api || typeof api.apply !== 'function') return api;
 

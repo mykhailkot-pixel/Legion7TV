@@ -4,7 +4,7 @@ import { STORE } from './core/consts.js';
 import { S, st } from './core/state.js';
 import { store } from './core/store.js';
 import { reload } from './emotes/emotes.js';
-import { scan, rescanAll, applySize } from './chat/messages/chat.js';
+import { scan, refreshEmotes, applySize } from './chat/messages/chat.js';
 import { renderGrid, place } from './emotes/popup.js';
 import { updateSetStatus } from './settings/settings.js';
 import { ensureButtons } from './chat/ui/chatInput.js';
@@ -33,7 +33,7 @@ function initialize() {
     applySize();
     st.hooks.status = updateSetStatus;
     st.hooks.place = place;
-    st.hooks.emotes = () => { rescanAll(); renderGrid(); };
+    st.hooks.emotes = () => { refreshEmotes(); renderGrid(); };
     pingSystem.applyPingColor();
     applyChatFont();
     initEmoteTooltip();

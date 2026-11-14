@@ -18,6 +18,8 @@ export const STORE = Object.freeze({
     chatTabPrefs: 't7ChatTabPrefs',
     playerHistoryButton: 't7PlayerHistoryButton',
     deletedMessagesEnabled: 't7DeletedMessagesEnabled',
+    deletedMessagesLimit: 't7DeletedMessagesLimit',
+    deletedMessages: 't7DeletedMessages',
     linkEncoding: 't7LinkEncoding',
     imagePreviews: 't7ImagePreviews',
     imageResolveCache: 't7ImageResolveCache',

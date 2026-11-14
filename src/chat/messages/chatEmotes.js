@@ -10,15 +10,88 @@ const emoteAspectRatios = new Map();
 const pendingEmoteImages = new WeakMap();
 const imageObservers = new WeakMap();
 const imageObserverByTarget = new WeakMap();
+const reusableEmoteImages = new Map();
+let reusableEmoteImagesTimer = 0;
 
-function makeImg(name, em, className, pendingImages) {
+function reusableImageKey(name, className, url) {
+    return `${className}\u0000${name}\u0000${url}`;
+}
+
+function takeReusableEmoteImage(rowId, name, className, url) {
+    if (!rowId) return null;
+    const rowImages = reusableEmoteImages.get(rowId);
+    if (!rowImages) return null;
+    const key = reusableImageKey(name, className, url);
+    const images = rowImages.get(key);
+    if (!images || !images.length) return null;
+    const image = images.shift();
+    if (!images.length) rowImages.delete(key);
+    if (!rowImages.size) reusableEmoteImages.delete(rowId);
+    return image;
+}
+
+export function preserveEmoteImages(root) {
+    if (!(root instanceof Element)) return;
+    const targets = [];
+    if (root.matches('img')) targets.push(root);
+    targets.push(...root.querySelectorAll('img'));
+    for (const image of targets) {
+        const observer = imageObserverByTarget.get(image);
+        if (!observer) continue;
+        observer.unobserve(image);
+        imageObserverByTarget.delete(image);
+        pendingEmoteImages.delete(image);
+    }
+
+    const rows = [];
+    if (root.matches('li[data-mid]')) rows.push(root);
+    rows.push(...root.querySelectorAll('li[data-mid]'));
+
+    for (const row of rows) {
+        const rowId = row.dataset.mid;
+        if (!rowId) continue;
+        for (const image of row.querySelectorAll(`img.${cls('e')}, img.${cls('zw')}`)) {
+            const url = image.dataset.t7Url;
+            if (!S.on || !url || !image.complete || !image.naturalWidth) continue;
+
+            const className = image.classList.contains(cls('zw')) ? 't7-zw' : 't7-e';
+            const key = reusableImageKey(image.alt, className, url);
+            let rowImages = reusableEmoteImages.get(rowId);
+            if (!rowImages) reusableEmoteImages.set(rowId, rowImages = new Map());
+            if (!rowImages.has(key)) rowImages.set(key, []);
+            rowImages.get(key).push(image);
+        }
+    }
+
+    if (reusableEmoteImages.size) {
+        clearTimeout(reusableEmoteImagesTimer);
+        reusableEmoteImagesTimer = setTimeout(clearReusableEmoteImages, 2000);
+    }
+}
+
+export function clearReusableEmoteImages() {
+    clearTimeout(reusableEmoteImagesTimer);
+    reusableEmoteImagesTimer = 0;
+    reusableEmoteImages.clear();
+}
+
+function makeImg(name, em, className, pendingImages, rowId) {
     const img = document.createElement('img');
     img.className = cls(className === 't7-e' ? 'e' : 'zw');
     img.alt = name;
-    if (className === 't7-e') setEmoteTooltipData(img, name, em);
     const resolution = SIZES[S.size].n;
     const url = urlFor(em, resolution);
     const knownRatio = em.r || emoteAspectRatios.get(url);
+    const reusableImage = takeReusableEmoteImage(rowId, name, className, url);
+    if (reusableImage) {
+        if (className === 't7-e') {
+            reusableImage.style.setProperty(cssVar('r'), String(Math.max(1, knownRatio || 1)));
+            setEmoteTooltipData(reusableImage, name, em);
+        }
+        return reusableImage;
+    }
+    if (className === 't7-e') setEmoteTooltipData(img, name, em);
+    img.dataset.t7Url = url;
     if (className === 't7-e') img.style.setProperty(cssVar('r'), String(Math.max(1, knownRatio || 1)));
     img.style.visibility = 'hidden';
     img.addEventListener('load', () => {
@@ -81,22 +154,13 @@ function observeEmoteImages(images) {
 }
 
 export function disposePendingEmoteImages(root) {
-    if (!(root instanceof Element)) return;
-    const targets = [];
-    if (root.matches('img')) targets.push(root);
-    targets.push(...root.querySelectorAll('img'));
-    for (const target of targets) {
-        const observer = imageObserverByTarget.get(target);
-        if (!observer) continue;
-        observer.unobserve(target);
-        imageObserverByTarget.delete(target);
-        pendingEmoteImages.delete(target);
-    }
+    preserveEmoteImages(root);
 }
 
 export function processEmotes({ content, kind }) {
     if (kind !== 'message' || !S.on) return;
 
+    const rowId = content.closest('li[data-mid]')?.dataset.mid || '';
     const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
     const nodes = [];
     const pendingImages = [];
@@ -112,14 +176,14 @@ export function processEmotes({ content, kind }) {
         for (const part of parts) {
             const emote = has(EM, part) ? EM[part] : null;
             if (emote && emote.zw && lastWrap) {
-                lastWrap.appendChild(makeImg(part, emote, 't7-zw', pendingImages));
+                lastWrap.appendChild(makeImg(part, emote, 't7-zw', pendingImages, rowId));
                 continue;
             }
             if (emote) {
                 const wrapper = document.createElement('span');
                 wrapper.className = cls('w');
                 wrapper.style.setProperty(cssVar('h'), SIZES[S.size].h);
-                wrapper.appendChild(makeImg(part, emote, 't7-e', pendingImages));
+                wrapper.appendChild(makeImg(part, emote, 't7-e', pendingImages, rowId));
                 fragment.appendChild(wrapper);
                 lastWrap = wrapper;
                 continue;

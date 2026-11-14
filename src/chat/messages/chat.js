@@ -3,7 +3,11 @@ import { SEL } from '../../core/consts.js';
 import { S, st } from '../../core/state.js';
 import { cls, cssVar } from '../../core/ui.js';
 import { processMarkdown } from './markdown.js';
-import { processEmotes } from './chatEmotes.js';
+import {
+    clearReusableEmoteImages,
+    preserveEmoteImages,
+    processEmotes
+} from './chatEmotes.js';
 import { processLinks } from './links.js';
 import { processMentions } from './mentions.js';
 import { processPlayerHistory } from './playerHistory.js';
@@ -51,6 +55,7 @@ function processMessage(message, room) {
         ? getOriginalMessageSource(content, content.textContent)
         : content.textContent;
     if (kind === 'message') {
+        preserveEmoteImages(message);
         content.replaceChildren(document.createTextNode(source));
     }
 
@@ -93,12 +98,24 @@ export function scan() {
     dmWasAtEnd.forEach((list) => {
         if (list.isConnected) chatScroller.scrollToEnd(list);
     });
+    clearReusableEmoteImages();
 }
 
 export function rescanAll() {
     document.querySelectorAll(`${SEL.chatRows}, ${SEL.dmRows}`)
         .forEach(unmarkMessageProcessed);
     scan();
+}
+
+export function refreshEmotes() {
+    document.querySelectorAll(`${SEL.chatRows}, ${SEL.dmRows}`).forEach((message) => {
+        if (!isMessageProcessed(message) || message.matches(
+            `${SEL.emptyMessage}, ${SEL.systemMessage}, ${SEL.eventMessage}`
+        )) return;
+        const spans = message.querySelectorAll(SEL.messageContent);
+        const content = spans[spans.length - 1];
+        if (content) processEmotes({ content, kind: 'message' });
+    });
 }
 
 export const applySize = () => {

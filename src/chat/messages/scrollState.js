@@ -24,6 +24,15 @@ function getRows(list) {
     return [...list.children].filter((child) => child.tagName === 'LI');
 }
 
+function rowsMatchState(list, state) {
+    const rows = getRows(list);
+    return rows.length === state.rows.size && rows.every((row) => state.rows.has(row));
+}
+
+function isAtEndByIntent(list, state) {
+    return state.atEnd || (rowsMatchState(list, state) && isAtEnd(list));
+}
+
 function getState(list) {
     let state = states.get(list);
     if (!state) {
@@ -176,6 +185,7 @@ function register(list, key, restore) {
 
 function updateFromScroll(list) {
     const state = getState(list);
+    if (!rowsMatchState(list, state)) return;
     state.atEnd = isAtEnd(list);
     commit(list, state);
 }
@@ -253,7 +263,7 @@ export const chatScroller = {
         if (!list) return mutate();
         const state = getState(list);
         const { anchor, rows } = captureAnchor(list);
-        const atEnd = state.atEnd || isAtEnd(list);
+        const atEnd = isAtEndByIntent(list, state);
         state.atEnd = atEnd;
         const result = mutate();
         if (!list.isConnected) return result;
@@ -267,7 +277,7 @@ export const chatScroller = {
         if (!list) return mutate();
         const state = getState(list);
         const { anchor, rows } = captureAnchor(list);
-        const atEnd = state.atEnd || isAtEnd(list);
+        const atEnd = isAtEndByIntent(list, state);
         const result = mutate();
         if (list.isConnected) {
             state.atEnd = atEnd;
