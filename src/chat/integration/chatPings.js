@@ -3,7 +3,8 @@ import { chatScroller } from '../messages/scrollState.js';
 import { copyOriginalMessageSource, unmarkMessageProcessed } from '../messages/messageState.js';
 import { store } from '../../core/store.js';
 import { SEL, STORE } from '../../core/consts.js';
-import { cls, getOverlayRoot } from '../../core/ui.js';
+import { cls } from '../../core/ui.js';
+import { savePlayerMessage } from '../messages/playerHistory.js';
 
 const PING_ONLY_KEY = STORE.pingOnly;
 const PING_ARCHIVE_KEY = STORE.pingArchive;
@@ -20,14 +21,10 @@ const CHAT_BOX_ATTRIBUTE = 'data-t7-box';
 const states = new Set();
 const stateByBox = new WeakMap();
 const notifiedIds = new Set();
-const blacklistMenuLists = new WeakSet();
 const noPingIndicators = new WeakMap();
 let pingOnly = store.get(PING_ONLY_KEY) === true;
 let saveTimer = 0;
 let documentObserver = null;
-let blacklistAction = null;
-let blacklistMenu = null;
-let blacklistMenuObserver = null;
 let storedArchive = readArchive();
 
 export function areDeletedMessagesEnabled() {
@@ -172,12 +169,7 @@ function createDeletedSnapshot(message) {
     const text = document.createElement('span');
     text.textContent = message.t;
     row.append(nick, document.createTextNode(' '), text);
-    const label = pingSystem.filterLabel(message.l, message.t);
-    if (label) {
-        row.classList.add(cls('filtered'));
-        row.classList.toggle(cls('filtered-blacklist'), label === 'В ЧС');
-        addFilterLabel(row, label);
-    } else if (pingSystem.isPinged(message.t)) {
+    if (pingSystem.isPinged(message.t)) {
         row.classList.add(cls('ping'));
     }
     return { node: row, tab: message.tab, beforeId: '', afterId: '' };
@@ -257,26 +249,6 @@ function rememberNotified(key) {
         notifiedIds.delete(notifiedIds.values().next().value);
 }
 
-function addFilterLabel(row, label) {
-    let tag = row.querySelector(`:scope > .${cls('filter-label')}`);
-    if (!label) {
-        if (tag) tag.remove();
-        return;
-    }
-    if (!tag) {
-        tag = document.createElement('i');
-        tag.className = cls('filter-label');
-        row.prepend(tag);
-    }
-    const text = label === 'В ЧС'
-        ? `Пользователь ${row.querySelector(':scope > b[data-nick]')?.textContent || ''} в чёрном списке`
-        : 'Сообщение скрыто фильтром';
-    if (tag.textContent !== text) tag.textContent = text;
-    tag.title = label === 'В ЧС'
-        ? 'Отправитель в вашем черном списке'
-        : 'В сообщении найдено слово или фраза из фильтра';
-}
-
 function playPingNotification() {
     pingSystem.play().catch((error) =>
         console.warn('[7TV] не удалось воспроизвести звук пинга', error));
@@ -292,13 +264,8 @@ function processRow(state, row, notify, notificationBatch = null) {
     const previouslySeen = key && state.seen.has(key);
     if (key) state.seen.add(key);
 
-    const label = pingSystem.filterLabel(message.login, message.text);
-    addFilterLabel(row, label);
-    row.classList.toggle(cls('filtered'), !!label);
-    row.classList.toggle(cls('filtered-blacklist'), label === 'В ЧС');
-
     const nativePing = row.classList.contains('ping');
-    const pinged = !label && !row.classList.contains('me')
+    const pinged = !row.classList.contains('me')
         && (nativePing || pingSystem.isPinged(message.text));
     row.classList.toggle(cls('ping'), pinged && !nativePing);
     if (pinged) {
@@ -351,8 +318,7 @@ function handleExternalMessage(state, payload) {
     const key = messageKey(msg.id);
     if (notifiedIds.has(key)) return;
 
-    if (pingSystem.filterLabel(msg.l, msg.t)
-        || (!msg.nativePing && !pingSystem.isPinged(msg.t))) return;
+    if (!msg.nativePing && !pingSystem.isPinged(msg.t)) return;
     rememberNotified(key);
     if (payload.observedAt - PAGE_STARTED_AT < STARTUP_NOTIFICATION_GRACE_MS
         || Date.now() - msg.at > 60_000) return;
@@ -393,6 +359,31 @@ function onExternalMessage(event) {
             state = stateByBox.get(box);
         }
         if (state) handleExternalDelete(state, data.ids, data.messages);
+        return;
+    }
+
+    if (data.source === 't7-chat-history-msg') {
+        const msg = data.msg;
+        if (!msg || typeof msg !== 'object'
+            || typeof msg.id !== 'string' || !msg.id || msg.id.length > 200
+            || typeof msg.l !== 'string' || !msg.l || msg.l.length > 64
+            || typeof msg.n !== 'string' || msg.n.length > 128
+            || typeof msg.t !== 'string' || msg.t.length > 2000
+            || typeof msg.at !== 'number' || !Number.isFinite(msg.at)
+            || !['g', 'mn', 'gl', 'tr'].includes(msg.tb)
+            || typeof msg.cn !== 'string' || msg.cn.length > 64
+            || typeof msg.gt !== 'string' || msg.gt.length > 64) return;
+        savePlayerMessage({
+            id: msg.id,
+            login: msg.l,
+            name: msg.n,
+            text: msg.t,
+            at: msg.at,
+            tab: msg.tb,
+            className: msg.cn,
+            guild: msg.gt,
+            exactTimestamp: true
+        });
         return;
     }
 
@@ -571,67 +562,6 @@ function ensureControls(state) {
     }
 }
 
-function closeBlacklistAction() {
-    if (blacklistMenuObserver) blacklistMenuObserver.disconnect();
-    blacklistMenuObserver = null;
-    if (blacklistMenu) blacklistMenu.removeEventListener('click', closeBlacklistAction);
-    blacklistMenu = null;
-    if (blacklistAction) blacklistAction.remove();
-    blacklistAction = null;
-}
-
-function closeBlacklistActionOutside(event) {
-    if (!blacklistAction) return;
-    const root = getOverlayRoot();
-    if (event.target !== root.host && (!blacklistMenu || !blacklistMenu.contains(event.target)))
-        closeBlacklistAction();
-}
-
-function addBlacklistMenu(state) {
-    const list = state.list;
-    if (!list || blacklistMenuLists.has(list)) return;
-    blacklistMenuLists.add(list);
-    list.addEventListener('contextmenu', (event) => {
-        const nick = event.target.closest(SEL.nickButton);
-        if (!nick || !list.contains(nick)) return;
-        const login = String(nick.dataset.nick || '').trim();
-        if (!login) return;
-        requestAnimationFrame(() => {
-            const menu = document.querySelector('.cy-nm');
-            if (!menu) return;
-            closeBlacklistAction();
-            const blocked = pingSystem.config.blacklist.includes(login.toLowerCase());
-            const action = document.createElement('button');
-            action.type = 'button';
-            action.setAttribute('role', 'menuitem');
-            action.textContent = blocked ? 'Убрать из ЧС' : 'В чёрный список';
-            action.className = 't7-blacklist-action';
-            ['keydown', 'keyup', 'keypress'].forEach((type) =>
-                action.addEventListener(type, (keyEvent) => keyEvent.stopPropagation()));
-            const rect = menu.getBoundingClientRect();
-            const width = Math.min(Math.max(rect.width, 160), innerWidth - 16);
-            action.style.left = `${Math.max(8, Math.min(rect.left, innerWidth - width - 8))}px`;
-            action.style.top = `${Math.max(8, Math.min(rect.bottom, innerHeight - 36))}px`;
-            action.style.width = `${width}px`;
-            action.addEventListener('click', (clickEvent) => {
-                clickEvent.preventDefault();
-                clickEvent.stopPropagation();
-                pingSystem.toggleBlacklist(login);
-                closeBlacklistAction();
-            });
-            blacklistAction = action;
-            blacklistMenu = menu;
-            getOverlayRoot().appendChild(action);
-            menu.addEventListener('click', closeBlacklistAction);
-            blacklistMenuObserver = new MutationObserver(() => {
-                if (!menu.isConnected || menu.hidden || getComputedStyle(menu).display === 'none')
-                    closeBlacklistAction();
-            });
-            blacklistMenuObserver.observe(menu, { attributes: true, attributeFilter: ['class', 'hidden', 'style'] });
-        });
-    }, true);
-}
-
 function refreshRows(state, notify = false) {
     if (!state.box.isConnected) return;
     const activeTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab || '';
@@ -662,7 +592,6 @@ function refreshRows(state, notify = false) {
         notify = false;
         if (list) {
             chatScroller.register(list);
-            addBlacklistMenu(state);
             state.listObserver = new MutationObserver((records) => {
                 for (const record of records) {
                     for (const node of record.removedNodes) {
@@ -693,7 +622,6 @@ function refreshRows(state, notify = false) {
         const notificationBatch = { play: false };
         state.list.querySelectorAll(`:scope > li:not(.${cls('archive-row')})`)
             .forEach((row) => processRow(state, row, notify, notificationBatch));
-        addBlacklistMenu(state);
         if (notificationBatch.play) playPingNotification();
     }
     restoreDeletedRows(state);
@@ -762,10 +690,6 @@ pingSystem.subscribe(() => {
 });
 
 export function startChatPingIntegration() {
-    document.addEventListener('pointerdown', closeBlacklistActionOutside, true);
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') closeBlacklistAction();
-    }, true);
     window.addEventListener('message', onExternalMessage);
     window.postMessage({ source: 't7-chat-ready' }, location.origin);
     startDocumentObserver();

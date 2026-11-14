@@ -19,9 +19,7 @@ const DEFAULTS = {
     pingColor: '#e89aa3',
     tabCompletion: true,
     emoteCompletion: true,
-    aliases: [],
-    blacklist: [],
-    stopWords: []
+    aliases: []
 };
 
 function normalizeList(value) {
@@ -48,7 +46,9 @@ function readConfig() {
     config.pingColor = /^#[0-9a-f]{6}$/i.test(config.pingColor) ? config.pingColor : DEFAULTS.pingColor;
     config.tabCompletion = config.tabCompletion !== false;
     config.emoteCompletion = config.emoteCompletion !== false;
-    for (const key of ['aliases', 'blacklist', 'stopWords', 'dmNickList']) {
+    delete config.blacklist;
+    delete config.stopWords;
+    for (const key of ['aliases', 'dmNickList']) {
         config[key] = Array.isArray(config[key]) ? normalizeList(config[key].join('\n')) : [];
     }
     return config;
@@ -106,7 +106,7 @@ class PingSystem {
     }
 
     setList(key, value) {
-        if (!['aliases', 'blacklist', 'stopWords', 'dmNickList'].includes(key)) return;
+        if (!['aliases', 'dmNickList'].includes(key)) return;
         this.config[key] = normalizeList(value);
         if (key === 'aliases') this.regexCache.clear();
         this.save();
@@ -123,15 +123,6 @@ class PingSystem {
         this.config.emoteCompletion = !!enabled;
         this.save();
         emit(EV.emoteCompletionChange);
-    }
-
-    toggleBlacklist(login) {
-        const user = String(login || '').trim().toLowerCase();
-        if (!user) return false;
-        const blocked = this.config.blacklist.includes(user);
-        const next = blocked ? this.config.blacklist.filter((item) => item !== user) : [...this.config.blacklist, user];
-        this.setList('blacklist', next.join('\n'));
-        return !blocked;
     }
 
     setVolume(value) {
@@ -242,18 +233,6 @@ class PingSystem {
             if (matcher.test(text)) return true;
         }
         return false;
-    }
-
-    filterLabel(sender, messageText) {
-        const user = String(sender || '').toLowerCase();
-        const text = String(messageText || '').toLowerCase();
-        if (this.config.blacklist.includes(user)) return 'В ЧС';
-        if (this.config.stopWords.some((word) => text.includes(word))) return 'Фильтр';
-        return '';
-    }
-
-    shouldIgnore(sender, messageText) {
-        return !!this.filterLabel(sender, messageText);
     }
 
     getAudioContext() {

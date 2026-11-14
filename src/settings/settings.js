@@ -10,18 +10,20 @@ import { getChatFont, getChatFontSize, getCustomChatFont, setChatFont, setChatFo
 import { getRecentLimit, setRecentLimit } from '../chat/prefs.js';
 import { areImagePreviewsEnabled, isLinkEncodingEnabled, setImagePreviewsEnabled, setLinkEncodingEnabled } from '../chat/messages/links.js';
 import { CHAT_TABS, getChatTabPrefs, setChatTabPrefs } from '../chat/prefs.js';
-import { STORE } from '../core/consts.js';
+import { EV, STORE, on as onExtensionEvent } from '../core/consts.js';
 import { arePastesEnabled, setPastesEnabled } from '../chat/ui/pastes.js';
 import { clearResolvedImageCache } from '../chat/ui/imageProviders.js';
 import { isImagePickerButtonEnabled, setImagePickerButtonEnabled } from '../chat/ui/imagePicker.js';
 import { getOverlayRoot } from '../core/ui.js';
 import { areDeletedMessagesEnabled, setDeletedMessagesEnabled } from '../chat/integration/chatPings.js';
+import { isPlayerHistoryButtonEnabled, setPlayerHistoryButtonEnabled } from '../chat/messages/playerHistory.js';
 
 // смещение окна настроек от центра экрана
 let SOFF = (() => {
     const p = store.get(STORE.settingsPosition);
     return p && Number.isFinite(p.x) && Number.isFinite(p.y) ? p : { x: 0, y: 0 };
 })();
+let unlistenChatTabs = null;
 
 function setupDrag(el) {
     const win = el.querySelector('.t7-sw');
@@ -195,7 +197,8 @@ function buildSettingsMarkup(root) {
         settingsSection('Вкладки чата', createNode('div', { className: 't7-chat-tab-list' })),
         settingsSection('Кнопки в чате',
             settingsToggle('t7-pastes-enabled', 'Показывать кнопку паст в чате'),
-            settingsToggle('t7-image-picker-enabled', 'Показывать кнопку imgBB в чате')
+            settingsToggle('t7-image-picker-enabled', 'Показывать кнопку imgBB в чате'),
+            settingsToggle('t7-player-history-button-enabled', 'Показывать кнопку истории сообщений')
         ),
         settingsSection('Удалённые сообщения',
             settingsToggle('t7-deleted-messages-enabled', 'Сохранять удалённые сообщения в чате')
@@ -246,7 +249,7 @@ function buildSettingsMarkup(root) {
             settingsToggle('t7-ping-sound-enabled', 'Звук пингов в общем чате'),
             settingsToggle('t7-dm-sound-enabled', 'Звук новых сообщений в ЛС')
         ),
-        settingsSection('Упоминания и фильтры',
+        settingsSection('Упоминания',
             settingsToggle('t7-tab-completion', 'Дополнять ник по Tab'),
             settingsField('Ники и варианты для пинга', createNode('textarea', {
                 className: 't7-ping-aliases', rows: '2', placeholder: 'ник, nick, @ник'
@@ -254,12 +257,6 @@ function buildSettingsMarkup(root) {
             settingsField('Цвет упоминаний (@ник)', createNode('input', {
                 type: 'color', className: 't7-ping-color'
             }), 't7-fl t7-ping-color-control'),
-            settingsField('Черный список ников', createNode('textarea', {
-                className: 't7-ping-blacklist', rows: '2', placeholder: 'по одному нику на строку'
-            })),
-            settingsField('Игнорировать сообщения со словами или фразами', createNode('textarea', {
-                className: 't7-ping-stopwords', rows: '2', placeholder: 'по одному слову или фразе на строку'
-            })),
             settingsField('Звук пинга', pingPreset),
             createNode('label', { className: 't7-fl t7-volume' }, [
                 'Громкость',
@@ -334,6 +331,10 @@ export function closeSettings() {
     if (!st.set) return;
     st.set.remove();
     st.set = null;
+    if (unlistenChatTabs) {
+        unlistenChatTabs();
+        unlistenChatTabs = null;
+    }
     document.removeEventListener('keydown', onKey, true);
 }
 
@@ -394,6 +395,10 @@ export function openSettings() {
     imagePickerEnabled.addEventListener('change', () => {
         setImagePickerButtonEnabled(imagePickerEnabled.checked);
     });
+    const playerHistoryButtonEnabled = el.querySelector('.t7-player-history-button-enabled');
+    playerHistoryButtonEnabled.checked = isPlayerHistoryButtonEnabled();
+    playerHistoryButtonEnabled.addEventListener('change', () =>
+        setPlayerHistoryButtonEnabled(playerHistoryButtonEnabled.checked));
     const deletedMessagesEnabled = el.querySelector('.t7-deleted-messages-enabled');
     deletedMessagesEnabled.checked = areDeletedMessagesEnabled();
     deletedMessagesEnabled.addEventListener('change', () =>
@@ -413,9 +418,7 @@ export function openSettings() {
     });
 
     const pingFields = [
-        ['.t7-ping-aliases', 'aliases'],
-        ['.t7-ping-blacklist', 'blacklist'],
-        ['.t7-ping-stopwords', 'stopWords']
+        ['.t7-ping-aliases', 'aliases']
     ];
     for (const [selector, key] of pingFields) {
         const input = el.querySelector(selector);
@@ -599,8 +602,9 @@ export function openSettings() {
                 }, ['↑']),
                 createNode('button', {
                     type: 'button', 'data-tab-move': 'down', 'data-tab-id': id,
-                    'aria-label': `Переместить ${tab.label} ниже`, title: 'Переместить ниже',
-                    disabled: index === prefs.order.length - 1
+                    'aria-label': id === 'g' ? 'Вкладка «Общее» закреплена первой' : `Переместить ${tab.label} ниже`,
+                    title: id === 'g' ? 'Вкладка закреплена первой' : 'Переместить ниже',
+                    disabled: id === 'g' || index === prefs.order.length - 1
                 }, ['↓'])
             ]);
             row.append(name, visibility, move);
@@ -628,6 +632,7 @@ export function openSettings() {
         renderChatTabPrefs();
     });
     renderChatTabPrefs();
+    unlistenChatTabs = onExtensionEvent(EV.chatTabsChange, renderChatTabPrefs);
 
     const linkEncoding = el.querySelector('.t7-link-encoding');
     linkEncoding.checked = isLinkEncodingEnabled();

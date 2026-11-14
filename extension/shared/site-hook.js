@@ -104,13 +104,27 @@
                                 var message = messages[i];
                                 if (!message || message.id == null || before.has(String(message.id))
                                     || message.ev || message.sys || message.k === 'dm') continue;
-                                if (nextChat.ign && nextChat.ign.has(message.l)) continue;
-                                if (String(message.l || '').toLowerCase() === me) continue;
 
                                 var room = message.rm === 'mine' || rm === 'mine' ? 'mine'
                                     : message.rm === 'city' || rm === 'city' ? 'city' : '';
                                 var tab = message.tb || (room === 'mine' ? 'mn'
                                     : message.k === 'tr' ? 'tr' : 'g');
+                                emitMessage({
+                                    source: 't7-chat-history-msg',
+                                    boxId: box.dataset.t7Box,
+                                    msg: {
+                                        id: String(message.id),
+                                        l: String(message.l || ''),
+                                        n: String(message.n || message.l || ''),
+                                        t: String(message.t || ''),
+                                        at: Number(message.at) || Date.now(),
+                                        tb: tab,
+                                        cn: String(message.cn || message.c || ''),
+                                        gt: String(message.gt || '')
+                                    }
+                                });
+                                if (nextChat.ign && nextChat.ign.has(message.l)) continue;
+                                if (String(message.l || '').toLowerCase() === me) continue;
                                 emitMessage({
                                     source: 't7-chat-msg',
                                     boxId: box.dataset.t7Box,

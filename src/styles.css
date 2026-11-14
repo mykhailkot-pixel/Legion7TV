@@ -28,9 +28,12 @@
 .t7-tip-type{font-size:16px;font-weight:700}
 .t7-image-link{display:inline-flex;flex-direction:column;align-items:flex-start;gap:4px;max-width:100%;vertical-align:top;font-size:0;line-height:0;text-decoration:none}
 .t7-image-preview{display:block;width:auto;height:auto;max-width:min(100%,400px);max-height:300px;object-fit:contain;border-radius:4px}
+.t7-player-history-button{display:inline-grid;place-items:center;box-sizing:border-box;vertical-align:middle;width:17px;height:17px;margin:0 3px 0 0;padding:0;border:1px solid rgba(255,201,77,.55);border-radius:50%;background:rgba(35,29,48,.92);color:#ffd36a;font:13px/1 system-ui,sans-serif;cursor:pointer}
+.t7-player-history-button[hidden]{display:none!important}
+.t7-player-history-button svg{display:block;overflow:visible}
+.t7-player-history-button circle,.t7-player-history-button path{fill:none;stroke:currentColor;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.t7-player-history-button:hover,.t7-player-history-button:focus-visible{border-color:#ffd36a;background:#6546a1;color:#fff;outline:2px solid rgba(255,211,106,.45);outline-offset:1px}
 
-.t7-blacklist-action{position:fixed;z-index:2147483647;display:block;box-sizing:border-box;min-height:28px;padding:6px 10px;border:1px solid rgba(255,255,255,.16);border-radius:4px;background:#201d2b;color:#eee;text-align:left;font:12px/1.2 system-ui,sans-serif;cursor:pointer;box-shadow:0 5px 14px rgba(0,0,0,.28)}
-.t7-blacklist-action:hover,.t7-blacklist-action:focus-visible{background:#393344;color:#fff;outline:none}
 .t7-ping-menu{position:fixed;z-index:20;display:flex;flex-direction:column;width:min(210px,calc(100vw - 24px));max-height:132px;overflow-y:auto;padding:3px;border:1px solid rgba(255,255,255,.16);border-radius:6px;background:rgba(24,24,32,.88);box-shadow:0 5px 14px rgba(0,0,0,.28);backdrop-filter:blur(5px)}
 .t7-ping-menu[hidden]{display:none}
 .t7-ping-menu>.t7-ping-option{display:block;flex:none;width:100%;min-width:0;min-height:0;height:auto;margin:0;padding:4px 8px;border:0;border-radius:4px;background:transparent;color:#eee;text-align:left;text-transform:none;font:12px/1.25 system-ui,sans-serif;box-shadow:none}
@@ -90,6 +93,22 @@
 .t7-image-library-choose span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px}
 .t7-image-library-favorite{position:absolute;top:3px;right:3px;display:grid;place-items:center;width:24px;height:24px;padding:0;border:1px solid rgba(255,255,255,.18);border-radius:4px;background:rgba(15,15,21,.88);color:#e5c76b;font:16px/1 system-ui,sans-serif;cursor:pointer}
 .t7-image-picker-empty{grid-column:1/-1;padding:16px 6px;color:#aaa;text-align:center;font-size:12px}
+.t7-player-history-window{position:fixed;z-index:2147483000;display:flex;flex-direction:column;width:min(380px,calc(100vw - 16px));max-height:min(520px,calc(100vh - 16px));overflow:hidden;border:1px solid rgba(255,255,255,.2);border-radius:9px;background:#1b1b24;color:#eee;box-shadow:0 10px 32px rgba(0,0,0,.55);font:13px/1.4 system-ui,sans-serif}
+.t7-player-history-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.12);background:#24212e;cursor:move;touch-action:none;user-select:none}
+.t7-player-history-identity{display:flex;flex-direction:column;min-width:0;gap:3px}
+.t7-player-history-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;font-size:14px}
+.t7-player-history-meta{display:flex;flex-wrap:wrap;gap:4px 12px;color:#b9b5c3;font-size:11px}
+.t7-player-history-tabs{display:flex;gap:3px;overflow-x:auto;padding:6px;border-bottom:1px solid rgba(255,255,255,.1)}
+.t7-player-history-tab{flex:1 0 auto;min-width:0;padding:5px 7px;border:0;border-radius:5px;background:transparent;color:#aaa;font:11px/1.2 system-ui,sans-serif;cursor:pointer}
+.t7-player-history-tab:hover,.t7-player-history-tab:focus-visible{background:rgba(255,255,255,.1);color:#fff;outline:none}
+.t7-player-history-tab[aria-selected=true]{background:rgba(145,70,255,.34);color:#fff}
+.t7-player-history-close{display:grid;place-items:center;flex:none;width:26px;height:26px;padding:0;border:1px solid rgba(255,255,255,.14);border-radius:5px;background:#16141d;color:#eee;font:20px/1 system-ui,sans-serif;cursor:pointer}
+.t7-player-history-close:hover,.t7-player-history-close:focus-visible{background:#49355f;color:#fff;outline:2px solid rgba(255,211,106,.45)}
+.t7-player-history-list{display:flex;flex-direction:column;gap:6px;min-height:0;overflow:auto;margin:0;padding:10px;list-style:none;overscroll-behavior:contain}
+.t7-player-history-list li{display:flex;align-items:baseline;gap:9px;overflow-wrap:anywhere}
+.t7-player-history-list time{flex:none;color:#a9a2b3;font-size:10px;font-variant-numeric:tabular-nums}
+.t7-player-history-empty{padding:18px 10px;color:#aaa;text-align:center}
+.t7-player-history-empty[hidden]{display:none}
 
 /* ========== Общая палитра окон (список эмоутов и настройки) ========== */
 .t7-pop,.t7-set{
@@ -266,9 +285,6 @@
 .cy-chat-l>li.t7-ping{background:rgba(255,201,77,.14);border-radius:6px;box-shadow:inset 3px 0 0 #ffc94d;padding-left:6px}
 .cy-chat-l,.dm-l{font-family:var(--t7-chat-font,inherit);font-size:var(--t7-chat-font-size,14px);font-synthesis:weight style}
 .t7-mention{color:var(--t7-ping-color,#e89aa3);font-weight:600}
-.cy-chat-l>li.t7-filtered{font-style:italic}
-.cy-chat-l>li>.t7-filter-label{display:inline-block;margin-right:5px;padding:2px 6px;border-radius:4px;background:rgba(255,201,77,.14);color:#ffca66;font-size:13px;font-weight:700;white-space:nowrap}
-.cy-chat-l>li.t7-filtered>:not(.t7-filter-label){display:none!important}
 .mn .cy-chat-l,.mn .cy-chat-l li,.mn .cy-chat-l li *{-webkit-user-select:text!important;user-select:text!important}
 
 .cy-chat-l a.t7-link{color:#8edbff;text-decoration:underline;text-underline-offset:2px;cursor:pointer}

@@ -6,6 +6,7 @@ import { processMarkdown } from './markdown.js';
 import { processEmotes } from './chatEmotes.js';
 import { processLinks } from './links.js';
 import { processMentions } from './mentions.js';
+import { processPlayerHistory } from './playerHistory.js';
 import { chatScroller } from './scrollState.js';
 import { pingSystem } from '../pingSystem.js';
 import {
@@ -23,6 +24,7 @@ registerChatProcessor(processMarkdown);
 registerChatProcessor(processLinks);
 registerChatProcessor(processEmotes);
 registerChatProcessor(processMentions);
+registerChatProcessor(processPlayerHistory);
 
 /* ---------- сохраняем положение ленты при обновлении сообщений ---------- */
 let initializedDmLists = new WeakSet();

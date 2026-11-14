@@ -60,7 +60,7 @@ function namespaceDocumentStyles(cssText) {
 function splitStyles(cssText) {
     const tooltipStart = cssText.indexOf('.t7-tip{');
     const imageLinkStart = cssText.indexOf('.t7-image-link{');
-    const uiStart = cssText.indexOf('.t7-blacklist-action{');
+    const uiStart = cssText.indexOf('.t7-ping-menu{');
     const chatStart = cssText.indexOf('.cy-chat-tabs:not([hidden]){');
     if ([tooltipStart, imageLinkStart, uiStart, chatStart].some((index) => index < 0))
         throw new Error('Extension stylesheet sections are incomplete');
@@ -82,17 +82,27 @@ export function installUiStyles(cssText) {
     const documentSheet = makeStyleSheet(namespaceDocumentStyles(styles.document));
     document.adoptedStyleSheets = [...document.adoptedStyleSheets, documentSheet];
     overlayStyleSheet = makeStyleSheet(namespaceVariables(
-        `:host{display:block;position:fixed;inset:0;z-index:2147483647;pointer-events:none}:host>*{pointer-events:auto}\n${styles.overlay}`
+        `:host{display:block;position:fixed;inset:0;z-index:2147483647;isolation:isolate;pointer-events:none}:host>*{pointer-events:auto}\n${styles.overlay}`
     ));
     if (overlayRoot) overlayRoot.adoptedStyleSheets = [...overlayRoot.adoptedStyleSheets, overlayStyleSheet];
 }
 
 export function getOverlayRoot() {
     if (overlayRoot) return overlayRoot;
-    if (!document.body) throw new Error('Cannot create extension UI before document.body exists');
+    if (!document.documentElement) throw new Error('Cannot create extension UI before document.documentElement exists');
     overlayHost = document.createElement('div');
+    for (const [property, value] of [
+        ['display', 'block'],
+        ['position', 'fixed'],
+        ['inset', '0'],
+        ['z-index', '2147483647'],
+        ['isolation', 'isolate'],
+        ['pointer-events', 'none']
+    ]) {
+        overlayHost.style.setProperty(property, value, 'important');
+    }
     overlayRoot = overlayHost.attachShadow({ mode: 'closed' });
     if (overlayStyleSheet) overlayRoot.adoptedStyleSheets = [overlayStyleSheet];
-    document.body.appendChild(overlayHost);
+    document.documentElement.appendChild(overlayHost);
     return overlayRoot;
 }

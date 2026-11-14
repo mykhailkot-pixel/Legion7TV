@@ -1,4 +1,4 @@
-import { getChatTabPrefs } from '../prefs.js';
+import { getChatTabPrefs, setChatTabPrefs } from '../prefs.js';
 import { EV, SEL, on } from '../../core/consts.js';
 import { cls } from '../../core/ui.js';
 
@@ -10,6 +10,7 @@ function applyTabs(tabs) {
     const prefs = getChatTabPrefs();
     const buttons = [...tabs.querySelectorAll(':scope > [data-tab]')];
     if (!buttons.length) return;
+    const hiddenClass = cls('pref-hidden');
 
     const byId = new Map(buttons.map((button) => [button.dataset.tab, button]));
     const ordered = [
@@ -21,20 +22,43 @@ function applyTabs(tabs) {
 
     for (const button of ordered) {
         const hidden = prefs.hidden.has(button.dataset.tab);
-        button.classList.toggle(cls('pref-hidden'), hidden);
+        button.classList.toggle(hiddenClass, hidden);
     }
 
+    const selected = ordered.find((button) => button.getAttribute('aria-selected') === 'true');
+    if (selected && prefs.hidden.has(selected.dataset.tab)) {
+        const next = ordered.find((button) => !button.hidden && !prefs.hidden.has(button.dataset.tab));
+        if (next) next.click();
+    }
+}
+
+function syncSiteOrder(tabs) {
+    const prefs = getChatTabPrefs();
+    const order = [...tabs.querySelectorAll(':scope > [data-tab]')]
+        .map((button) => button.dataset.tab)
+        .filter((id) => prefs.order.includes(id));
+    if (order.length !== prefs.order.length
+        || order.every((id, index) => id === prefs.order[index])) return;
+    prefs.order = order;
+    setChatTabPrefs(prefs);
 }
 
 function observeTabs(tabs) {
-    if (observers.has(tabs)) return;
-    const observer = new MutationObserver(() => applyTabs(tabs));
-    observer.observe(tabs, {
-        attributes: true,
-        attributeFilter: ['aria-selected', 'hidden'],
-        childList: true
-    });
-    observers.set(tabs, observer);
+    if (!observers.has(tabs)) {
+        const observer = new MutationObserver(() => applyTabs(tabs));
+        observer.observe(tabs, {
+            attributes: true,
+            attributeFilter: ['aria-selected', 'hidden'],
+            childList: true
+        });
+        observers.set(tabs, observer);
+        tabs.addEventListener('pointerup', () => queueMicrotask(() => syncSiteOrder(tabs)), true);
+        tabs.addEventListener('keydown', (event) => {
+            if ((event.altKey || (event.ctrlKey && event.shiftKey))
+                && ['ArrowLeft', 'ArrowRight'].includes(event.key))
+                queueMicrotask(() => syncSiteOrder(tabs));
+        }, true);
+    }
     applyTabs(tabs);
 }
 

@@ -1,15 +1,16 @@
 import { store } from '../core/store.js';
 import { EV, STORE, emit } from '../core/consts.js';
 
-const DEFAULT_ORDER = ['g', 'tr', 'mn', 'dm'];
+const DEFAULT_ORDER = ['g', 'tr', 'mn', 'gl', 'dm'];
 const TAB_IDS = new Set(DEFAULT_ORDER);
 const DEFAULT_RECENT_LIMIT = 20;
 const MAX_RECENT_LIMIT = 100;
 
 export const CHAT_TABS = [
-    { id: 'g',  label: 'Город' },
+    { id: 'g',  label: 'Общее' },
     { id: 'tr', label: 'Торговля' },
     { id: 'mn', label: 'Ремёсла' },
+    { id: 'gl', label: 'Гильдия' },
     { id: 'dm', label: 'Личные' },
 ];
 
@@ -32,6 +33,11 @@ function normalizeChatTabs(value) {
         ? prefs.order.filter((id) => TAB_IDS.has(id))
         : [];
     const order = [...new Set([...savedOrder, ...DEFAULT_ORDER])];
+    const generalIndex = order.indexOf('g');
+    if (generalIndex > 0) {
+        order.splice(generalIndex, 1);
+        order.unshift('g');
+    }
     const hiddenValues = prefs.hidden instanceof Set
         ? [...prefs.hidden]
         : Array.isArray(prefs.hidden) ? prefs.hidden : [];
