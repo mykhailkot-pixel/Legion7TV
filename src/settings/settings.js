@@ -265,6 +265,9 @@ function buildSettingsMarkup(root) {
         ),
         settingsSection('Упоминания',
             settingsToggle('t7-tab-completion', 'Дополнять ник по Tab'),
+            settingsToggle('t7-guild-everyone-leader', 'Получать @everyone как глава гильдии (leader)'),
+            settingsToggle('t7-guild-everyone-lead', 'Получать @everyone как руководство (lead)'),
+            settingsToggle('t7-guild-everyone-trusted', 'Получать @everyone как доверенное лицо (trusted)'),
             settingsField('Ники и варианты для пинга', createNode('textarea', {
                 className: 't7-ping-aliases', rows: '2', placeholder: 'ник, nick, @ник'
             })),
@@ -454,6 +457,16 @@ export function openSettings() {
     const tabCompletion = el.querySelector('.t7-tab-completion');
     tabCompletion.checked = pingSystem.config.tabCompletion;
     tabCompletion.addEventListener('change', () => pingSystem.setTabCompletion(tabCompletion.checked));
+    for (const [selector, role, key] of [
+        ['.t7-guild-everyone-leader', 'leader', 'guildEveryoneLeader'],
+        ['.t7-guild-everyone-lead', 'lead', 'guildEveryoneLead'],
+        ['.t7-guild-everyone-trusted', 'trusted', 'guildEveryoneTrusted']
+    ]) {
+        const input = el.querySelector(selector);
+        input.checked = pingSystem.config[key];
+        input.addEventListener('change', () =>
+            pingSystem.setGuildEveryoneRole(role, input.checked));
+    }
     const emoteCompletion = el.querySelector('.t7-emote-completion');
     emoteCompletion.checked = pingSystem.config.emoteCompletion;
     emoteCompletion.addEventListener('change', () => pingSystem.setEmoteCompletion(emoteCompletion.checked));

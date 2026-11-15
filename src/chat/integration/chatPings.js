@@ -4,6 +4,7 @@ import { copyOriginalMessageSource, unmarkMessageProcessed } from '../messages/m
 import { store } from '../../core/store.js';
 import { EV, on, SEL, STORE } from '../../core/consts.js';
 import { cls } from '../../core/ui.js';
+import { pageChan } from '../../core/config.js';
 import { savePlayerMessage } from '../messages/playerHistory.js';
 import { getChatHistoryLimit, setChatHistoryLimit } from './chatHistory.js';
 
@@ -18,15 +19,90 @@ const NOTIFIED_LIMIT = 1000;
 const PAGE_STARTED_AT = performance.timeOrigin || Date.now();
 const STARTUP_NOTIFICATION_GRACE_MS = 3000;
 const CHAT_BOX_ATTRIBUTE = 'data-t7-box';
+const GUILD_EVERYONE_RE = /(?<![\p{L}\p{N}_])@everyone(?![\p{L}\p{N}_])/iu;
+const GUILD_EVERYONE_ROLES = Object.freeze({
+    leader: 'guildEveryoneLeader',
+    lead: 'guildEveryoneLead',
+    trusted: 'guildEveryoneTrusted'
+});
 const states = new Set();
 const stateByBox = new WeakMap();
 const notifiedIds = new Set();
+const guildEveryonePingIds = new Set();
+const recentGuildEveryoneNotifications = new Map();
 const noPingIndicators = new WeakMap();
 let pointerSelectionTarget = null;
 let pingOnly = store.get(PING_ONLY_KEY) === true;
 let saveTimer = 0;
 let documentObserver = null;
 let storedArchive = readArchive();
+let guildMembership = { guildId: '', role: '' };
+let guildRolePromise = Promise.resolve();
+
+async function refreshGuildRole() {
+    if (!pageChan) return;
+    try {
+        const endpoint = new URL(`/c/${encodeURIComponent(pageChan)}/api/guildhall`, location.origin);
+        const response = await fetch(endpoint, { credentials: 'same-origin', cache: 'no-store' });
+        if (!response.ok) throw new Error(`guildhall request failed with status ${response.status}`);
+        const data = await response.json();
+        const role = data && data.ok === true
+            && Object.prototype.hasOwnProperty.call(GUILD_EVERYONE_ROLES, data.role)
+            ? data.role
+            : '';
+        const guildId = data && data.guild && data.guild.id != null
+            ? String(data.guild.id).slice(0, 64)
+            : '';
+        guildMembership = role && guildId ? { guildId, role } : { guildId: '', role: '' };
+    } catch (error) {
+        console.warn('[Legion7TV] Не удалось получить роль гильдии для @everyone', error);
+    }
+}
+
+function isGuildEveryonePing(message) {
+    const preference = GUILD_EVERYONE_ROLES[guildMembership.role];
+    return message.tab === 'gl'
+        && !!guildMembership.guildId
+        && message.guildId === guildMembership.guildId
+        && !!preference
+        && pingSystem.config[preference] !== false
+        && GUILD_EVERYONE_RE.test(message.t);
+}
+
+async function loadGuildChatMessages() {
+    if (!pageChan || !guildMembership.guildId) return;
+    try {
+        const endpoint = new URL(`/c/${encodeURIComponent(pageChan)}/api/guilds/chat`, location.origin);
+        const response = await fetch(endpoint, { credentials: 'same-origin', cache: 'no-store' });
+        if (!response.ok) throw new Error(`guild chat request failed with status ${response.status}`);
+        const data = await response.json();
+        if (!data || data.ok !== true || !Array.isArray(data.msgs)) {
+            throw new Error('guild chat response has an unexpected format');
+        }
+        const guildId = String(data.guild || '');
+        if (guildId !== guildMembership.guildId) return;
+
+        for (const message of data.msgs) {
+            if (!message || message.id == null) continue;
+            const rawId = String(message.id);
+            const id = rawId.startsWith('g') ? rawId : `g${rawId}`;
+            rememberNotified(messageKey(id));
+            if (typeof message.t !== 'string' || !GUILD_EVERYONE_RE.test(message.t)) continue;
+            const messageGuildId = String(message.g == null ? guildId : message.g);
+            if (!isGuildEveryonePing({ tab: 'gl', guildId: messageGuildId, t: message.t })) continue;
+            rememberGuildEveryonePing(messageKey(id));
+            const rowMessage = {
+                id,
+                l: String(message.l || '').toLowerCase(),
+                t: message.t
+            };
+            for (const state of states) highlightGuildEveryoneRows(state, rowMessage);
+        }
+        for (const state of states) refreshRows(state, false);
+    } catch (error) {
+        console.warn('[Legion7TV] Не удалось загрузить сообщения гильдейского чата для подсветки @everyone', error);
+    }
+}
 
 export function areDeletedMessagesEnabled() {
     return store.get(DELETED_MESSAGES_KEY) !== false;
@@ -318,6 +394,41 @@ function rememberNotified(key) {
         notifiedIds.delete(notifiedIds.values().next().value);
 }
 
+function rememberGuildEveryonePing(key) {
+    if (!key) return;
+    guildEveryonePingIds.add(key);
+    if (guildEveryonePingIds.size > NOTIFIED_LIMIT)
+        guildEveryonePingIds.delete(guildEveryonePingIds.values().next().value);
+}
+
+function isDuplicateGuildEveryoneNotification(message) {
+    const now = Date.now();
+    const login = String(message.l || message.login || '').toLowerCase();
+    const text = typeof message.t === 'string' ? message.t : String(message.text || '');
+    const signature = `${login}\u0000${text}`;
+    const previous = recentGuildEveryoneNotifications.get(signature);
+    recentGuildEveryoneNotifications.set(signature, now);
+    for (const [key, at] of recentGuildEveryoneNotifications) {
+        if (now - at > 2000) recentGuildEveryoneNotifications.delete(key);
+    }
+    while (recentGuildEveryoneNotifications.size > NOTIFIED_LIMIT)
+        recentGuildEveryoneNotifications.delete(recentGuildEveryoneNotifications.keys().next().value);
+    return previous !== undefined && now - previous <= 2000;
+}
+
+function highlightGuildEveryoneRows(state, message) {
+    if (!state.list) return;
+    for (const row of state.list.querySelectorAll(':scope > li[data-mid]')) {
+        if (getTab(state.box, row) !== 'gl') continue;
+        const rowMessage = getMessage(row);
+        const sameId = row.dataset.mid === message.id;
+        if (!sameId && (!rowMessage
+            || rowMessage.login.toLowerCase() !== message.l.toLowerCase()
+            || rowMessage.text !== message.t)) continue;
+        row.classList.add(cls('ping'));
+    }
+}
+
 function playPingNotification() {
     pingSystem.play().catch((error) =>
         console.warn('[7TV] не удалось воспроизвести звук пинга', error));
@@ -335,7 +446,7 @@ function processRow(state, row, notify, notificationBatch = null) {
 
     const nativePing = row.classList.contains('ping');
     const pinged = !row.classList.contains('me')
-        && (nativePing || pingSystem.isPinged(message.text));
+        && (nativePing || pingSystem.isPinged(message.text) || guildEveryonePingIds.has(key));
     row.classList.toggle(cls('ping'), pinged && !nativePing);
     if (pinged) {
         const id = row.dataset.mid || '';
@@ -344,7 +455,11 @@ function processRow(state, row, notify, notificationBatch = null) {
         if (!previouslySeen && notify) {
             const alreadyNotified = key && notifiedIds.has(key);
             if (key) rememberNotified(key);
-            if (!alreadyNotified && Date.now() - PAGE_STARTED_AT >= STARTUP_NOTIFICATION_GRACE_MS) {
+            const duplicateEveryone = !alreadyNotified && tab === 'gl'
+                && GUILD_EVERYONE_RE.test(message.text)
+                && isDuplicateGuildEveryoneNotification(message);
+            if (!alreadyNotified && !duplicateEveryone
+                && Date.now() - PAGE_STARTED_AT >= STARTUP_NOTIFICATION_GRACE_MS) {
                 if (!(state.box.classList.contains('open') && tab === currentTab))
                     state.counts[tab] = (state.counts[tab] || 0) + 1;
                 if (notificationBatch) notificationBatch.play = true;
@@ -484,14 +599,27 @@ function paint(state) {
     if (toggle) badge(toggle, cls('chat-pn'), state.box.classList.contains('open') ? 0 : total, 'Упоминаний');
 }
 
-function handleExternalMessage(state, payload) {
+async function handleExternalMessage(state, payload) {
     const { msg } = payload;
     const room = msg.rm === 'mine' ? 'mine' : 'city';
     const key = messageKey(msg.id);
     if (notifiedIds.has(key)) return;
 
-    if (!msg.nativePing && !pingSystem.isPinged(msg.t)) return;
+    const regularPing = msg.nativePing || pingSystem.isPinged(msg.t);
+    const everyoneMention = msg.tab === 'gl' && GUILD_EVERYONE_RE.test(msg.t);
+    if (!regularPing && !everyoneMention) return;
     rememberNotified(key);
+    let guildEveryonePing = false;
+    if (everyoneMention) {
+        await guildRolePromise;
+        guildEveryonePing = isGuildEveryonePing(msg);
+        if (!regularPing && !guildEveryonePing) return;
+    }
+    if (guildEveryonePing) {
+        rememberGuildEveryonePing(key);
+        highlightGuildEveryoneRows(state, msg);
+        if (isDuplicateGuildEveryoneNotification(msg)) return;
+    }
     if (payload.observedAt - PAGE_STARTED_AT < STARTUP_NOTIFICATION_GRACE_MS
         || Date.now() - msg.at > 60_000) return;
 
@@ -568,6 +696,8 @@ function onExternalMessage(event) {
         || typeof data.msg.at !== 'number' || !Number.isFinite(data.msg.at)
         || typeof data.msg.tab !== 'string' || !CHAT_TABS.has(data.msg.tab)
         || typeof data.msg.rm !== 'string' || !['', 'city', 'mine'].includes(data.msg.rm)
+        || (data.msg.guildId !== undefined
+            && (typeof data.msg.guildId !== 'string' || data.msg.guildId.length > 64))
         || typeof data.msg.nativePing !== 'boolean'
         || typeof data.open !== 'boolean'
         || typeof data.activeTab !== 'string'
@@ -580,7 +710,11 @@ function onExternalMessage(event) {
         observeBox(box);
         state = stateByBox.get(box);
     }
-    if (state) handleExternalMessage(state, data);
+    if (state) {
+        void handleExternalMessage(state, data).catch((error) => {
+            console.error('[Legion7TV] Не удалось обработать пинг', error);
+        });
+    }
 }
 
 function visibleArchive(state) {
@@ -872,6 +1006,11 @@ pingSystem.subscribe(() => {
 });
 
 export function startChatPingIntegration() {
+    guildRolePromise = refreshGuildRole();
+    void guildRolePromise.then(loadGuildChatMessages);
+    if (pageChan) window.setInterval(() => {
+        guildRolePromise = refreshGuildRole();
+    }, 5 * 60 * 1000);
     window.addEventListener('message', onExternalMessage);
     document.addEventListener('selectionchange', rememberSelectionInChats);
     document.addEventListener('pointerdown', beginNickSelection, true);

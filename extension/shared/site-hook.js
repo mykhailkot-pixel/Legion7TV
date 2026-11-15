@@ -211,6 +211,11 @@
                 return counts[tab] <= retentionLimit;
             });
             var next = other.concat(messages);
+            for (var k = 0; k < next.length; k++) {
+                var existing = next[k];
+                if (existing && tabOf(existing) === 'gl' && existing.id != null)
+                    rememberGuildId(guildMessageId(existing.id));
+            }
             if (next.length === chat.list.length
                 && next.every(function (message, index) { return message === chat.list[index]; })) return;
             chat.list = next;
@@ -252,6 +257,11 @@
             guildSeenIds.delete(guildSeenIds.values().next().value);
     }
 
+    function guildMessageId(id) {
+        var value = String(id);
+        return value.charAt(0) === 'g' ? value : 'g' + value;
+    }
+
     function emitGuildMessage(context, chat, box, message, id) {
         if (guildSeenIds.has(id)) return;
         rememberGuildId(id);
@@ -291,6 +301,7 @@
             msg: Object.assign({}, payload, {
                 tab: 'gl',
                 rm: '',
+                guildId: String(chat.glG || ''),
                 nativePing: !!(nativePingMatcher && nativePingMatcher.test(text))
             }),
             open: !!chat.open,
@@ -316,14 +327,14 @@
                 for (var i = 0; i < chat.list.length; i++) {
                     var existing = chat.list[i];
                     if (existing && existing.tb === 'gl' && existing.id != null)
-                        rememberGuildId('g' + String(existing.id));
+                        rememberGuildId(guildMessageId(existing.id));
                 }
                 return;
             }
             for (var j = 0; j < chat.list.length; j++) {
                 var message = chat.list[j];
                 if (!message || message.tb !== 'gl' || message.sys || message.ev || message.id == null) continue;
-                emitGuildMessage(context, chat, box, message, 'g' + String(message.id));
+                emitGuildMessage(context, chat, box, message, guildMessageId(message.id));
             }
         } catch (error) {
             console.warn('[t7 hook] не удалось проверить сообщения гильдии', error);
@@ -353,7 +364,7 @@
                     || (chat.glLast && !(+message.id > +chat.glLast))) continue;
                 // The chat model scan sees the confirmed ID for our optimistic messages.
                 if (String(message.l).toLowerCase() === me) continue;
-                emitGuildMessage(context, chat, box, message, 'g' + String(message.id));
+                emitGuildMessage(context, chat, box, message, guildMessageId(message.id));
             }
         } catch (error) {
             console.warn('[t7 hook] не удалось обработать сообщения гильдии', error);

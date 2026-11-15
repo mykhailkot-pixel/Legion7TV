@@ -5,6 +5,11 @@ import { cls } from '../core/ui.js';
 const CONFIG_KEY = STORE.pingConfig;
 const PRESETS = new Set(['bell', 'chime', 'pop', 'custom']);
 const MAX_CUSTOM_SOUND_SIZE = 20 * 1024 * 1024;
+const GUILD_EVERYONE_ROLE_KEYS = Object.freeze({
+    leader: 'guildEveryoneLeader',
+    lead: 'guildEveryoneLead',
+    trusted: 'guildEveryoneTrusted'
+});
 const DEFAULTS = {
     volume: 0.5,
     dmVolume: 0.5,
@@ -19,6 +24,9 @@ const DEFAULTS = {
     pingColor: '#e89aa3',
     tabCompletion: true,
     emoteCompletion: true,
+    guildEveryoneLeader: true,
+    guildEveryoneLead: true,
+    guildEveryoneTrusted: true,
     aliases: []
 };
 
@@ -46,6 +54,8 @@ function readConfig() {
     config.pingColor = /^#[0-9a-f]{6}$/i.test(config.pingColor) ? config.pingColor : DEFAULTS.pingColor;
     config.tabCompletion = config.tabCompletion !== false;
     config.emoteCompletion = config.emoteCompletion !== false;
+    for (const key of Object.values(GUILD_EVERYONE_ROLE_KEYS))
+        config[key] = config[key] !== false;
     delete config.blacklist;
     delete config.stopWords;
     for (const key of ['aliases', 'dmNickList']) {
@@ -123,6 +133,13 @@ class PingSystem {
         this.config.emoteCompletion = !!enabled;
         this.save();
         emit(EV.emoteCompletionChange);
+    }
+
+    setGuildEveryoneRole(role, enabled) {
+        if (!Object.prototype.hasOwnProperty.call(GUILD_EVERYONE_ROLE_KEYS, role)) return;
+        const key = GUILD_EVERYONE_ROLE_KEYS[role];
+        this.config[key] = !!enabled;
+        this.save();
     }
 
     setVolume(value) {
