@@ -344,7 +344,9 @@ export function processPlayerHistory({ message, content, source, kind, room }) {
         openHistory(login, tab);
     });
     message.querySelector(`:scope > .${cls(HISTORY_BUTTON)}`)?.remove();
-    message.prepend(button);
+    const replyQuote = message.querySelector(`:scope > .${cls('reply-quote')}`);
+    if (replyQuote) replyQuote.after(button);
+    else message.prepend(button);
 
     const metadata = readRowMetadata(message);
     savePlayerMessage({

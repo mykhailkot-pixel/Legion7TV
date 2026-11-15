@@ -1,11 +1,23 @@
 import { getEmoteCreatedAt, setEmoteImage } from './emotes.js';
 import { cls, getOverlayRoot } from '../core/ui.js';
+import { STORE } from '../core/consts.js';
+import { store } from '../core/store.js';
 
 const tooltipData = new WeakMap();
 let tooltip = null;
 let current = null;
 let imageToken = 0;
 let initialized = false;
+let enabled = true;
+
+export function isEmoteTooltipEnabled() {
+    return enabled;
+}
+
+export function setEmoteTooltipEnabled(value) {
+    enabled = value !== false;
+    if (!enabled) hide();
+}
 
 export function setEmoteTooltipData(element, name, emote) {
     if (element && emote) tooltipData.set(element, { name, emote });
@@ -131,8 +143,10 @@ function hide() {
 export function initEmoteTooltip() {
     if (initialized) return;
     initialized = true;
+    enabled = store.get(STORE.emoteTooltipEnabled) !== false;
     const root = getOverlayRoot();
     const onMouseOver = (event) => {
+        if (!enabled) return;
         const target = findTarget(event.target);
         if (!target || target === current) return;
         show(target);
@@ -143,6 +157,7 @@ export function initEmoteTooltip() {
         hide();
     };
     const onFocusIn = (event) => {
+        if (!enabled) return;
         const target = findTarget(event.target);
         if (target) show(target);
     };

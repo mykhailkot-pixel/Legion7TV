@@ -15,6 +15,8 @@ import { arePastesEnabled, setPastesEnabled } from '../chat/ui/pastes.js';
 import { clearResolvedImageCache } from '../chat/ui/imageProviders.js';
 import { isImagePickerButtonEnabled, setImagePickerButtonEnabled } from '../chat/ui/imagePicker.js';
 import { getOverlayRoot } from '../core/ui.js';
+import { trimSavedReplyTargets } from '../chat/messages/replies.js';
+import { isEmoteTooltipEnabled, setEmoteTooltipEnabled } from '../emotes/tooltip.js';
 import {
     areDeletedMessagesEnabled,
     getDeletedMessagesLimit,
@@ -170,6 +172,7 @@ function buildSettingsMarkup(root) {
     emotesPanel.append(
         settingsSection('Отображение',
             settingsToggle('t7-on', 'Показывать эмоуты 7TV в чате'),
+            settingsToggle('t7-emote-tooltip-enabled', 'Показывать попап эмоута при наведении'),
             settingsToggle('t7-emote-completion', 'Показывать карусель эмоутов по Tab')
         ),
         settingsSection('Канал',
@@ -395,6 +398,13 @@ export function openSettings() {
         rescanAll();
     });
 
+    const emoteTooltipEnabled = el.querySelector('.t7-emote-tooltip-enabled');
+    emoteTooltipEnabled.checked = isEmoteTooltipEnabled();
+    emoteTooltipEnabled.addEventListener('change', () => {
+        store.set(STORE.emoteTooltipEnabled, emoteTooltipEnabled.checked);
+        setEmoteTooltipEnabled(emoteTooltipEnabled.checked);
+    });
+
     const pastesEnabled = el.querySelector('.t7-pastes-enabled');
     pastesEnabled.checked = arePastesEnabled();
     pastesEnabled.addEventListener('change', () => setPastesEnabled(pastesEnabled.checked));
@@ -416,6 +426,7 @@ export function openSettings() {
     deletedMessagesLimit.value = String(getDeletedMessagesLimit());
     deletedMessagesLimit.addEventListener('change', () => {
         deletedMessagesLimit.value = String(setDeletedMessagesLimit(deletedMessagesLimit.value));
+        trimSavedReplyTargets();
     });
 
     const nickInp = el.querySelector('.t7-nick');
