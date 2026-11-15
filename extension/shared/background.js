@@ -200,8 +200,8 @@ async function handleImageCacheMessage(message) {
 }
 
 function isAllowedPageSender(sender) {
-    const senderIsAllowed = sender.url === 'https://play.multidonate.ru'
-        || (typeof sender.url === 'string' && sender.url.startsWith('https://play.multidonate.ru/'));
+    const senderIsAllowed = sender.url === 'https://legiongame.gg'
+        || (typeof sender.url === 'string' && sender.url.startsWith('https://legiongame.gg/'));
     return !!sender.tab && senderIsAllowed;
 }
 

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Legion7TV",
-  "version": "6.4.0",
+  "version": "6.5.0",
   "description": "Расширение чата Multidonate с эмоутами 7TV и настройками.",
   "icons": {
     "16": "icons/icon16.png",
@@ -22,7 +22,7 @@
     "unlimitedStorage"
   ],
   "host_permissions": [
-    "https://play.multidonate.ru/*",
+    "https://legiongame.gg/*",
     "https://7tv.io/*",
     "https://cdn.7tv.app/*",
     "https://api.ivr.fi/*",
@@ -38,7 +38,7 @@
   "content_scripts": [
     {
       "matches": [
-        "https://play.multidonate.ru/*"
+        "https://legiongame.gg/*"
       ],
       "js": [
         "content-bridge.js"
@@ -47,7 +47,7 @@
     },
     {
       "matches": [
-        "https://play.multidonate.ru/*"
+        "https://legiongame.gg/*"
       ],
       "js": [
         "site-hook.js"

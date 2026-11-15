@@ -214,7 +214,7 @@ function buildSettingsMarkup(root) {
             })),
             createNode('div', { className: 't7-note', role: 'note' }, [
                 createNode('span', { className: 't7-note-icon', 'aria-hidden': 'true' }, ['!']),
-                createNode('span', {}, ['История разделена по стримеру и вкладке; сообщения, на которые вы ответили, остаются до перезагрузки страницы.'])
+                createNode('span', {}, ['История разделена по стримеру и вкладке; сообщения просто сохроняются локально, сервер всё так же подгружает только 50 сообщений.'])
             ])
         ),
         settingsSection('Ссылки',
