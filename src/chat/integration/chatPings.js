@@ -1,10 +1,6 @@
 import { pingSystem } from '../pingSystem.js';
 import { chatScroller } from '../messages/scrollState.js';
-import {
-    copyOriginalMessageSource,
-    getOriginalMessageSource,
-    unmarkMessageProcessed
-} from '../messages/messageState.js';
+import { copyOriginalMessageSource, unmarkMessageProcessed } from '../messages/messageState.js';
 import { store } from '../../core/store.js';
 import { SEL, STORE } from '../../core/consts.js';
 import { cls } from '../../core/ui.js';
@@ -14,7 +10,6 @@ const PING_ONLY_KEY = STORE.pingOnly;
 const PING_ARCHIVE_KEY = STORE.pingArchive;
 const DELETED_MESSAGES_KEY = STORE.deletedMessagesEnabled;
 const DELETED_MESSAGES_LIMIT_KEY = STORE.deletedMessagesLimit;
-const DELETED_MESSAGES_STORE_KEY = STORE.deletedMessages;
 const PING_ARCHIVE_LIMIT = 500;
 const PING_PAGE_SIZE = 50;
 const ROOM_IDS = ['city', 'mine', 'one'];
@@ -34,7 +29,6 @@ let pingOnly = store.get(PING_ONLY_KEY) === true;
 let saveTimer = 0;
 let documentObserver = null;
 let storedArchive = readArchive();
-let storedDeletedMessages = readDeletedMessages();
 
 export function areDeletedMessagesEnabled() {
     return store.get(DELETED_MESSAGES_KEY) !== false;
@@ -57,7 +51,6 @@ export function getDeletedMessagesLimit() {
 export function setDeletedMessagesLimit(value) {
     const limit = normalizeDeletedMessagesLimit(value);
     store.set(DELETED_MESSAGES_LIMIT_KEY, limit);
-    trimStoredDeletedMessages(limit);
     for (const state of states) trimDeletedMessages(state, limit);
     return limit;
 }
@@ -66,8 +59,6 @@ export function setDeletedMessagesEnabled(enabled) {
     const active = !!enabled;
     store.set(DELETED_MESSAGES_KEY, active);
     if (active) return;
-    storedDeletedMessages = emptyDeletedMessages();
-    store.set(DELETED_MESSAGES_STORE_KEY, storedDeletedMessages);
     for (const state of states) clearDeletedRows(state);
 }
 
@@ -95,48 +86,6 @@ function readArchive() {
     return archive;
 }
 
-function emptyDeletedMessages() {
-    return Object.fromEntries(ROOM_IDS.map((room) => [room, []]));
-}
-
-function readDeletedMessages() {
-    const saved = store.get(DELETED_MESSAGES_STORE_KEY);
-    const messages = emptyDeletedMessages();
-    let pruned = false;
-    const limit = getDeletedMessagesLimit();
-    for (const room of ROOM_IDS) {
-        const values = saved && Array.isArray(saved[room]) ? saved[room] : [];
-        for (const message of values) {
-            if (!message || typeof message !== 'object' || message.id == null) continue;
-            const id = String(message.id).slice(0, 200);
-            const login = String(message.login || '').trim().slice(0, 64);
-            const name = String(message.name || login).slice(0, 128);
-            const text = typeof message.text === 'string' ? message.text.slice(0, 2000) : '';
-            const tab = String(message.tab || '');
-            if (!id || !login || !CHAT_TABS.has(tab)) continue;
-            messages[room].push({
-                room,
-                id,
-                login,
-                name,
-                text,
-                tab,
-                beforeId: String(message.beforeId || '').slice(0, 200),
-                afterId: String(message.afterId || '').slice(0, 200),
-                position: Number.isInteger(message.position) && message.position >= 0
-                    ? message.position
-                    : -1
-            });
-        }
-        if (messages[room].length > limit) {
-            messages[room].splice(0, messages[room].length - limit);
-            pruned = true;
-        }
-    }
-    if (pruned) store.set(DELETED_MESSAGES_STORE_KEY, messages);
-    return messages;
-}
-
 function inferTab(message) {
     if (message.rm === 'mine') return 'mn';
     if (message.k === 'tr') return 'tr';
@@ -156,12 +105,6 @@ function getRoom(box, row) {
     if (box.closest('.co-host, .co-float')) return 'one';
     if (row.dataset.rm === 'mine' || box.closest('.mn')) return 'mine';
     if (row.dataset.rm === 'city') return 'city';
-    return 'city';
-}
-
-function getBoxRoom(box) {
-    if (box.closest('.co-host, .co-float')) return 'one';
-    if (box.closest('.mn')) return 'mine';
     return 'city';
 }
 
@@ -222,7 +165,6 @@ function cacheRow(state, row, tab) {
         copyOriginalMessageSource(sourceSpans[sourceSpans.length - 1], cloneSpans[cloneSpans.length - 1]);
     state.deletedRows.set(id, {
         node: clone,
-        room: getRoom(state.box, row),
         tab: existing ? existing.tab : tab,
         beforeId: next?.dataset.mid || existing?.beforeId || '',
         afterId: previous?.dataset.mid || existing?.afterId || '',
@@ -259,80 +201,11 @@ function createDeletedSnapshot(message) {
     return { node: row, tab: message.tab, beforeId: '', afterId: '', position: -1 };
 }
 
-function snapshotFromStoredMessage(message) {
-    const snapshot = createDeletedSnapshot({
-        id: message.id,
-        l: message.login,
-        n: message.name,
-        t: message.text,
-        tab: message.tab
-    });
-    if (!snapshot) return null;
-    snapshot.room = message.room;
-    snapshot.beforeId = message.beforeId;
-    snapshot.afterId = message.afterId;
-    snapshot.position = message.position;
-    return snapshot;
-}
-
-function serializeDeletedRow(id, cached) {
-    const nick = cached.node.querySelector(':scope > b[data-nick]');
-    const content = cached.node.querySelector(SEL.messageContent);
-    if (!nick || !content) return null;
-    return {
-        room: cached.room,
-        id,
-        login: String(nick.dataset.nick || '').trim().slice(0, 64),
-        name: (nick.textContent.trim() || nick.dataset.nick || '').slice(0, 128),
-        text: String(getOriginalMessageSource(content, content.textContent)).slice(0, 2000),
-        tab: cached.tab,
-        beforeId: String(cached.beforeId || '').slice(0, 200),
-        afterId: String(cached.afterId || '').slice(0, 200),
-        position: Number.isInteger(cached.position) ? cached.position : -1
-    };
-}
-
-function persistDeletedMessages(state, entries) {
-    if (!entries.length) return;
-    const removedMessages = [];
-    let changed = false;
-    for (const { id, cached } of entries) {
-        const message = serializeDeletedRow(id, cached);
-        if (!message || !message.login) continue;
-        const roomMessages = storedDeletedMessages[message.room || state.room];
-        const index = roomMessages.findIndex((item) => item.id === id);
-        if (index < 0) roomMessages.push(message);
-        else roomMessages[index] = message;
-        state.persistedDeletedRows.set(id, cached);
-        const removed = roomMessages.splice(0, Math.max(0, roomMessages.length - getDeletedMessagesLimit()));
-        for (const item of removed) removedMessages.push({ room: message.room || state.room, item });
-        changed = true;
-    }
-
-    for (const { room, item } of removedMessages) {
-        for (const current of states) {
-            if (current.room === room || current.persistedDeletedRows.get(item.id)?.room === room)
-                forgetStateDeletedMessage(current, item.id);
-        }
-    }
-    if (changed || removedMessages.length) store.set(DELETED_MESSAGES_STORE_KEY, storedDeletedMessages);
-}
-
-function hydrateDeletedMessages(state) {
-    if (!areDeletedMessagesEnabled()) return;
-    for (const message of storedDeletedMessages[state.room]) {
-        const cached = snapshotFromStoredMessage(message);
-        if (!cached) continue;
-        state.persistedDeletedRows.set(message.id, cached);
-        state.deletedIds.add(message.id);
-    }
-}
-
 function restoreDeletedRows(state) {
     if (!areDeletedMessagesEnabled() || !state.list) return;
     const pending = [];
     for (const id of state.deletedIds) {
-        const cached = state.deletedRows.get(id) || state.persistedDeletedRows.get(id);
+        const cached = state.deletedRows.get(id);
         if (!cached || cached.tab !== state.activeTab) continue;
         const trackedRow = state.restoredDeletedRows.get(id);
         let row = trackedRow && trackedRow.isConnected && trackedRow.parentElement === state.list
@@ -395,7 +268,6 @@ function clearDeletedRows(state) {
     state.deletedRows.clear();
     state.deletedIds.clear();
     state.restoredDeletedRows.clear();
-    state.persistedDeletedRows.clear();
 }
 
 function discardDeletedRow(state, id) {
@@ -412,80 +284,40 @@ function discardDeletedRow(state, id) {
     row.querySelector(`:scope > .${cls('deleted-label')}`)?.remove();
 }
 
-function forgetStateDeletedMessage(state, id) {
-    const forget = () => {
-        state.deletedRows.delete(id);
-        state.deletedIds.delete(id);
-        state.persistedDeletedRows.delete(id);
-        discardDeletedRow(state, id);
-    };
-    if (state.list) chatScroller.keep(state.list, forget);
-    else forget();
-}
-
-function removeStoredDeletedMessage(room, id) {
-    const messages = storedDeletedMessages[room];
-    const index = messages.findIndex((message) => message.id === id);
-    if (index < 0) return false;
-    messages.splice(index, 1);
-    return true;
-}
-
 function trimDeletedMessages(state, limit = getDeletedMessagesLimit()) {
-    let storedMessagesChanged = false;
+    const discardedIds = new Set();
     while (state.deletedRows.size > limit) {
         const id = state.deletedRows.keys().next().value;
         state.deletedRows.delete(id);
-        if (state.deletedIds.has(id) && !state.persistedDeletedRows.has(id))
-            forgetStateDeletedMessage(state, id);
+        if (state.deletedIds.delete(id)) discardedIds.add(id);
     }
     while (state.deletedIds.size > limit) {
         const id = state.deletedIds.values().next().value;
-        const persisted = state.persistedDeletedRows.get(id);
-        forgetStateDeletedMessage(state, id);
-        if (persisted) storedMessagesChanged = removeStoredDeletedMessage(persisted.room || state.room, id)
-            || storedMessagesChanged;
+        state.deletedIds.delete(id);
+        discardedIds.add(id);
     }
-    if (storedMessagesChanged) store.set(DELETED_MESSAGES_STORE_KEY, storedDeletedMessages);
-}
+    if (!discardedIds.size) return;
 
-function trimStoredDeletedMessages(limit) {
-    let changed = false;
-    for (const room of ROOM_IDS) {
-        const messages = storedDeletedMessages[room];
-        const removed = messages.splice(0, Math.max(0, messages.length - limit));
-        if (!removed.length) continue;
-        changed = true;
-        for (const message of removed) {
-            for (const state of states) {
-                if (state.room === room || state.persistedDeletedRows.get(message.id)?.room === room)
-                    forgetStateDeletedMessage(state, message.id);
-            }
-        }
-    }
-    if (changed) store.set(DELETED_MESSAGES_STORE_KEY, storedDeletedMessages);
+    const discardRows = () => {
+        for (const id of discardedIds) discardDeletedRow(state, id);
+    };
+    if (state.list) chatScroller.keep(state.list, discardRows);
+    else discardRows();
 }
 
 function handleExternalDelete(state, ids, messages) {
     if (!areDeletedMessagesEnabled()) return;
     const messagesById = new Map(messages.map((message) => [message.id, message]));
-    const toPersist = [];
     for (const id of ids) {
         if (!state.deletedRows.has(id)) {
             const message = messagesById.get(id);
             const snapshot = message && createDeletedSnapshot(message);
             if (snapshot) {
-                snapshot.room = state.room === 'one' ? 'one'
-                    : message.tab === 'mn' ? 'mine' : state.room;
                 state.deletedRows.set(id, snapshot);
             }
         }
-        const cached = state.deletedRows.get(id) || state.persistedDeletedRows.get(id);
-        if (cached && !cached.room) cached.room = state.room;
         if (!state.deletedIds.has(id)) state.deletedIds.add(id);
-        if (cached) toPersist.push({ id, cached });
     }
-    persistDeletedMessages(state, toPersist);
     trimDeletedMessages(state);
     restoreDeletedRows(state);
 }
@@ -985,7 +817,6 @@ function observeBox(box) {
     if (stateByBox.has(box)) return;
     const state = {
         box,
-        room: getBoxRoom(box),
         list: null,
         listObserver: null,
         counts: {},
@@ -994,12 +825,10 @@ function observeBox(box) {
         deletedRows: new Map(),
         deletedIds: new Set(),
         restoredDeletedRows: new Map(),
-        persistedDeletedRows: new Map(),
         quietTab: null
     };
     stateByBox.set(box, state);
     states.add(state);
-    hydrateDeletedMessages(state);
     state.boxObserver = new MutationObserver(() => refreshRows(state, true));
     state.boxObserver.observe(box, { childList: true });
     box.addEventListener('click', (event) => {
