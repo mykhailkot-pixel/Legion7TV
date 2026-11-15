@@ -10,11 +10,12 @@ export const STORE = Object.freeze({
     favorites: 't7favorites',
     recentEmotes: 't7recent',
     recentEmoteLimit: 't7recentLimit',
-    replyTargets: 't7ReplyTargets',
     pingConfig: 't7ping',
     chatFont: 't7ChatFont',
     chatFontFile: 't7ChatFontFile',
     chatFontSize: 't7ChatFontSize',
+    chatHistory: 't7ChatHistory',
+    chatHistoryLimit: 't7ChatHistoryLimit',
     pingOnly: 't7PingOnly',
     pingArchive: 't7PingArchive',
     chatTabPrefs: 't7ChatTabPrefs',
@@ -36,6 +37,7 @@ export const EV = Object.freeze({
     tabCompletionChange: 't7-tab-completion-change',
     emoteCompletionChange: 't7-emote-completion-change',
     chatTabsChange: 't7-chat-tabs-change',
+    chatHistoryLimitChange: 't7-chat-history-limit-change',
     recentLimitChange: 't7-recent-limit-change'
 });
 

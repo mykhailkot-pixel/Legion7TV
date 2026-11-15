@@ -10,7 +10,6 @@ import {
 import { processLinks } from './links.js';
 import { processMentions } from './mentions.js';
 import { processPlayerHistory } from './playerHistory.js';
-import { processReplies } from './replies.js';
 import { chatScroller } from './scrollState.js';
 import { pingSystem } from '../pingSystem.js';
 import {
@@ -24,7 +23,6 @@ const processors = [];
 export function registerChatProcessor(processor) {
     if (typeof processor === 'function' && !processors.includes(processor)) processors.push(processor);
 }
-registerChatProcessor(processReplies);
 registerChatProcessor(processMarkdown);
 registerChatProcessor(processLinks);
 registerChatProcessor(processEmotes);

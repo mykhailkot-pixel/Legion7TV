@@ -291,30 +291,6 @@
 .cy-chat-l li b[data-nick]{-webkit-user-select:text!important;user-select:text!important}
 
 .cy-chat-l a.t7-link{color:#8edbff;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
-.cy-chat-l li.t7-reply-action-row{padding-right:52px}
-.cy-chat-l .t7-reply-quote{
-    display:flex;align-items:center;gap:4px;box-sizing:border-box;width:100%;min-width:0;margin:0 0 2px;padding:2px 5px;
-    overflow:hidden;border:0;border-left:2px solid rgba(255,201,77,.65);border-radius:3px;background:rgba(255,201,77,.08);
-    color:rgba(255,255,255,.72);text-align:left;font:10px/1.2 system-ui,sans-serif;cursor:pointer
-}
-.cy-chat-l .t7-reply-quote:hover:not(:disabled),.cy-chat-l .t7-reply-quote:focus-visible{
-    background:rgba(255,201,77,.16);color:#fff;outline:1px solid rgba(255,201,77,.45)
-}
-.cy-chat-l .t7-reply-quote:disabled{cursor:default;opacity:.7}
-.cy-chat-l .t7-reply-quote-icon{flex:none;color:#ffd36a;font-size:12px}
-.cy-chat-l .t7-reply-quote-name{flex:none;max-width:16ch;overflow:hidden;color:#ffd36a;font-weight:700;text-overflow:ellipsis;white-space:nowrap}
-.cy-chat-l .t7-reply-quote-preview{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cy-chat-l .t7-chat-reply{
-    position:absolute;right:26px;top:2px;display:grid;place-items:center;width:24px;height:22px;padding:0;
-    border:0;border-radius:6px;background:rgba(35,29,48,.94);color:rgba(255,255,255,.7);
-    font:16px/1 system-ui,sans-serif;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .12s ease,background .12s ease
-}
-.cy-chat-l li:hover>.t7-chat-reply,.cy-chat-l li:focus-within>.t7-chat-reply{opacity:1;pointer-events:auto}
-.cy-chat-l .t7-chat-reply:hover,.cy-chat-l .t7-chat-reply:focus-visible{
-    background:rgba(255,201,77,.2);color:#fff;outline:2px solid rgba(255,201,77,.45);outline-offset:1px
-}
-.cy-chat-l li.t7-reply-target-highlight{outline:2px solid rgba(255,201,77,.75);outline-offset:-2px}
-@media (hover:none){.cy-chat-l .t7-chat-reply{opacity:1;pointer-events:auto}}
 .cy-chat-tabs>button[data-tab][hidden]{display:none!important}
 .cy-chat-tabs>button[data-tab].t7-pref-hidden{display:none!important}
 .t7-link-warning{flex-basis:100%;color:#ffb4a8;font:12px/1.35 system-ui,sans-serif}

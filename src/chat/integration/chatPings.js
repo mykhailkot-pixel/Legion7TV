@@ -2,21 +2,19 @@ import { pingSystem } from '../pingSystem.js';
 import { chatScroller } from '../messages/scrollState.js';
 import { copyOriginalMessageSource, unmarkMessageProcessed } from '../messages/messageState.js';
 import { store } from '../../core/store.js';
-import { SEL, STORE } from '../../core/consts.js';
+import { EV, on, SEL, STORE } from '../../core/consts.js';
 import { cls } from '../../core/ui.js';
 import { savePlayerMessage } from '../messages/playerHistory.js';
+import { getChatHistoryLimit, setChatHistoryLimit } from './chatHistory.js';
 
 const PING_ONLY_KEY = STORE.pingOnly;
 const PING_ARCHIVE_KEY = STORE.pingArchive;
 const DELETED_MESSAGES_KEY = STORE.deletedMessagesEnabled;
-const DELETED_MESSAGES_LIMIT_KEY = STORE.deletedMessagesLimit;
 const PING_ARCHIVE_LIMIT = 500;
 const PING_PAGE_SIZE = 50;
 const ROOM_IDS = ['city', 'mine', 'one'];
 const CHAT_TABS = new Set(['g', 'tr', 'mn', 'dm', 'gl', 'lg']);
 const NOTIFIED_LIMIT = 1000;
-const DEFAULT_DELETED_LIMIT = 500;
-const MAX_DELETED_LIMIT = 5000;
 const PAGE_STARTED_AT = performance.timeOrigin || Date.now();
 const STARTUP_NOTIFICATION_GRACE_MS = 3000;
 const CHAT_BOX_ATTRIBUTE = 'data-t7-box';
@@ -34,26 +32,17 @@ export function areDeletedMessagesEnabled() {
     return store.get(DELETED_MESSAGES_KEY) !== false;
 }
 
-function normalizeDeletedMessagesLimit(value) {
-    const parsed = Number(value);
-    return Number.isFinite(parsed)
-        ? Math.max(1, Math.min(MAX_DELETED_LIMIT, Math.round(parsed)))
-        : DEFAULT_DELETED_LIMIT;
-}
-
 export function getDeletedMessagesLimit() {
-    const value = Number(store.get(DELETED_MESSAGES_LIMIT_KEY));
-    return Number.isInteger(value)
-        ? Math.max(1, Math.min(MAX_DELETED_LIMIT, value))
-        : DEFAULT_DELETED_LIMIT;
+    return getChatHistoryLimit();
 }
 
 export function setDeletedMessagesLimit(value) {
-    const limit = normalizeDeletedMessagesLimit(value);
-    store.set(DELETED_MESSAGES_LIMIT_KEY, limit);
-    for (const state of states) trimDeletedMessages(state, limit);
-    return limit;
+    return setChatHistoryLimit(value);
 }
+
+on(EV.chatHistoryLimitChange, (event) => {
+    for (const state of states) trimDeletedMessages(state, event.detail);
+});
 
 export function setDeletedMessagesEnabled(enabled) {
     const active = !!enabled;

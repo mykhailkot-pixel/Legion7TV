@@ -15,15 +15,13 @@ import { arePastesEnabled, setPastesEnabled } from '../chat/ui/pastes.js';
 import { clearResolvedImageCache } from '../chat/ui/imageProviders.js';
 import { isImagePickerButtonEnabled, setImagePickerButtonEnabled } from '../chat/ui/imagePicker.js';
 import { getOverlayRoot } from '../core/ui.js';
-import { trimSavedReplyTargets } from '../chat/messages/replies.js';
 import { isEmoteTooltipEnabled, setEmoteTooltipEnabled } from '../emotes/tooltip.js';
 import {
     areDeletedMessagesEnabled,
-    getDeletedMessagesLimit,
-    setDeletedMessagesEnabled,
-    setDeletedMessagesLimit
+    setDeletedMessagesEnabled
 } from '../chat/integration/chatPings.js';
 import { isPlayerHistoryButtonEnabled, setPlayerHistoryButtonEnabled } from '../chat/messages/playerHistory.js';
+import { getChatHistoryLimit, setChatHistoryLimit } from '../chat/integration/chatHistory.js';
 
 // смещение окна настроек от центра экрана
 let SOFF = (() => {
@@ -208,12 +206,16 @@ function buildSettingsMarkup(root) {
             settingsToggle('t7-image-picker-enabled', 'Показывать кнопку imgBB в чате'),
             settingsToggle('t7-player-history-button-enabled', 'Показывать кнопку истории сообщений')
         ),
-        settingsSection('Удалённые сообщения',
+        settingsSection('Хранение сообщений',
             settingsToggle('t7-deleted-messages-enabled', 'Сохранять удалённые сообщения в чате'),
             settingsField('Количество сохраняемых сообщений', createNode('input', {
-                className: 't7-deleted-messages-limit', type: 'number', min: '1', max: '5000',
+                className: 't7-chat-history-limit', type: 'number', min: '1', max: '5000',
                 step: '1', inputmode: 'numeric'
-            }))
+            })),
+            createNode('div', { className: 't7-note', role: 'note' }, [
+                createNode('span', { className: 't7-note-icon', 'aria-hidden': 'true' }, ['!']),
+                createNode('span', {}, ['История разделена по стримеру и вкладке; сообщения, на которые вы ответили, остаются до перезагрузки страницы.'])
+            ])
         ),
         settingsSection('Ссылки',
             settingsToggle('t7-link-encoding', 'Обрабатывать ссылки при отправке и отображении'),
@@ -422,11 +424,10 @@ export function openSettings() {
     deletedMessagesEnabled.checked = areDeletedMessagesEnabled();
     deletedMessagesEnabled.addEventListener('change', () =>
         setDeletedMessagesEnabled(deletedMessagesEnabled.checked));
-    const deletedMessagesLimit = el.querySelector('.t7-deleted-messages-limit');
-    deletedMessagesLimit.value = String(getDeletedMessagesLimit());
-    deletedMessagesLimit.addEventListener('change', () => {
-        deletedMessagesLimit.value = String(setDeletedMessagesLimit(deletedMessagesLimit.value));
-        trimSavedReplyTargets();
+    const chatHistoryLimit = el.querySelector('.t7-chat-history-limit');
+    chatHistoryLimit.value = String(getChatHistoryLimit());
+    chatHistoryLimit.addEventListener('change', () => {
+        chatHistoryLimit.value = String(setChatHistoryLimit(chatHistoryLimit.value));
     });
 
     const nickInp = el.querySelector('.t7-nick');
