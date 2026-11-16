@@ -18,6 +18,7 @@ let gridMode = 'all';
 let gridSourceNames = [];
 let gridNames = [];
 let gridFavorites = new Set();
+let gridItemCache = new Map();
 let gridFrame = 0;
 let renderedWindow = '';
 
@@ -142,39 +143,46 @@ function renderVisibleGrid(force = false) {
     const key = `${columns}:${window.startIndex}:${window.endIndex}:${gridNames.length}`;
     if (!force && key === renderedWindow) return;
     renderedWindow = key;
-    if (st.io) st.io.disconnect();
-
     w.style.paddingTop = `${window.top}px`;
     w.style.paddingBottom = `${window.bottom}px`;
     const fragment = document.createDocumentFragment();
-    for (const n of gridNames.slice(window.startIndex, window.endIndex)) {
-        const item = document.createElement('div');
-        item.className = 't7-item';
-        item.dataset.name = n;
-        const b = document.createElement('button');
-        b.type = 'button';
-        b.className = 't7-it';
-        b.dataset.name = n;
-        setEmoteTooltipData(b, n, emoteFor(n));
-        b.setAttribute('aria-label', n);
-        const im = document.createElement('img');
-        im.alt = '';
-        im.decoding = 'async';
-        b.appendChild(im);
-        const favorite = document.createElement('button');
-        const isFavorite = gridFavorites.has(n);
-        favorite.type = 'button';
-        favorite.className = 't7-fav';
-        favorite.dataset.name = n;
-        favorite.textContent = isFavorite ? '★' : '☆';
-        favorite.title = isFavorite ? 'Убрать из избранного' : 'Добавить в избранное';
-        favorite.setAttribute('aria-label', favorite.title + ': ' + n);
-        favorite.setAttribute('aria-pressed', String(isFavorite));
-        item.append(b, favorite);
+    const visibleNames = gridNames.slice(window.startIndex, window.endIndex);
+    const visibleSet = new Set(visibleNames);
+    for (const name of gridItemCache.keys()) {
+        if (!visibleSet.has(name)) gridItemCache.delete(name);
+    }
+    for (const n of visibleNames) {
+        let item = gridItemCache.get(n);
+        if (!item) {
+            item = document.createElement('div');
+            item.className = 't7-item';
+            item.dataset.name = n;
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 't7-it';
+            b.dataset.name = n;
+            setEmoteTooltipData(b, n, emoteFor(n));
+            b.setAttribute('aria-label', n);
+            const im = document.createElement('img');
+            im.alt = '';
+            im.decoding = 'async';
+            b.appendChild(im);
+            const favorite = document.createElement('button');
+            const isFavorite = gridFavorites.has(n);
+            favorite.type = 'button';
+            favorite.className = 't7-fav';
+            favorite.dataset.name = n;
+            favorite.textContent = isFavorite ? '★' : '☆';
+            favorite.title = isFavorite ? 'Убрать из избранного' : 'Добавить в избранное';
+            favorite.setAttribute('aria-label', favorite.title + ': ' + n);
+            favorite.setAttribute('aria-pressed', String(isFavorite));
+            item.append(b, favorite);
+            gridItemCache.set(n, item);
+        }
         fragment.appendChild(item);
     }
     w.replaceChildren(fragment);
-    if (st.io) w.querySelectorAll('.t7-it').forEach((button) => st.io.observe(button));
+    if (st.io) w.querySelectorAll('.t7-it:not([data-l])').forEach((button) => st.io.observe(button));
 }
 
 function scheduleVisibleGrid() {
@@ -188,6 +196,8 @@ function scheduleVisibleGrid() {
 function filterGrid(resetScroll = true) {
     if (!st.pop) return;
     const gr = st.pop.querySelector('.t7-gr');
+    if (st.io) st.io.disconnect();
+    gridItemCache = new Map();
     if (resetScroll) gr.scrollTop = 0;
     const q = st.pop.querySelector('.t7-q').value.trim().toLowerCase();
     gridNames = q ? gridSourceNames.filter((name) => name.toLowerCase().includes(q)) : gridSourceNames;
@@ -199,6 +209,7 @@ export function renderGrid() {
     if (!st.pop) return;
     const gr = st.pop.querySelector('.t7-gr');
     if (st.io) st.io.disconnect();
+    gridItemCache = new Map();
     renderedWindow = '';
     gr.textContent = '';
     const allNames = Object.keys(EM).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
@@ -297,6 +308,7 @@ export function closePop() {
     if (gridFrame) cancelAnimationFrame(gridFrame);
     gridFrame = 0;
     renderedWindow = '';
+    gridItemCache = new Map();
     if (st.io) st.io.disconnect();
     st.io = null;
     document.removeEventListener('keydown', onKey, true);
