@@ -44,6 +44,7 @@ function getState(list) {
             mutationObserver: null,
             key: null,
             userScrollVersion: 0,
+            handledUserScrollVersion: 0,
             lastScrollTop: list.scrollTop
         };
         states.set(list, state);
@@ -186,7 +187,12 @@ function register(list, key, restore) {
 function updateFromScroll(list) {
     const state = getState(list);
     if (!rowsMatchState(list, state)) return;
-    state.atEnd = isAtEnd(list);
+    if (state.userScrollVersion !== state.handledUserScrollVersion) {
+        state.atEnd = isAtEnd(list);
+        state.handledUserScrollVersion = state.userScrollVersion;
+    } else if (state.atEnd) {
+        scrollToEnd(list);
+    }
     commit(list, state);
 }
 

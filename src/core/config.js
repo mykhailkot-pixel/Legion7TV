@@ -7,7 +7,7 @@ export const SIZES = {
     xxl: { h: '3.4em', n: 4, p: 84, label: 'XXL' }
 };
 
-export const EMOTE_LINE_SPACING = 1.1;
+export const EMOTE_LINE_SPACING = 1.25;
 
 export const HARD_BANNED_WORDS = [
     // Гомофобные оскорбления
@@ -20,7 +20,7 @@ export const HARD_BANNED_WORDS = [
     'хач', 'чурбан', 'жид',
     'узкоглазый', 'чуркобес',
     // Сексуальные унижения
-    'куколд', 'рогоносец', 'импотент', 'шлюха',
+    'куколд', 'импотент', 'шлюха',
     // Жёсткие личные оскорбления
     'хуесос', 'дегенерат', 'даун'
 ];

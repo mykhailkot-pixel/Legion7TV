@@ -1,5 +1,7 @@
 /* ========== Эмоуты в сообщениях ========== */
 .t7-native-emote-hidden{display:none!important}
+.t7-native-emote-frame{display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;line-height:1}
+.cy-chat-l img.cy-emo,.cy-chat-dmx img.cy-emo,.dm-l img.cy-emo{transform:translateZ(0)}
 .t7-spoiler{padding:0 3px;border-radius:4px;background:#c7c9ce;color:transparent!important;cursor:pointer;transition:background-color .12s ease,color .12s ease}
 .t7-spoiler:not(.t7-spoiler-revealed) img{visibility:hidden}
 .t7-spoiler:not(.t7-spoiler-revealed) *{color:transparent!important;text-shadow:none!important}

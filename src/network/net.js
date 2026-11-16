@@ -83,12 +83,8 @@ export const getText = async (url) => (await requestAllowed(url)).responseText;
 
 export const getBuf = async (url) => {
     const r = await requestAllowed(url, 'blob');
-    const type = (r.response && r.response.type) || 'image/webp';
-    const buf = await new Promise((res, rej) => {
-        const fr = new FileReader();
-        fr.onload = () => res(fr.result);
-        fr.onerror = rej;
-        fr.readAsArrayBuffer(r.response);
-    });
-    return new Blob([buf], { type });
+    const blob = r.response;
+    if (!(blob instanceof Blob)) throw new Error('image response is not a Blob');
+    const type = blob.type || 'image/webp';
+    return blob.type === type ? blob : blob.slice(0, blob.size, type);
 };

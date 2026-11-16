@@ -48,6 +48,12 @@ function replaceCatalog(channel, entries, base, persist = true) {
 
     catalogChannel = channel;
     if (persist) store.set(catalogKey(channel), { base: imageBase, entries: savedEntries });
+    const currentNames = Object.keys(EM);
+    const nextNames = Object.keys(map);
+    if (currentNames.length === nextNames.length
+        && nextNames.every((name) => EM[name]
+            && EM[name].id === map[name].id
+            && EM[name].siteBase === map[name].siteBase)) return;
     for (const name of Object.keys(EM)) delete EM[name];
     Object.assign(EM, map);
     setStatus(Object.keys(map).length

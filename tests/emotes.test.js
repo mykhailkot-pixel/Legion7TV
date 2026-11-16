@@ -43,6 +43,18 @@ describe('site-native emote catalog', () => {
         expect(st.hooks.emotes).toHaveBeenCalledOnce();
     });
 
+    it('does not rebuild the emote grid when the site republishes an unchanged catalog', () => {
+        const kappaId = '0123456789abcdefghij';
+        const pogId = 'abcdefghij0123456789';
+        sendCatalog(location.pathname, [['Kappa', kappaId]]);
+        sendCatalog(location.pathname, [['Kappa', kappaId]]);
+        expect(st.hooks.emotes).toHaveBeenCalledOnce();
+
+        sendCatalog(location.pathname, [['Kappa', kappaId], ['Pog', pogId]]);
+        expect(st.hooks.emotes).toHaveBeenCalledTimes(2);
+        expect(Object.keys(EM)).toEqual(['Kappa', 'Pog']);
+    });
+
     it('loads popup images through the extension-backed cache', async () => {
         const id = '0123456789abcdefghij';
         sendCatalog(location.pathname, [['Pog', id]]);

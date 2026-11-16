@@ -63,9 +63,17 @@ describe('network helpers', () => {
                 contentType: 'image/png'
             }) }
         };
-        const blob = await getBuf('https://cdn.7tv.app/image');
-        expect(blob.type).toBe('image/png');
-        expect(await blob.text()).toBe('image-bytes');
+        const originalFileReader = globalThis.FileReader;
+        globalThis.FileReader = class {
+            constructor() { throw new Error('getBuf should not copy through FileReader'); }
+        };
+        try {
+            const blob = await getBuf('https://cdn.7tv.app/image');
+            expect(blob.type).toBe('image/png');
+            expect(blob.size).toBe('image-bytes'.length);
+        } finally {
+            globalThis.FileReader = originalFileReader;
+        }
     });
 
     it('falls back to the original allowed URL when the proxy fails', async () => {

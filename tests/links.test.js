@@ -108,6 +108,30 @@ describe('chat links', () => {
         form.remove();
     });
 
+    it('encodes outgoing links in guild chat', () => {
+        const chat = document.createElement('div');
+        chat.className = 'cy-chat';
+        const tabs = document.createElement('div');
+        const guildTab = document.createElement('button');
+        guildTab.dataset.tab = 'gl';
+        guildTab.setAttribute('aria-selected', 'true');
+        tabs.append(guildTab);
+        const form = document.createElement('form');
+        const input = document.createElement('input');
+        input.value = 'https://example.com/a';
+        form.append(input);
+        chat.append(tabs, form);
+        document.body.append(chat);
+        setLinkEncodingEnabled(true);
+        const dispose = bindOutgoingLinkEncoding(form, input);
+
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+
+        expect(input.value).toBe('[ref]{example_com/a}');
+        dispose();
+        chat.remove();
+    });
+
     it('binds only once per form and returns a safe disposer', () => {
         const form = document.createElement('form');
         const input = document.createElement('input');

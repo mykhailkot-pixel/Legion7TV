@@ -107,10 +107,11 @@ function getCachedImage(urls) {
     });
 }
 
-async function putCachedImage(url, blob) {
+async function putCachedImage(url, blob, isCurrent) {
     const runtime = extensionRuntime();
     if (!runtime || blob.size > MAX_IMAGE_BYTES) return;
     const body = await encodeBase64(blob);
+    if (!isCurrent()) return;
     const result = await runtime.sendMessage({
         type: 'IMG_PUT',
         url,
@@ -129,6 +130,7 @@ export function fetchImg(url, hi, reusableUrls = []) {
     const epoch = imgCacheEpoch;
     const p = (async () => {
         let blob;
+        let needsCacheWrite = false;
         try {
             const cacheUrls = [...new Set([url, ...reusableUrls])].slice(0, 8);
             blob = await getCachedImage(cacheUrls);
@@ -137,14 +139,17 @@ export function fetchImg(url, hi, reusableUrls = []) {
         }
         if (!blob) {
             blob = await enqueue(() => getBuf(url), hi);
-            try {
-                await putCachedImage(url, blob);
-            } catch (error) {
-                console.warn('[Images] image cache write failed', error);
-            }
+            needsCacheWrite = true;
         }
         const objectUrl = URL.createObjectURL(blob);
-        if (epoch === imgCacheEpoch) resolvedImgCache.set(url, objectUrl);
+        if (epoch === imgCacheEpoch) {
+            resolvedImgCache.set(url, objectUrl);
+            if (needsCacheWrite) {
+                void putCachedImage(url, blob, () => epoch === imgCacheEpoch).catch((error) => {
+                    console.warn('[Images] image cache write failed', error);
+                });
+            }
+        }
         return objectUrl;
     })();
     p.catch(() => {

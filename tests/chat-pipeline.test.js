@@ -70,25 +70,44 @@ describe('chat message processing pipeline', () => {
         expect(content.textContent).toBe('hello!');
     });
 
-    it('adds 20 percent line spacing to rows with native emotes and restores it when hidden', () => {
+    it('adds spacing only to the line containing an emote', () => {
         const list = document.createElement('ul');
         list.className = 'cy-chat-l';
         const row = document.createElement('li');
         row.style.fontSize = '10px';
         row.style.lineHeight = '20px';
+        const plainRow = document.createElement('li');
+        plainRow.style.fontSize = '10px';
+        plainRow.style.lineHeight = '20px';
         const image = document.createElement('img');
         image.className = 'cy-emo';
         row.appendChild(image);
-        list.appendChild(row);
+        list.append(row, plainRow);
         document.body.appendChild(list);
 
         S.on = true;
+        S.size = 'm';
         refreshEmotes();
-        expect(row.style.lineHeight).toBe('2.4');
+        const frame = row.querySelector('.ext-native-emote-frame');
+        expect(row.style.lineHeight).toBe('20px');
+        expect(frame.style.height).toBe('2em');
+        expect(frame.style.display).toBe('inline-flex');
+        expect(plainRow.style.lineHeight).toBe('20px');
+        expect(image.style.height).not.toBe('');
+        expect(image.style.display).toBe('block');
+        expect(image.style.height).toBe('100%');
+
+        S.size = 'xxl';
+        refreshEmotes();
+        expect(frame.style.height).toBe('4.25em');
 
         S.on = false;
         refreshEmotes();
         expect(row.style.lineHeight).toBe('20px');
+        expect(frame.style.display).toBe('none');
+        expect(plainRow.style.lineHeight).toBe('20px');
+        expect(image.classList.contains('ext-native-emote-hidden')).toBe(true);
         S.on = true;
+        S.size = 'm';
     });
 });

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureExtensionStore, store } from '../src/core/store.js';
 import { EM } from '../src/core/state.js';
-import { getVirtualGridWindow, recordRecentFromMessage } from '../src/emotes/popup.js';
+import { getVirtualGridWindow, reconcileGridItems, recordRecentFromMessage } from '../src/emotes/popup.js';
 
 describe('emote popup recent history', () => {
     beforeEach(() => {
@@ -34,5 +34,22 @@ describe('emote popup recent history', () => {
         expect(window.endIndex - window.startIndex).toBeLessThan(250);
         expect(window.top).toBe(4032);
         expect(window.bottom).toBe(37212);
+    });
+
+    it('keeps overlapping emote items attached when the virtual window advances', () => {
+        const grid = document.createElement('div');
+        const [leaving, retained, added] = Array.from({ length: 3 }, () => document.createElement('div'));
+        const nextRetained = document.createElement('div');
+        grid.append(leaving, retained, nextRetained);
+        const observer = new MutationObserver(() => {});
+        observer.observe(grid, { childList: true });
+
+        reconcileGridItems(grid, [retained, nextRetained, added]);
+
+        const removedNodes = observer.takeRecords().flatMap((record) => [...record.removedNodes]);
+        expect([...grid.children]).toEqual([retained, nextRetained, added]);
+        expect(removedNodes).toContain(leaving);
+        expect(removedNodes).not.toContain(retained);
+        expect(removedNodes).not.toContain(nextRetained);
     });
 });

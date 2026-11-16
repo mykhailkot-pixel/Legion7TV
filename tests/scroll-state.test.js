@@ -36,4 +36,23 @@ describe('chat scroll state', () => {
         chatScroller.scrollToEnd(list);
         expect(list.scrollTop).toBe(400);
     });
+
+    it('keeps the end after programmatic scrolling but follows user scrolling', () => {
+        chatScroller.start();
+        const list = document.createElement('ul');
+        list.className = 'cy-chat-l';
+        setScrollMetrics(list, { top: 400, height: 500, viewport: 100 });
+        document.body.appendChild(list);
+        chatScroller.scrollToEnd(list);
+
+        list.scrollTop = 300;
+        list.dispatchEvent(new Event('scroll'));
+        expect(list.scrollTop).toBe(400);
+
+        list.dispatchEvent(new WheelEvent('wheel', { bubbles: true }));
+        list.scrollTop = 250;
+        list.dispatchEvent(new Event('scroll'));
+        expect(list.scrollTop).toBe(250);
+        list.remove();
+    });
 });

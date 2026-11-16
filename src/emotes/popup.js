@@ -115,6 +115,18 @@ export function getVirtualGridWindow({ count, columns, rowHeight, scrollTop, vie
     };
 }
 
+export function reconcileGridItems(container, items) {
+    const wanted = new Set(items);
+    for (const child of [...container.children]) {
+        if (!wanted.has(child)) child.remove();
+    }
+    for (let index = 0; index < items.length; index++) {
+        const item = items[index];
+        const current = container.children[index];
+        if (current !== item) container.insertBefore(item, current || null);
+    }
+}
+
 function renderVisibleGrid(force = false) {
     if (!st.pop) return;
     const gr = st.pop.querySelector('.t7-gr');
@@ -145,9 +157,9 @@ function renderVisibleGrid(force = false) {
     renderedWindow = key;
     w.style.paddingTop = `${window.top}px`;
     w.style.paddingBottom = `${window.bottom}px`;
-    const fragment = document.createDocumentFragment();
     const visibleNames = gridNames.slice(window.startIndex, window.endIndex);
     const visibleSet = new Set(visibleNames);
+    const visibleItems = [];
     for (const name of gridItemCache.keys()) {
         if (!visibleSet.has(name)) gridItemCache.delete(name);
     }
@@ -179,9 +191,9 @@ function renderVisibleGrid(force = false) {
             item.append(b, favorite);
             gridItemCache.set(n, item);
         }
-        fragment.appendChild(item);
+        visibleItems.push(item);
     }
-    w.replaceChildren(fragment);
+    reconcileGridItems(w, visibleItems);
     if (st.io) w.querySelectorAll('.t7-it:not([data-l])').forEach((button) => st.io.observe(button));
 }
 

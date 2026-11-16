@@ -16,7 +16,6 @@ import {
 } from './messageState.js';
 
 const processors = [];
-const emoteRowLineHeights = new WeakMap();
 export function registerChatProcessor(processor) {
     if (typeof processor === 'function' && !processors.includes(processor)) processors.push(processor);
 }
@@ -110,34 +109,22 @@ export function refreshEmotes() {
 }
 
 function applyNativeEmote(image) {
-    image.classList.toggle(cls('native-emote-hidden'), !S.on);
-    image.style.height = SIZES[S.size].h;
-    image.style.width = 'auto';
-    const row = image.closest('li');
-    if (row) {
-        let lineHeight = emoteRowLineHeights.get(row);
-        if (!S.on) {
-            if (lineHeight) {
-                row.style.lineHeight = lineHeight.inline;
-                emoteRowLineHeights.delete(row);
-            }
-        } else {
-            const fontSize = parseFloat(getComputedStyle(row).fontSize);
-            if (!lineHeight) {
-                const computedLineHeight = parseFloat(getComputedStyle(row).lineHeight);
-                lineHeight = {
-                    inline: row.style.lineHeight,
-                    siteRatio: Number.isFinite(computedLineHeight) && fontSize > 0
-                        ? computedLineHeight / fontSize : 1.2
-                };
-                emoteRowLineHeights.set(row, lineHeight);
-            }
-            const emoteHeight = parseFloat(SIZES[S.size].h);
-            const baseRatio = Math.max(lineHeight.siteRatio, Number.isFinite(emoteHeight) ? emoteHeight : 0);
-            if (Number.isFinite(fontSize) && fontSize > 0)
-                row.style.lineHeight = String(baseRatio * EMOTE_LINE_SPACING);
-        }
+    const frameClass = cls('native-emote-frame');
+    let frame = image.parentElement;
+    if (!frame || !frame.classList.contains(frameClass)) {
+        frame = document.createElement('span');
+        frame.className = frameClass;
+        image.replaceWith(frame);
+        frame.appendChild(image);
     }
+
+    image.classList.toggle(cls('native-emote-hidden'), !S.on);
+    frame.style.display = S.on ? 'inline-flex' : 'none';
+    frame.style.height = `${parseFloat(SIZES[S.size].h) * EMOTE_LINE_SPACING}em`;
+    image.style.display = 'block';
+    image.style.height = '100%';
+    image.style.verticalAlign = '';
+    image.style.width = 'auto';
     if (image.alt) setEmoteTooltipData(image, image.alt, EM[image.alt]);
 }
 

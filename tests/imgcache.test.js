@@ -8,7 +8,11 @@ import { clearImgs, fetchImg, getLoadedImgUrl } from '../src/emotes/imgcache.js'
 describe('extension-backed emote image cache', () => {
     beforeEach(() => {
         mocks.getBuf.mockReset();
-        mocks.getBuf.mockResolvedValue(new Blob(['img'], { type: 'image/webp' }));
+        const blob = new Blob(['img'], { type: 'image/webp' });
+        Object.defineProperty(blob, 'arrayBuffer', {
+            value: () => Promise.resolve(new Uint8Array([1, 2, 3]).buffer)
+        });
+        mocks.getBuf.mockResolvedValue(blob);
         globalThis.chrome = {
             runtime: {
                 sendMessage: vi.fn(async (message) => {
@@ -31,9 +35,36 @@ describe('extension-backed emote image cache', () => {
         await expect(Promise.all([first, second])).resolves.toEqual(['blob:unit-test', 'blob:unit-test']);
         expect(mocks.getBuf).toHaveBeenCalledOnce();
         expect(getLoadedImgUrl('https://cdn.7tv.app/image.webp')).toBe('blob:unit-test');
-        expect(globalThis.chrome.runtime.sendMessage).toHaveBeenCalledWith(
-            expect.objectContaining({ type: 'IMG_PUT', url: 'https://cdn.7tv.app/image.webp' })
-        );
+        await vi.waitFor(() => {
+            expect(globalThis.chrome.runtime.sendMessage).toHaveBeenCalledWith(
+                expect.objectContaining({ type: 'IMG_PUT', url: 'https://cdn.7tv.app/image.webp' })
+            );
+        });
+    });
+
+    it('returns a downloaded image without waiting for the persistent cache write', async () => {
+        let finishWrite;
+        const sendMessage = vi.fn((message) => {
+            if (message.type === 'IMG_GET_BATCH')
+                return Promise.resolve({ ok: true, results: [{ found: false }] });
+            return new Promise((resolve) => { finishWrite = resolve; });
+        });
+        globalThis.chrome.runtime.sendMessage = sendMessage;
+        const blob = new Blob(['img'], { type: 'image/webp' });
+        Object.defineProperty(blob, 'arrayBuffer', {
+            value: () => Promise.resolve(new Uint8Array([1, 2, 3]).buffer)
+        });
+        mocks.getBuf.mockResolvedValue(blob);
+
+        await expect(fetchImg('https://cdn.7tv.app/uncached.webp', true))
+            .resolves.toBe('blob:unit-test');
+        await vi.waitFor(() => {
+            expect(sendMessage).toHaveBeenCalledWith(
+                expect.objectContaining({ type: 'IMG_PUT', url: 'https://cdn.7tv.app/uncached.webp' })
+            );
+        });
+
+        finishWrite({ ok: true });
     });
 
     it('clears local and extension caches', async () => {

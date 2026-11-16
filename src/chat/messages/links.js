@@ -214,7 +214,7 @@ export function processLinks({ content, room }) {
 function isExcludedChatSend(form, input) {
     const activeTab = form.closest('.cy-chat')?.querySelector('[data-tab][aria-selected="true"]');
     const tab = activeTab?.dataset.tab;
-    return tab === 'gl' || tab === 'lg' || (tab === 'g' && input.value.trim().startsWith('/'));
+    return tab === 'lg' || (tab === 'g' && input.value.trim().startsWith('/'));
 }
 
 function prepareOutgoingMessage(form, input) {
