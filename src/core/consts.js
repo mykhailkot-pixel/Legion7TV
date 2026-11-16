@@ -6,7 +6,7 @@ export const STORE = Object.freeze({
     settingsPosition: 't7spos',
     emotesEnabled: 't7on',
     emoteTooltipEnabled: 't7EmoteTooltipEnabled',
-    emoteCachePrefix: 't7c5:',
+    siteEmoteCatalogPrefix: 't7siteEmotes:',
     favorites: 't7favorites',
     recentEmotes: 't7recent',
     recentEmoteLimit: 't7recentLimit',

@@ -1,16 +1,13 @@
-import { SIZES } from '../../core/config.js';
+import { EMOTE_LINE_SPACING, SIZES } from '../../core/config.js';
 import { SEL } from '../../core/consts.js';
-import { S, st } from '../../core/state.js';
+import { EM, S, st } from '../../core/state.js';
 import { cls, cssVar } from '../../core/ui.js';
 import { processMarkdown } from './markdown.js';
-import {
-    preserveEmoteImages,
-    processEmotes
-} from './chatEmotes.js';
+import { extractNativeEmotes, restoreNativeEmotes } from './chatEmotes.js';
 import { processLinks } from './links.js';
 import { processMentions } from './mentions.js';
 import { chatScroller } from './scrollState.js';
-import { pingSystem } from '../pingSystem.js';
+import { setEmoteTooltipData } from '../../emotes/tooltip.js';
 import {
     getOriginalMessageSource,
     isMessageProcessed,
@@ -19,12 +16,12 @@ import {
 } from './messageState.js';
 
 const processors = [];
+const emoteRowLineHeights = new WeakMap();
 export function registerChatProcessor(processor) {
     if (typeof processor === 'function' && !processors.includes(processor)) processors.push(processor);
 }
 registerChatProcessor(processMarkdown);
 registerChatProcessor(processLinks);
-registerChatProcessor(processEmotes);
 registerChatProcessor(processMentions);
 
 /* ---------- сохраняем положение ленты при обновлении сообщений ---------- */
@@ -48,17 +45,21 @@ function processMessage(message, room) {
         if (!content) return;
     }
 
+    const nativeEmotes = kind === 'message' ? extractNativeEmotes(content) : null;
     const source = kind === 'message'
-        ? getOriginalMessageSource(content, content.textContent)
+        ? getOriginalMessageSource(content, nativeEmotes.source)
         : content.textContent;
     if (kind === 'message') {
-        preserveEmoteImages(message);
         content.replaceChildren(document.createTextNode(source));
     }
 
     markMessageProcessed(message);
     const context = { message, content, room, kind, source };
     for (const processor of processors) processor(context);
+    if (kind === 'message') {
+        restoreNativeEmotes(content, nativeEmotes.images);
+        nativeEmotes.images.forEach(applyNativeEmote);
+    }
 }
 
 export function scan() {
@@ -104,19 +105,44 @@ export function rescanAll() {
 }
 
 export function refreshEmotes() {
-    document.querySelectorAll(`${SEL.chatRows}, ${SEL.dmRows}`).forEach((message) => {
-        if (!isMessageProcessed(message) || message.matches(
-            `${SEL.emptyMessage}, ${SEL.systemMessage}, ${SEL.eventMessage}`
-        )) return;
-        const spans = message.querySelectorAll(SEL.messageContent);
-        const content = spans[spans.length - 1];
-        if (content) processEmotes({ content, kind: 'message' });
-    });
+    document.querySelectorAll(`${SEL.chatRows} img.cy-emo, ${SEL.dmRows} img.cy-emo`)
+        .forEach(applyNativeEmote);
+}
+
+function applyNativeEmote(image) {
+    image.classList.toggle(cls('native-emote-hidden'), !S.on);
+    image.style.height = SIZES[S.size].h;
+    image.style.width = 'auto';
+    const row = image.closest('li');
+    if (row) {
+        let lineHeight = emoteRowLineHeights.get(row);
+        if (!S.on) {
+            if (lineHeight) {
+                row.style.lineHeight = lineHeight.inline;
+                emoteRowLineHeights.delete(row);
+            }
+        } else {
+            const fontSize = parseFloat(getComputedStyle(row).fontSize);
+            if (!lineHeight) {
+                const computedLineHeight = parseFloat(getComputedStyle(row).lineHeight);
+                lineHeight = {
+                    inline: row.style.lineHeight,
+                    siteRatio: Number.isFinite(computedLineHeight) && fontSize > 0
+                        ? computedLineHeight / fontSize : 1.2
+                };
+                emoteRowLineHeights.set(row, lineHeight);
+            }
+            const emoteHeight = parseFloat(SIZES[S.size].h);
+            const baseRatio = Math.max(lineHeight.siteRatio, Number.isFinite(emoteHeight) ? emoteHeight : 0);
+            if (Number.isFinite(fontSize) && fontSize > 0)
+                row.style.lineHeight = String(baseRatio * EMOTE_LINE_SPACING);
+        }
+    }
+    if (image.alt) setEmoteTooltipData(image, image.alt, EM[image.alt]);
 }
 
 export const applySize = () => {
-    document.querySelectorAll(`.${cls('w')}`).forEach((wrapper) => {
-        wrapper.style.setProperty(cssVar('h'), SIZES[S.size].h);
-    });
+    document.querySelectorAll(`${SEL.chatRows} img.cy-emo, ${SEL.dmRows} img.cy-emo`)
+        .forEach(applyNativeEmote);
     if (st.pop) st.pop.style.setProperty(cssVar('tile'), SIZES[S.size].p + 'px');
 };

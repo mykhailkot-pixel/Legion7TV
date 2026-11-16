@@ -1,8 +1,8 @@
-import { SIZES, pageChan } from '../core/config.js';
+import { SIZES } from '../core/config.js';
 import { S, st } from '../core/state.js';
 import { store } from '../core/store.js';
-import { parseNick, clamp } from '../core/util.js';
-import { reload, setStatus } from '../emotes/emotes.js';
+import { clamp } from '../core/util.js';
+import { setStatus } from '../emotes/emotes.js';
 import { rescanAll, applySize } from '../chat/messages/chat.js';
 import { clearImgs } from '../emotes/imgcache.js';
 import { pingSystem } from '../chat/pingSystem.js';
@@ -163,18 +163,11 @@ function buildSettingsMarkup(root) {
     const emotesPanel = panel('emotes');
     emotesPanel.append(
         settingsSection('Отображение',
-            settingsToggle('t7-on', 'Показывать эмоуты 7TV в чате'),
+            settingsToggle('t7-on', 'Показывать смайлы сайта в чате'),
             settingsToggle('t7-emote-tooltip-enabled', 'Показывать попап эмоута при наведении'),
             settingsToggle('t7-emote-completion', 'Показывать карусель эмоутов по Tab')
         ),
-        settingsSection('Канал',
-            createNode('form', { className: 't7-row' }, [
-                settingsField('Ник стримера на Twitch', createNode('input', {
-                    type: 'text', className: 't7-nick', maxlength: '80',
-                    autocomplete: 'off', spellcheck: false
-                })),
-                createNode('button', { type: 'submit', className: 't7-b p' }, ['Загрузить'])
-            ]),
+        settingsSection('Смайлы канала',
             createNode('div', { className: 't7-sst', role: 'status' })
         ),
         settingsSection('Размер в чате',
@@ -309,8 +302,7 @@ function buildSettingsMarkup(root) {
     const dataPanel = panel('data');
     dataPanel.append(settingsSection('Управление данными',
         createNode('div', { className: 't7-row t7-wrap' }, [
-            settingsButton('Обновить список', 'refresh'),
-            settingsButton('Очистить кеш картинок', 'cache'),
+            settingsButton('Очистить кеш изображений', 'cache'),
             settingsButton('Сбросить положение окошка', 'pos')
         ])
     ));
@@ -401,19 +393,6 @@ export function openSettings() {
     imagePickerEnabled.addEventListener('change', () => {
         setImagePickerButtonEnabled(imagePickerEnabled.checked);
     });
-    const nickInp = el.querySelector('.t7-nick');
-    nickInp.value = S.nick;
-    nickInp.placeholder = pageChan || 'например, zakvielchannel';
-    el.querySelector('form').addEventListener('submit', (e) => {
-        e.preventDefault();
-        const raw = nickInp.value.trim();
-        const n = raw ? parseNick(raw) : pageChan;
-        if (raw && !n) { setStatus('Неверный ник: нужны латинские буквы, цифры и _'); return; }
-        S.nick = n;
-        nickInp.value = n;
-        reload(false);
-    });
-
     const pingFields = [
         ['.t7-ping-aliases', 'aliases']
     ];
@@ -675,12 +654,10 @@ export function openSettings() {
         } else if (b.dataset.act === 'test-dm-ping') {
             pingSystem.playDm(true).catch((error) => console.warn('[7TV] не удалось воспроизвести звук ЛС', error));
         }
-        else if (b.dataset.act === 'refresh') reload(true);
         else if (b.dataset.act === 'cache') {
             clearResolvedImageCache();
             await clearImgs();
-            setStatus('Кеш картинок очищен');
-            st.hooks.emotes();   // перерисовать чат и список (картинки скачаются заново)
+            setStatus('Кеш изображений очищен');
         } else if (b.dataset.act === 'pos') {
             st.pos = null;
             st.win = null;

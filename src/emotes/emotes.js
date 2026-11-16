@@ -1,236 +1,127 @@
-import { CACHE_TTL, EXTRA_EMOTES, EXTRA_SETS } from '../core/config.js';
-import { S, EM, st } from '../core/state.js';
-import { store } from '../core/store.js';
-import { getJson } from '../network/net.js';
-import { fetchImg, getLoadedImgUrl } from './imgcache.js';
+import { EM, st } from '../core/state.js';
 import { STORE } from '../core/consts.js';
+import { store } from '../core/store.js';
+import { fetchImg, getLoadedImgUrl } from './imgcache.js';
 
-function mk(host, flags, isGlobal, isExtra, meta = {}) {
-    const imageFiles = (host.files || []).filter((f) => f.format === 'WEBP');
-    const files = imageFiles.map((f) => f.name);
-    const dimensions = imageFiles.find((f) => Number.isFinite(f.width) && f.width > 0
-        && Number.isFinite(f.height) && f.height > 0);
-    const owner = meta.owner || {};
-    return {
-        base: 'https:' + host.url,
-        f: files.length ? files : ['1x.webp', '2x.webp'],
-        ...(dimensions ? { r: dimensions.width / dimensions.height } : {}),
-        zw: !!(flags & 256),   // zero-width эмоут
-        g: isGlobal,
-        id: String(meta.id || ''),
-        createdAt: getEmoteCreatedAt(meta),
-        owner: String(owner.display_name || owner.username || ''),
-        animated: typeof meta.animated === 'boolean' ? meta.animated : null,
-        ...(isExtra ? { x: true } : {})
-    };
+const EMOTE_ID = /^[0-9A-Za-z]{20,32}$/;
+let catalogChannel = location.pathname;
+
+function imageBaseFor(value) {
+    if (typeof value !== 'string' || !value) return location.origin;
+    try {
+        const url = new URL(value, location.origin);
+        const host = url.hostname.toLowerCase();
+        const siteHost = host === location.hostname
+            || host === 'multidonate.ru' || host.endsWith('.multidonate.ru')
+            || host === 'legiongame.gg' || host.endsWith('.legiongame.gg');
+        if (siteHost && url.protocol === 'https:' && !url.username && !url.password)
+            return url.href.replace(/\/+$/, '');
+    } catch {}
+    return location.origin;
 }
 
-export function getEmoteCreatedAt(meta) {
-    const version = Array.isArray(meta.versions)
-        ? meta.versions.find((item) => item && String(item.id) === String(meta.id)) || meta.versions[0]
-        : null;
-    const value = Number(version && version.createdAt || meta.createdAt || meta.created_at || meta.timestamp);
-    if (Number.isFinite(value) && value > 0) return value < 1e12 ? value * 1000 : value;
-
-    const id = String(meta.id || '').toUpperCase();
-    const alphabet = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
-    if (!/^[0-7][0-9A-HJKMNP-TV-Z]{25}$/.test(id)) return 0;
-    let timestamp = 0;
-    for (const char of id.slice(0, 10)) timestamp = timestamp * 32 + alphabet.indexOf(char);
-    return timestamp;
+function catalogKey(channel) {
+    return STORE.siteEmoteCatalogPrefix + encodeURIComponent(channel);
 }
 
-function addSet(map, set, isGlobal, isExtra) {
-    for (const e of (set && set.emotes) || []) {
-        const host = e.data && e.data.host;
-        if (!host || !host.url || e.name === '__proto__') continue;
-        map[e.name] = mk(host, e.data.flags, isGlobal, isExtra, {
-            id: e.id || e.data.id,
-            createdAt: e.data.createdAt || e.createdAt,
-            versions: e.data.versions || e.versions,
-            owner: e.data.owner,
-            animated: e.data.animated
-        });
+function replaceCatalog(channel, entries, base, persist = true) {
+    if (channel !== location.pathname) return;
+    const map = Object.create(null);
+    const imageBase = imageBaseFor(base);
+    const savedEntries = [];
+    for (const entry of entries) {
+        if (!Array.isArray(entry) || typeof entry[0] !== 'string'
+            || !entry[0] || entry[0].length > 64 || /\s/.test(entry[0])
+            || entry[0] === '__proto__' || entry[0] === 'constructor'
+            || typeof entry[1] !== 'string' || !EMOTE_ID.test(entry[1])) continue;
+        const [name, id] = entry;
+        savedEntries.push([name, id]);
+        map[name] = {
+            base: `https://cdn.7tv.app/emote/${encodeURIComponent(id)}`,
+            siteBase: imageBase,
+            f: ['1x.webp', '2x.webp', '4x.webp'],
+            id,
+            native: true,
+            g: false
+        };
     }
+
+    catalogChannel = channel;
+    if (persist) store.set(catalogKey(channel), { base: imageBase, entries: savedEntries });
+    for (const name of Object.keys(EM)) delete EM[name];
+    Object.assign(EM, map);
+    setStatus(Object.keys(map).length
+        ? `Смайлы канала: ${Object.keys(map).length}`
+        : 'На этом канале нет смайлов сайта');
+    st.hooks.emotes();
 }
 
-// один эмоут по ID (ответ /v3/emotes/<id>)
-function addOne(map, em, alias) {
-    const host = em && em.host;
-    const name = String(alias || (em && em.name) || '');
-    if (!host || !host.url || !name || /\s/.test(name) || name === '__proto__') return false;
-    map[name] = mk(host, em.flags, true, true, {
-        id: em.id,
-        createdAt: em.createdAt,
-        versions: em.versions,
-        owner: em.owner,
-        animated: em.animated
-    });
-    return true;
-}
+window.addEventListener('message', (event) => {
+    const data = event.data;
+    if (event.source !== window || event.origin !== location.origin
+        || !data || data.source !== 't7-site-emotes'
+        || typeof data.channel !== 'string' || !Array.isArray(data.entries)) return;
+    replaceCatalog(data.channel, data.entries.slice(0, 5000), data.base);
+});
 
-// подпись списка своих эмоутов: поменял список - кеш считается заново
-const xsig = () => {
-    const s = EXTRA_SETS.join(',') + '|' + EXTRA_EMOTES.map((e) => e.id + (e.name || '')).join(',');
-    let h = 0;
-    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-    return (h >>> 0).toString(36);
-};
-
-async function loadExtras() {
-    const out = {};
-    let bad = 0;
-    const jobs = [
-        ...EXTRA_SETS.map(async (id) => {
-            const m = {};
-            addSet(m, await getJson('https://7tv.io/v3/emote-sets/' + encodeURIComponent(id)), true, true);
-            return m;
-        }),
-        ...EXTRA_EMOTES.map(async ({ id, name }) => {
-            const m = {};
-            if (!addOne(m, await getJson('https://7tv.io/v3/emotes/' + encodeURIComponent(id)), name))
-                throw new Error('нет данных: ' + id);
-            return m;
-        })
-    ];
-    const res = await Promise.allSettled(jobs);
-    for (const r of res) {
-        if (r.status === 'fulfilled') Object.assign(out, r.value);   // порядок как в списке
-        else { bad++; console.warn('[7TV] свои эмоуты', r.reason); }
-    }
-    return { map: out, bad };
-}
-
-// адрес файла нужного разрешения (n = 1..4)
-export function urlFor(em, n) {
+export function urlFor(emote, resolution) {
     let best = null;
-    for (const f of em.f) {
-        const l = parseInt(f, 10);
-        if (l <= n && (best === null || l > parseInt(best, 10))) best = f;
+    for (const file of emote.f || []) {
+        const size = parseInt(file, 10);
+        if (size <= resolution && (best === null || size > parseInt(best, 10))) best = file;
     }
-    return em.base + '/' + (best || em.f[0]);
+    return `${emote.base}/${best || (emote.f && emote.f[0]) || '1x.webp'}`;
 }
 
-export function setEmoteImage(image, em, n, loading = 'lazy', onError, isCurrent = () => true) {
-    const src = urlFor(em, n);
+function siteUrlFor(emote, resolution) {
+    const file = (emote.f || []).reduce((best, candidate) => {
+        const size = parseInt(candidate, 10);
+        return size <= resolution && (!best || size > parseInt(best, 10)) ? candidate : best;
+    }, null) || (emote.f && emote.f[0]) || '1x.webp';
+    return `${emote.siteBase}/api/emote/7tv/${encodeURIComponent(emote.id)}/${file}`;
+}
+
+export function setEmoteImage(image, emote, resolution, loading = 'lazy', onError, isCurrent = () => true) {
+    const src = urlFor(emote, resolution);
     image.loading = loading;
     image.decoding = 'async';
     image.removeAttribute('srcset');
     const cachedSrc = getLoadedImgUrl(src);
     if (cachedSrc) {
         if (isCurrent()) image.src = cachedSrc;
-        return;
+        return Promise.resolve(cachedSrc);
     }
-    fetchImg(src, true, reusableUrlsFor(em, n)).then((cachedSrc) => {
-        if (isCurrent()) image.src = cachedSrc;
+
+    return fetchImg(src, false).then((cachedUrl) => {
+        if (isCurrent()) image.src = cachedUrl;
+        return cachedUrl;
     }, (error) => {
-        if (onError) onError(error);
-        else console.warn('[7TV] картинка эмоута не загрузилась', src, error);
+        if (!isCurrent()) return '';
+        image.onerror = () => {
+            if (isCurrent() && onError) onError(error);
+        };
+        image.src = siteUrlFor(emote, resolution);
+        return '';
     });
 }
 
-function reusableUrlsFor(em, n) {
-    const target = urlFor(em, n);
-    const targetSize = parseInt(target.slice(em.base.length + 1), 10);
-    const higher = em.f.filter((f) => parseInt(f, 10) > targetSize)
-        .sort((a, b) => parseInt(a, 10) - parseInt(b, 10))
-        .map((f) => em.base + '/' + f);
-    return [target, ...higher];
+export function setStatus(text) {
+    st.status = text;
+    st.hooks.status(text);
 }
 
-async function loadEmotes(nick, force) {
-    const now = Date.now();
-    const globalKey = STORE.emoteCachePrefix + 'global:' + xsig();
-    const channel = String(nick || '').trim().toLowerCase();
-    const channelKey = STORE.emoteCachePrefix + 'channel:' + encodeURIComponent(channel);
-    const validCache = (value) => value && value.map && typeof value.map === 'object';
-    let globalData = !force ? store.get(globalKey) : null;
-    if (!validCache(globalData)) globalData = null;
-    let channelData = channel && !force ? store.get(channelKey) : null;
-    if (!validCache(channelData)) channelData = null;
-    let err = '';
-
-    if (!globalData) {
-        const globalMap = {};
-        let globalLoaded = false;
-        try {
-            addSet(globalMap, await getJson('https://7tv.io/v3/emote-sets/global'), true, false);
-            globalLoaded = true;
-        } catch (e) {
-            err = 'глобальные не загрузились';
-            console.warn('[7TV]', e);
-        }
-        let extras = {};
-        let bad = 0;
-        if (EXTRA_EMOTES.length || EXTRA_SETS.length) {
-            const result = await loadExtras();
-            extras = result.map;
-            bad = result.bad;
-        }
-        globalData = { at: now, map: globalMap, extras, bad };
-        if (globalLoaded && !bad) store.set(globalKey, globalData);
+export async function reload() {
+    if (catalogChannel !== location.pathname) {
+        catalogChannel = location.pathname;
+        for (const name of Object.keys(EM)) delete EM[name];
+        st.hooks.emotes();
     }
-
-    let chanMsg = '';
-    if (!channel) {
-        chanMsg = 'укажи ник стримера';
-    } else if (channelData) {
-        chanMsg = channelData.msg || '';
-    } else {
-        const channelMap = {};
-        let canCacheChannel = false;
-        try {
-            const u = await getJson('https://api.ivr.fi/v2/twitch/user?login=' + encodeURIComponent(channel));
-            const id = u && u[0] && u[0].id;
-            if (!id) {
-                chanMsg = 'Twitch-канал «' + channel + '» не найден';
-                canCacheChannel = true;
-            } else {
-                const user = await getJson('https://7tv.io/v3/users/twitch/' + id);
-                const set = user && user.emote_set;
-                if (set && set.emotes && set.emotes.length) addSet(channelMap, set, false, false);
-                else chanMsg = 'у канала нет эмоутов 7TV';
-                canCacheChannel = true;
-            }
-        } catch (e) {
-            chanMsg = 'эмоуты канала не загрузились (нет аккаунта 7TV или сервис недоступен)';
-            console.warn('[7TV]', e);
-        }
-        channelData = { at: now, map: channelMap, msg: chanMsg };
-        if (canCacheChannel) store.set(channelKey, channelData);
+    const cached = store.get(catalogKey(catalogChannel));
+    if (cached && Array.isArray(cached.entries)) {
+        replaceCatalog(catalogChannel, cached.entries, cached.base, false);
+        return;
     }
-
-    const map = {};
-    if (globalData) Object.assign(map, globalData.map);
-    if (channelData) Object.assign(map, channelData.map);
-    if (globalData && globalData.extras) Object.assign(map, globalData.extras);
-    const names = Object.keys(map);
-    const nc = names.filter((n) => !map[n].g).length;
-    const xc = names.filter((n) => map[n].x).length;
-    const gc = names.filter((n) => map[n].g && !map[n].x).length;
-    const bad = globalData && globalData.bad || 0;
-    let msg = `Канал: ${nc} · глобальные: ${gc}`;
-    if (xc || bad) msg += ` · свои: ${xc}${bad ? ' (не все загрузились: ' + bad + ')' : ''}`;
-    if (chanMsg) msg += ' · ' + chanMsg;
-    if (err) msg += ' · ' + err;
-    const stale = !!((globalData && now - globalData.at >= CACHE_TTL)
-        || (channelData && now - channelData.at >= CACHE_TTL));
-    return { map, msg, stale };
-}
-
-export function setStatus(t) {
-    st.status = t;
-    st.hooks.status(t);
-}
-
-export async function reload(force) {
-    const my = ++st.loadToken;
-    if (force) setStatus('Загрузка…');
-    const { map, msg, stale } = await loadEmotes(S.nick, force);
-    if (my !== st.loadToken) return;
-    for (const k of Object.keys(EM)) delete EM[k];
-    Object.assign(EM, map);
-    setStatus(msg);
-    st.hooks.emotes();            // перерисовать чат и список
-    if (stale) reload(true);      // старый список уже показан, свежий подтянется фоном
+    setStatus(Object.keys(EM).length
+        ? `Смайлы канала: ${Object.keys(EM).length}`
+        : 'Ожидание каталога смайлов сайта…');
 }

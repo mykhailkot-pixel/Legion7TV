@@ -295,7 +295,7 @@ function bindEmoteAutocomplete(form, input) {
             if (emote) {
                 const resolution = Math.min(2, SIZES[S.size].n);
                 setEmoteImage(image, emote, resolution, 'lazy', (error) => {
-                    console.warn('[7TV] картинка эмоута для автокомплита не загрузилась', name, error);
+                    console.warn('[Images] картинка смайла сайта для автодополнения не загрузилась', name, error);
                 });
             }
         }

@@ -6,43 +6,74 @@ const mocks = vi.hoisted(() => ({
 }));
 vi.mock('../src/emotes/imgcache.js', () => mocks);
 
-import { getEmoteCreatedAt, setEmoteImage, urlFor } from '../src/emotes/emotes.js';
+import { EM, st } from '../src/core/state.js';
+import { reload, setEmoteImage, urlFor } from '../src/emotes/emotes.js';
+import { store } from '../src/core/store.js';
+import { STORE } from '../src/core/consts.js';
 
-describe('emote metadata and images', () => {
+function sendCatalog(channel, entries, base) {
+    window.dispatchEvent(new MessageEvent('message', {
+        source: window,
+        origin: location.origin,
+        data: { source: 't7-site-emotes', channel, entries, base }
+    }));
+}
+
+describe('site-native emote catalog', () => {
     beforeEach(() => {
-        mocks.fetchImg.mockReset();
-        mocks.getLoadedImgUrl.mockReset();
+        for (const key of Object.keys(EM)) delete EM[key];
+        st.hooks.emotes = vi.fn();
+        st.hooks.status = vi.fn();
+        mocks.fetchImg.mockReset().mockResolvedValue('blob:cached');
+        mocks.getLoadedImgUrl.mockReset().mockReturnValue('');
     });
 
-    it('normalizes creation timestamps and selects the matching version date', () => {
-        expect(getEmoteCreatedAt({ id: 'x', createdAt: 123 })).toBe(123000);
-        expect(getEmoteCreatedAt({
-            id: 'x',
-            versions: [{ id: 'other', createdAt: 10 }, { id: 'x', createdAt: 1_700_000_000_000 }]
-        })).toBe(1_700_000_000_000);
-        expect(getEmoteCreatedAt({ created_at: 'invalid' })).toBe(0);
+    it('uses the channel catalog and rejects catalog messages from another route', () => {
+        const id = '0123456789abcdefghij';
+        sendCatalog('/another-channel', [['Kappa', id]]);
+        expect(Object.keys(EM)).toEqual([]);
+
+        sendCatalog(location.pathname, [['Kappa', id], ['Bad Name', id], ['Invalid', 'x']], 'https://evil.test');
+        expect(Object.keys(EM)).toEqual(['Kappa']);
+        expect(EM.Kappa.native).toBe(true);
+        expect(urlFor(EM.Kappa, 2))
+            .toBe(`https://cdn.7tv.app/emote/${id}/2x.webp`);
+        expect(store.get(STORE.siteEmoteCatalogPrefix + encodeURIComponent(location.pathname)))
+            .toEqual({ base: location.origin, entries: [['Kappa', id]] });
+        expect(st.hooks.emotes).toHaveBeenCalledOnce();
     });
 
-    it('selects the nearest available resolution not larger than requested', () => {
-        const emote = { base: 'https://cdn.test/emote', f: ['1x.webp', '2x.webp', '4x.webp'] };
-        expect(urlFor(emote, 3)).toBe('https://cdn.test/emote/2x.webp');
-        expect(urlFor(emote, 1)).toBe('https://cdn.test/emote/1x.webp');
-        expect(urlFor(emote, 0)).toBe('https://cdn.test/emote/1x.webp');
-    });
-
-    it('uses cached image URLs immediately and skips stale asynchronous updates', async () => {
-        const emote = { base: 'https://cdn.test/emote', f: ['1x.webp', '2x.webp'] };
+    it('loads popup images through the extension-backed cache', async () => {
+        const id = '0123456789abcdefghij';
+        sendCatalog(location.pathname, [['Pog', id]]);
         const image = document.createElement('img');
-        mocks.getLoadedImgUrl.mockReturnValue('blob:cached');
-        setEmoteImage(image, emote, 2);
-        expect(image.src).toBe('blob:cached');
-        expect(mocks.fetchImg).not.toHaveBeenCalled();
 
-        mocks.getLoadedImgUrl.mockReturnValue('');
-        mocks.fetchImg.mockResolvedValue('blob:loaded');
-        setEmoteImage(image, emote, 2, 'lazy', null, () => false);
-        await Promise.resolve();
-        expect(image.getAttribute('src')).toBe('blob:cached');
-        expect(mocks.fetchImg).toHaveBeenCalledOnce();
+        await setEmoteImage(image, EM.Pog, 2);
+
+        expect(mocks.fetchImg).toHaveBeenCalledWith(
+            `https://cdn.7tv.app/emote/${id}/2x.webp`, false
+        );
+        expect(image.src).toBe('blob:cached');
+    });
+
+    it('restores a previously saved channel catalog before the site sends it again', async () => {
+        const id = '0123456789abcdefghij';
+        sendCatalog(location.pathname, [['Pog', id]]);
+        for (const key of Object.keys(EM)) delete EM[key];
+
+        await reload(false);
+        expect(EM.Pog.id).toBe(id);
+        expect(st.status).toBe('Смайлы канала: 1');
+    });
+
+    it('falls back to the site image when the cached CDN request fails', async () => {
+        const id = '0123456789abcdefghij';
+        sendCatalog(location.pathname, [['Pog', id]], location.origin);
+        mocks.fetchImg.mockRejectedValueOnce(new Error('offline'));
+        const image = document.createElement('img');
+
+        await setEmoteImage(image, EM.Pog, 1);
+
+        expect(image.src).toBe(`${location.origin}/api/emote/7tv/${id}/1x.webp`);
     });
 });

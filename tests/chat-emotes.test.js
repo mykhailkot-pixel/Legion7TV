@@ -1,63 +1,30 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
+import { extractNativeEmotes, restoreNativeEmotes } from '../src/chat/messages/chatEmotes.js';
 
-const mocks = vi.hoisted(() => ({
-    setEmoteImage: vi.fn((image) => image.setAttribute('src', 'blob:emote')),
-    getLoadedImgUrl: vi.fn(() => ''),
-    setEmoteTooltipData: vi.fn()
-}));
-vi.mock('../src/emotes/emotes.js', () => ({
-    setEmoteImage: mocks.setEmoteImage,
-    urlFor: vi.fn(() => 'https://cdn.test/emote/2x.webp')
-}));
-vi.mock('../src/emotes/imgcache.js', () => ({ getLoadedImgUrl: mocks.getLoadedImgUrl }));
-vi.mock('../src/emotes/tooltip.js', () => ({ setEmoteTooltipData: mocks.setEmoteTooltipData }));
-vi.mock('../src/core/ui.js', () => ({
-    cls: (name) => `ext-${name}`,
-    cssVar: (name) => `--ext-${name}`
-}));
+describe('native chat emotes', () => {
+    it('preserves the original site image nodes while text is processed', () => {
+        const content = document.createElement('span');
+        const image = document.createElement('img');
+        image.className = 'cy-emo';
+        image.alt = 'Kappa';
+        image.src = '/api/emote/7tv/0123456789abcdefghij/1x.webp';
+        content.append(document.createTextNode('hello '), image, document.createTextNode('!'));
 
-import { EM, S } from '../src/core/state.js';
-import { processEmotes } from '../src/chat/messages/chatEmotes.js';
+        const native = extractNativeEmotes(content);
+        content.replaceChildren(document.createTextNode(native.source));
+        expect(content.querySelector('img')).toBeNull();
+        restoreNativeEmotes(content, native.images);
 
-describe('chat emote processing', () => {
-    beforeEach(() => {
-        S.on = true;
-        S.size = 'm';
-        for (const key of Object.keys(EM)) delete EM[key];
-        mocks.setEmoteImage.mockClear();
-        mocks.getLoadedImgUrl.mockReturnValue('');
+        expect(content.textContent).toBe('hello !');
+        expect(content.querySelector('img.cy-emo')).toBe(image);
+        expect(image.getAttribute('src')).toContain('/api/emote/7tv/');
     });
 
-    it('replaces known emote words with images and leaves ordinary text intact', () => {
-        EM.Kappa = { base: 'https://cdn.test/emote', f: ['1x.webp', '2x.webp'], r: 1.5 };
+    it('falls back to the native emote name if a referenced image disappeared', () => {
         const content = document.createElement('span');
-        content.textContent = 'hello Kappa !';
-        processEmotes({ content, kind: 'message' });
-        expect(content.textContent).toBe('hello Kappa !');
-        expect(content.querySelector('span.ext-w img.ext-e')?.alt).toBe('Kappa');
-        expect(content.querySelector('img.ext-e')?.src).toBe('blob:emote');
-        expect(mocks.setEmoteTooltipData).toHaveBeenCalledOnce();
-    });
+        content.appendChild(document.createTextNode('<\uE000L7N0:Kappa\uE001>'));
 
-    it('keeps zero-width emotes inside the preceding emote wrapper', () => {
-        EM.Base = { base: 'https://cdn.test/base', f: ['1x.webp'] };
-        EM.ZW = { base: 'https://cdn.test/zw', f: ['1x.webp'], zw: true };
-        const content = document.createElement('span');
-        content.textContent = 'Base ZW';
-        processEmotes({ content, kind: 'message' });
-        const wrapper = content.querySelector('.ext-w');
-        expect(wrapper.querySelector('img.ext-e').alt).toBe('Base');
-        expect(wrapper.querySelector('img.ext-zw').alt).toBe('ZW');
-    });
-
-    it('does not process non-message content, disabled emotes, or text inside links', () => {
-        EM.Kappa = { base: 'https://cdn.test/emote', f: ['1x.webp'] };
-        const content = document.createElement('span');
-        content.innerHTML = '<a>Kappa</a> Kappa';
-        processEmotes({ content, kind: 'system' });
-        expect(content.querySelectorAll('img')).toHaveLength(0);
-        S.on = false;
-        processEmotes({ content, kind: 'message' });
-        expect(content.querySelectorAll('img')).toHaveLength(0);
+        restoreNativeEmotes(content, []);
+        expect(content.textContent).toBe('Kappa');
     });
 });

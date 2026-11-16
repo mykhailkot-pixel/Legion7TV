@@ -1,7 +1,5 @@
-import { pageChan } from './config.js';
-
 // настройки
-export const S = { nick: pageChan, size: 'm', on: true };
+export const S = { size: 'm', on: true };
 
 // имя эмоута -> { base, f:[файлы], zw, g }
 export const EM = {};

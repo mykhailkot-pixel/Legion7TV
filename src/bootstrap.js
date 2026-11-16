@@ -1,5 +1,5 @@
 import css from './styles.css';
-import { SIZES, pageChan } from './core/config.js';
+import { SIZES } from './core/config.js';
 import { STORE } from './core/consts.js';
 import { S, st } from './core/state.js';
 import { store } from './core/store.js';
@@ -23,7 +23,6 @@ function initialize() {
 
     const size = store.get(STORE.emoteSize);
     if (SIZES[size]) S.size = size;
-    S.nick = pageChan;
     const position = store.get(STORE.popupPosition);
     if (position && Number.isFinite(position.x) && Number.isFinite(position.y)) st.pos = position;
     const windowSize = store.get(STORE.popupSize);

@@ -1,5 +1,4 @@
 import { scan } from '../messages/chat.js';
-import { disposePendingEmoteImages } from '../messages/chatEmotes.js';
 import { disposeInputBindings, ensureButtons } from './chatInput.js';
 import { SEL } from '../../core/consts.js';
 
@@ -17,7 +16,6 @@ export function startChatObservers() {
             if (record.type !== 'childList') continue;
             for (const node of record.removedNodes) {
                 disposeInputBindings(node);
-                disposePendingEmoteImages(node);
             }
             const target = record.target.nodeType === 1 ? record.target : record.target.parentElement;
             const form = target && target.closest(SEL.chatForms);

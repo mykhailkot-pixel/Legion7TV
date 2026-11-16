@@ -12,8 +12,14 @@ import { insertText } from '../core/insertText.js';
 
 const FAVORITES_KEY = STORE.favorites;
 const RECENT_KEY = STORE.recentEmotes;
+const GRID_GAP = 2;
+const GRID_OVERSCAN_ROWS = 4;
 let gridMode = 'all';
-let emoteData = new Map();
+let gridSourceNames = [];
+let gridNames = [];
+let gridFavorites = new Set();
+let gridFrame = 0;
+let renderedWindow = '';
 
 on(EV.recentLimitChange, () => {
     if (st.pop && gridMode === 'recent') renderGrid();
@@ -29,7 +35,7 @@ function readEntries(key) {
 
 function saveRecent(name) {
     const recent = readEntries(RECENT_KEY).filter((item) => item.name !== name);
-    recent.push({ name, emote: EM[name] || emoteData.get(name) || null });
+    recent.push({ name });
     store.set(RECENT_KEY, recent.slice(-getRecentLimit()));
 }
 
@@ -40,7 +46,7 @@ export function recordRecentFromMessage(message) {
 }
 
 function emoteFor(name) {
-    return EM[name] || emoteData.get(name) || null;
+    return EM[name] || null;
 }
 
 function updateViewButtons() {
@@ -54,14 +60,9 @@ function toggleFavorite(name) {
     const favorites = readEntries(FAVORITES_KEY);
     const index = favorites.findIndex((item) => item.name === name);
     if (index >= 0) favorites.splice(index, 1);
-    else favorites.push({ name, emote: EM[name] || emoteData.get(name) || null });
+    else favorites.push({ name });
     store.set(FAVORITES_KEY, favorites);
     renderGrid();
-}
-
-export function updateStatus(t) {
-    const e = st.pop && st.pop.querySelector('.t7-st');
-    if (e) e.textContent = t;
 }
 
 /* ---------- вставка эмоута в поле чата ---------- */
@@ -94,40 +95,118 @@ function onVis(entries) {
         const resolution = SIZES[S.size].n;
         const image = el.firstChild;
         setEmoteImage(image, em, resolution, 'lazy', (error) => {
-            console.warn('[7TV] картинка эмоута в списке не загрузилась', el.dataset.name, error);
+            console.warn('[Images] картинка смайла сайта не загрузилась', el.dataset.name, error);
         });
     }
 }
 
-function filterGrid() {
+export function getVirtualGridWindow({ count, columns, rowHeight, scrollTop, viewportHeight }) {
+    const totalRows = Math.ceil(count / columns);
+    const firstVisibleRow = Math.floor(Math.max(0, scrollTop) / rowHeight);
+    const visibleRows = Math.max(1, Math.ceil(Math.max(0, viewportHeight) / rowHeight));
+    const startRow = Math.min(totalRows, Math.max(0, firstVisibleRow - GRID_OVERSCAN_ROWS));
+    const endRow = Math.min(totalRows, Math.max(startRow, firstVisibleRow + visibleRows + GRID_OVERSCAN_ROWS));
+    return {
+        startIndex: Math.min(count, startRow * columns),
+        endIndex: Math.min(count, endRow * columns),
+        top: startRow * rowHeight,
+        bottom: (totalRows - endRow) * rowHeight
+    };
+}
+
+function renderVisibleGrid(force = false) {
     if (!st.pop) return;
-    const q = st.pop.querySelector('.t7-q').value.trim().toLowerCase();
-    st.pop.querySelectorAll('.t7-gw').forEach((w) => {
-        let vis = 0;
-        w.querySelectorAll('.t7-item').forEach((item) => {
-            const show = !q || item.dataset.name.toLowerCase().includes(q);
-            item.hidden = !show;
-            if (show) vis++;
-        });
-        w.hidden = !vis;
-        w.previousElementSibling.hidden = !vis;
+    const gr = st.pop.querySelector('.t7-gr');
+    const w = gr.querySelector('.t7-gw');
+    if (!w) return;
+    const heading = w.previousElementSibling;
+    const hasMatches = gridNames.length > 0;
+    w.hidden = !hasMatches;
+    heading.hidden = !hasMatches;
+    if (!hasMatches) {
+        w.replaceChildren();
+        return;
+    }
+
+    const tile = Number.parseFloat(getComputedStyle(st.pop).getPropertyValue(cssVar('tile'))) || SIZES[S.size].p;
+    const rowHeight = tile + GRID_GAP;
+    const columns = Math.max(1, Math.floor((gr.clientWidth + GRID_GAP) / rowHeight));
+    const listTop = w.getBoundingClientRect().top - gr.getBoundingClientRect().top + gr.scrollTop;
+    const window = getVirtualGridWindow({
+        count: gridNames.length,
+        columns,
+        rowHeight,
+        scrollTop: gr.scrollTop - listTop,
+        viewportHeight: gr.clientHeight
     });
+    const key = `${columns}:${window.startIndex}:${window.endIndex}:${gridNames.length}`;
+    if (!force && key === renderedWindow) return;
+    renderedWindow = key;
+    if (st.io) st.io.disconnect();
+
+    w.style.paddingTop = `${window.top}px`;
+    w.style.paddingBottom = `${window.bottom}px`;
+    const fragment = document.createDocumentFragment();
+    for (const n of gridNames.slice(window.startIndex, window.endIndex)) {
+        const item = document.createElement('div');
+        item.className = 't7-item';
+        item.dataset.name = n;
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 't7-it';
+        b.dataset.name = n;
+        setEmoteTooltipData(b, n, emoteFor(n));
+        b.setAttribute('aria-label', n);
+        const im = document.createElement('img');
+        im.alt = '';
+        im.decoding = 'async';
+        b.appendChild(im);
+        const favorite = document.createElement('button');
+        const isFavorite = gridFavorites.has(n);
+        favorite.type = 'button';
+        favorite.className = 't7-fav';
+        favorite.dataset.name = n;
+        favorite.textContent = isFavorite ? '★' : '☆';
+        favorite.title = isFavorite ? 'Убрать из избранного' : 'Добавить в избранное';
+        favorite.setAttribute('aria-label', favorite.title + ': ' + n);
+        favorite.setAttribute('aria-pressed', String(isFavorite));
+        item.append(b, favorite);
+        fragment.appendChild(item);
+    }
+    w.replaceChildren(fragment);
+    if (st.io) w.querySelectorAll('.t7-it').forEach((button) => st.io.observe(button));
+}
+
+function scheduleVisibleGrid() {
+    if (gridFrame) return;
+    gridFrame = requestAnimationFrame(() => {
+        gridFrame = 0;
+        renderVisibleGrid();
+    });
+}
+
+function filterGrid(resetScroll = true) {
+    if (!st.pop) return;
+    const gr = st.pop.querySelector('.t7-gr');
+    if (resetScroll) gr.scrollTop = 0;
+    const q = st.pop.querySelector('.t7-q').value.trim().toLowerCase();
+    gridNames = q ? gridSourceNames.filter((name) => name.toLowerCase().includes(q)) : gridSourceNames;
+    renderedWindow = '';
+    renderVisibleGrid(true);
 }
 
 export function renderGrid() {
     if (!st.pop) return;
     const gr = st.pop.querySelector('.t7-gr');
-    st.io.disconnect();
+    if (st.io) st.io.disconnect();
+    renderedWindow = '';
     gr.textContent = '';
     const allNames = Object.keys(EM).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
     const favoriteEntries = readEntries(FAVORITES_KEY);
     const recentEntries = readEntries(RECENT_KEY).reverse();
-    emoteData = new Map(Object.entries(EM));
-    for (const item of [...favoriteEntries, ...recentEntries]) {
-        if (!emoteData.has(item.name) && item.emote) emoteData.set(item.name, item.emote);
-    }
     const favorites = favoriteEntries.map((item) => item.name);
-    const names = gridMode === 'favorites' ? favoriteEntries.filter((item) => emoteFor(item.name)).map((item) => item.name)
+    gridFavorites = new Set(favorites);
+    gridSourceNames = gridMode === 'favorites' ? favoriteEntries.filter((item) => emoteFor(item.name)).map((item) => item.name)
         : gridMode === 'recent' ? recentEntries.filter((item) => emoteFor(item.name)).map((item) => item.name) : allNames;
     const sec = (title, list) => {
         if (!list.length) return;
@@ -136,51 +215,22 @@ export function renderGrid() {
         h.textContent = `${title} · ${list.length}`;
         const w = document.createElement('div');
         w.className = 't7-gw';
-        for (const n of list) {
-            const item = document.createElement('div');
-            item.className = 't7-item';
-            item.dataset.name = n;
-            const b = document.createElement('button');
-            b.type = 'button';
-            b.className = 't7-it';
-            b.dataset.name = n;
-            setEmoteTooltipData(b, n, emoteFor(n));
-            b.setAttribute('aria-label', n);
-            const im = document.createElement('img');
-            im.alt = '';
-            im.decoding = 'async';
-            b.appendChild(im);
-            const favorite = document.createElement('button');
-            const isFavorite = favorites.includes(n);
-            favorite.type = 'button';
-            favorite.className = 't7-fav';
-            favorite.dataset.name = n;
-            favorite.textContent = isFavorite ? '★' : '☆';
-            favorite.title = isFavorite ? 'Убрать из избранного' : 'Добавить в избранное';
-            favorite.setAttribute('aria-label', favorite.title + ': ' + n);
-            favorite.setAttribute('aria-pressed', String(isFavorite));
-            item.append(b, favorite);
-            w.appendChild(item);
-            st.io.observe(b);
-        }
         gr.append(h, w);
     };
     if (gridMode === 'all') {
-        sec('Канал', names.filter((n) => !EM[n].g));
-        sec('Свои', names.filter((n) => EM[n].x));
-        sec('Глобальные', names.filter((n) => EM[n].g && !EM[n].x));
+        sec('Смайлы канала', gridSourceNames);
     } else {
-        sec(gridMode === 'favorites' ? 'Избранное' : 'Недавние', names);
+        sec(gridMode === 'favorites' ? 'Избранное' : 'Недавние', gridSourceNames);
     }
-    if (!names.length) {
+    if (!gridSourceNames.length) {
         const d = document.createElement('div');
         d.className = 't7-emp';
-        d.textContent = gridMode === 'favorites' ? 'Избранных эмоутов пока нет в загруженных наборах'
-            : gridMode === 'recent' ? 'Недавно использованных эмоутов пока нет в загруженных наборах'
-                : 'Эмоутов пока нет';
+        d.textContent = gridMode === 'favorites' ? 'Избранных смайлов пока нет на этом канале'
+            : gridMode === 'recent' ? 'Недавно использованных смайлов пока нет'
+                : 'Ожидание каталога смайлов сайта';
         gr.appendChild(d);
     }
-    filterGrid();
+    filterGrid(false);
 }
 
 const GR_MIN = 156;
@@ -244,10 +294,19 @@ export function closePop() {
     if (!st.pop) return;
     st.pop.remove();
     st.pop = null;
+    if (gridFrame) cancelAnimationFrame(gridFrame);
+    gridFrame = 0;
+    renderedWindow = '';
     if (st.io) st.io.disconnect();
     st.io = null;
     document.removeEventListener('keydown', onKey, true);
-    removeEventListener('resize', place);
+    removeEventListener('resize', onPopupResize);
+}
+
+function onPopupResize() {
+    place();
+    renderedWindow = '';
+    renderVisibleGrid(true);
 }
 
 function markSize(pop) {
@@ -359,6 +418,7 @@ function setupResize(pop) {
             store.set(STORE.popupSize, st.win);
             store.set(STORE.popupPosition, st.pos);
             place();
+            renderVisibleGrid(true);
         };
         addEventListener('pointermove', move);
         addEventListener('pointerup', up);
@@ -444,11 +504,13 @@ function openPop(btn) {
         const button = e.target.closest('[data-view]');
         if (!button || button.dataset.view === gridMode) return;
         gridMode = button.dataset.view;
+        gr.scrollTop = 0;
         updateViewButtons();
         renderGrid();
     });
 
     const gr = pop.querySelector('.t7-gr');
+    gr.addEventListener('scroll', scheduleVisibleGrid, { passive: true });
     gr.addEventListener('click', (e) => {
         const favorite = e.target.closest('.t7-fav');
         if (favorite) {
@@ -465,10 +527,10 @@ function openPop(btn) {
     st.io = new IntersectionObserver(onVis, { root: gr, rootMargin: '120px' });
 
     getOverlayRoot().appendChild(pop);
-    renderGrid();
     place();
+    renderGrid();
     document.addEventListener('keydown', onKey, true);
-    addEventListener('resize', place);
+    addEventListener('resize', onPopupResize);
 }
 
 export function togglePop(btn) {

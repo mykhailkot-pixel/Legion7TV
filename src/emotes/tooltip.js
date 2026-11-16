@@ -1,5 +1,5 @@
-import { getEmoteCreatedAt, setEmoteImage } from './emotes.js';
-import { cls, getOverlayRoot } from '../core/ui.js';
+import { setEmoteImage } from './emotes.js';
+import { getOverlayRoot } from '../core/ui.js';
 import { STORE } from '../core/consts.js';
 import { store } from '../core/store.js';
 
@@ -24,7 +24,7 @@ export function setEmoteTooltipData(element, name, emote) {
 }
 
 function findTarget(node) {
-    const element = node instanceof Element ? node.closest(`.${cls('e')}, .t7-it`) : null;
+    const element = node instanceof Element ? node.closest('.t7-it, img.cy-emo') : null;
     return element && tooltipData.has(element) ? element : null;
 }
 
@@ -76,33 +76,13 @@ function show(target) {
     const { name, emote } = data;
     const title = tip.querySelector('.t7-tip-name');
     title.replaceChildren(document.createTextNode(name));
-    const logo = document.createElement('span');
-    logo.className = 't7-tip-logo';
-    logo.textContent = emote.tw ? 'T' : '7TV';
-    logo.style.background = emote.tw ? '#9147ff' : '#111';
-    logo.setAttribute('aria-label', emote.tw ? 'Twitch' : '7TV');
-    title.appendChild(logo);
 
     const author = tip.querySelector('.t7-tip-author');
     author.replaceChildren();
-    if (emote.owner) {
-        author.append(document.createTextNode('by '));
-        const owner = document.createElement('span');
-        owner.textContent = emote.owner;
-        author.appendChild(owner);
-    }
-    tip.querySelector('.t7-tip-type').textContent = emote.tw ? 'Twitch Global Emote'
-        : emote.x ? 'Imported Emote' : emote.g ? 'Global Emote' : 'Channel Emote';
-    const createdAt = getEmoteCreatedAt(emote);
+    author.hidden = true;
+    tip.querySelector('.t7-tip-type').textContent = 'Смайл канала';
     const addedAt = tip.querySelector('.t7-tip-added');
-    addedAt.hidden = !Number.isFinite(createdAt) || createdAt <= 0;
-    if (!addedAt.hidden) {
-        addedAt.textContent = `Added ${new Date(createdAt).toLocaleDateString(undefined, {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        })}`;
-    }
+    addedAt.hidden = true;
 
     const image = tip.querySelector('img');
     const token = ++imageToken;
@@ -128,7 +108,7 @@ function show(target) {
         setEmoteImage(image, emote, 4, 'eager', (error) => {
             if (isCurrent()) {
                 image.classList.remove('t7-tip-loading');
-                console.warn('[7TV] не удалось загрузить превью эмоута', name, error);
+                console.warn('[Images] не удалось загрузить смайл сайта', name, error);
             }
         }, () => isCurrent() && !(sourceImage && sourceImage.getAttribute('src')));
     }

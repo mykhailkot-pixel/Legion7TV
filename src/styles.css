@@ -1,12 +1,5 @@
 /* ========== Эмоуты в сообщениях ========== */
-.t7-w{display:inline-block;position:relative;vertical-align:middle;line-height:0}
-.t7-e {
-    display: block;
-    height: var(--t7-h, 1.9em);
-    width: calc(var(--t7-h, 1.9em) * var(--t7-r, 1));
-    object-fit: contain;
-}
-.t7-zw{position:absolute;left:50%;bottom:0;transform:translateX(-50%);height:var(--t7-h,1.9em);width:auto;pointer-events:none}
+.t7-native-emote-hidden{display:none!important}
 .t7-spoiler{padding:0 3px;border-radius:4px;background:#c7c9ce;color:transparent!important;cursor:pointer;transition:background-color .12s ease,color .12s ease}
 .t7-spoiler:not(.t7-spoiler-revealed) img{visibility:hidden}
 .t7-spoiler:not(.t7-spoiler-revealed) *{color:transparent!important;text-shadow:none!important}
@@ -20,7 +13,6 @@
 .t7-tip-preview img.t7-tip-loading{visibility:hidden}
 .t7-tip-info{display:flex;flex-direction:column;align-items:center;gap:7px;width:100%;padding:10px 8px 8px;overflow-wrap:anywhere}
 .t7-tip-name{display:flex;align-items:center;justify-content:center;gap:6px;font-size:17px;font-weight:700}
-.t7-tip-logo{display:inline-grid;place-items:center;width:25px;height:20px;border-radius:3px;background:#7136d8;color:#fff;font:bold 10px/1 Arial,sans-serif}
 .t7-tip-author{font-size:16px}
 .t7-tip-author span{color:#e89a00}
 .t7-tip-added{font-size:13px;color:#aaa}
@@ -131,7 +123,7 @@
 .t7-it{display:inline-flex;align-items:center;justify-content:center;
     width:var(--t7-tile,40px);height:var(--t7-tile,40px);padding:3px;border:0;border-radius:6px;background:transparent}
 .t7-it:hover,.t7-it:focus-visible{background:var(--t7-hover)}
-.t7-it img{width:100%;height:100%;object-fit:contain;transform:translateZ(0)}
+.t7-it img{width:100%;height:100%;object-fit:contain}
 .t7-item{position:relative;flex:none;width:var(--t7-tile,40px);height:var(--t7-tile,40px)}
 .t7-item .t7-it{width:100%;height:100%}
 .t7-fav{position:absolute;top:0;right:0;z-index:1;display:grid;place-items:center;width:17px;height:17px;padding:0;border:0;border-radius:4px;background:rgba(15,15,21,.82);color:#e5c76b;font:14px/1 system-ui,sans-serif;opacity:.78}
@@ -263,8 +255,6 @@
 .cy-chat-l>li.t7-ping-hidden{display:none!important}
 .cy-chat-l>li.t7-ping{background:rgba(255,201,77,.14);border-radius:6px;box-shadow:inset 3px 0 0 #ffc94d;padding-left:6px}
 .cy-chat-l,.dm-l{font-family:var(--t7-chat-font,inherit);font-size:var(--t7-chat-font-size,14px);font-synthesis:weight style}
-/* Keep animated chat emotes on their own compositing layer over the city renderer. */
-.cy-chat-l img.t7-e{transform:translateZ(0)}
 .t7-mention{color:var(--t7-ping-color,#e89aa3);font-weight:600}
 .mn .cy-chat-l,.mn .cy-chat-l li,.mn .cy-chat-l li *{-webkit-user-select:text!important;user-select:text!important}
 .cy-chat-l li b[data-nick]{-webkit-user-select:text!important;user-select:text!important}
