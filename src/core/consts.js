@@ -14,14 +14,9 @@ export const STORE = Object.freeze({
     chatFont: 't7ChatFont',
     chatFontFile: 't7ChatFontFile',
     chatFontSize: 't7ChatFontSize',
-    chatHistory: 't7ChatHistory',
-    chatHistoryLimit: 't7ChatHistoryLimit',
     pingOnly: 't7PingOnly',
     pingArchive: 't7PingArchive',
     chatTabPrefs: 't7ChatTabPrefs',
-    playerHistoryButton: 't7PlayerHistoryButton',
-    deletedMessagesEnabled: 't7DeletedMessagesEnabled',
-    deletedMessagesLimit: 't7DeletedMessagesLimit',
     linkEncoding: 't7LinkEncoding',
     imagePreviews: 't7ImagePreviews',
     imageResolveCache: 't7ImageResolveCache',
@@ -37,7 +32,6 @@ export const EV = Object.freeze({
     tabCompletionChange: 't7-tab-completion-change',
     emoteCompletionChange: 't7-emote-completion-change',
     chatTabsChange: 't7-chat-tabs-change',
-    chatHistoryLimitChange: 't7-chat-history-limit-change',
     recentLimitChange: 't7-recent-limit-change'
 });
 

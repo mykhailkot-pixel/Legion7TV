@@ -16,12 +16,6 @@ import { clearResolvedImageCache } from '../chat/ui/imageProviders.js';
 import { isImagePickerButtonEnabled, setImagePickerButtonEnabled } from '../chat/ui/imagePicker.js';
 import { getOverlayRoot } from '../core/ui.js';
 import { isEmoteTooltipEnabled, setEmoteTooltipEnabled } from '../emotes/tooltip.js';
-import {
-    areDeletedMessagesEnabled,
-    setDeletedMessagesEnabled
-} from '../chat/integration/chatPings.js';
-import { isPlayerHistoryButtonEnabled, setPlayerHistoryButtonEnabled } from '../chat/messages/playerHistory.js';
-import { getChatHistoryLimit, setChatHistoryLimit } from '../chat/integration/chatHistory.js';
 
 // смещение окна настроек от центра экрана
 let SOFF = (() => {
@@ -203,19 +197,7 @@ function buildSettingsMarkup(root) {
         settingsSection('Вкладки чата', createNode('div', { className: 't7-chat-tab-list' })),
         settingsSection('Кнопки в чате',
             settingsToggle('t7-pastes-enabled', 'Показывать кнопку паст в чате'),
-            settingsToggle('t7-image-picker-enabled', 'Показывать кнопку imgBB в чате'),
-            settingsToggle('t7-player-history-button-enabled', 'Показывать кнопку истории сообщений')
-        ),
-        settingsSection('Хранение сообщений',
-            settingsToggle('t7-deleted-messages-enabled', 'Сохранять удалённые сообщения в чате'),
-            settingsField('Количество сохраняемых сообщений', createNode('input', {
-                className: 't7-chat-history-limit', type: 'number', min: '1', max: '5000',
-                step: '1', inputmode: 'numeric'
-            })),
-            createNode('div', { className: 't7-note', role: 'note' }, [
-                createNode('span', { className: 't7-note-icon', 'aria-hidden': 'true' }, ['!']),
-                createNode('span', {}, ['История разделена по стримеру и вкладке; сообщения просто сохроняются локально, сервер всё так же подгружает только 50 сообщений.'])
-            ])
+            settingsToggle('t7-image-picker-enabled', 'Показывать кнопку imgBB в чате')
         ),
         settingsSection('Ссылки',
             settingsToggle('t7-link-encoding', 'Обрабатывать ссылки при отправке и отображении'),
@@ -265,9 +247,9 @@ function buildSettingsMarkup(root) {
         ),
         settingsSection('Упоминания',
             settingsToggle('t7-tab-completion', 'Дополнять ник по Tab'),
-            settingsToggle('t7-guild-everyone-leader', 'Получать @everyone как глава гильдии (leader)'),
-            settingsToggle('t7-guild-everyone-lead', 'Получать @everyone как руководство (lead)'),
-            settingsToggle('t7-guild-everyone-trusted', 'Получать @everyone как доверенное лицо (trusted)'),
+            settingsToggle('t7-guild-everyone-leader', 'Получать @everyone от главы гильдии (leader)'),
+            settingsToggle('t7-guild-everyone-lead', 'Получать @everyone от руководства (lead)'),
+            settingsToggle('t7-guild-everyone-trusted', 'Получать @everyone от доверенных лиц (trusted)'),
             settingsField('Ники и варианты для пинга', createNode('textarea', {
                 className: 't7-ping-aliases', rows: '2', placeholder: 'ник, nick, @ник'
             })),
@@ -419,20 +401,6 @@ export function openSettings() {
     imagePickerEnabled.addEventListener('change', () => {
         setImagePickerButtonEnabled(imagePickerEnabled.checked);
     });
-    const playerHistoryButtonEnabled = el.querySelector('.t7-player-history-button-enabled');
-    playerHistoryButtonEnabled.checked = isPlayerHistoryButtonEnabled();
-    playerHistoryButtonEnabled.addEventListener('change', () =>
-        setPlayerHistoryButtonEnabled(playerHistoryButtonEnabled.checked));
-    const deletedMessagesEnabled = el.querySelector('.t7-deleted-messages-enabled');
-    deletedMessagesEnabled.checked = areDeletedMessagesEnabled();
-    deletedMessagesEnabled.addEventListener('change', () =>
-        setDeletedMessagesEnabled(deletedMessagesEnabled.checked));
-    const chatHistoryLimit = el.querySelector('.t7-chat-history-limit');
-    chatHistoryLimit.value = String(getChatHistoryLimit());
-    chatHistoryLimit.addEventListener('change', () => {
-        chatHistoryLimit.value = String(setChatHistoryLimit(chatHistoryLimit.value));
-    });
-
     const nickInp = el.querySelector('.t7-nick');
     nickInp.value = S.nick;
     nickInp.placeholder = pageChan || 'например, zakvielchannel';

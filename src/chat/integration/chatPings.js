@@ -1,16 +1,12 @@
 import { pingSystem } from '../pingSystem.js';
 import { chatScroller } from '../messages/scrollState.js';
-import { copyOriginalMessageSource, unmarkMessageProcessed } from '../messages/messageState.js';
 import { store } from '../../core/store.js';
-import { EV, on, SEL, STORE } from '../../core/consts.js';
+import { SEL, STORE } from '../../core/consts.js';
 import { cls } from '../../core/ui.js';
 import { pageChan } from '../../core/config.js';
-import { savePlayerMessage } from '../messages/playerHistory.js';
-import { getChatHistoryLimit, setChatHistoryLimit } from './chatHistory.js';
 
 const PING_ONLY_KEY = STORE.pingOnly;
 const PING_ARCHIVE_KEY = STORE.pingArchive;
-const DELETED_MESSAGES_KEY = STORE.deletedMessagesEnabled;
 const PING_ARCHIVE_LIMIT = 500;
 const PING_PAGE_SIZE = 50;
 const ROOM_IDS = ['city', 'mine', 'one'];
@@ -104,29 +100,6 @@ async function loadGuildChatMessages() {
     }
 }
 
-export function areDeletedMessagesEnabled() {
-    return store.get(DELETED_MESSAGES_KEY) !== false;
-}
-
-export function getDeletedMessagesLimit() {
-    return getChatHistoryLimit();
-}
-
-export function setDeletedMessagesLimit(value) {
-    return setChatHistoryLimit(value);
-}
-
-on(EV.chatHistoryLimitChange, (event) => {
-    for (const state of states) trimDeletedMessages(state, event.detail);
-});
-
-export function setDeletedMessagesEnabled(enabled) {
-    const active = !!enabled;
-    store.set(DELETED_MESSAGES_KEY, active);
-    if (active) return;
-    for (const state of states) clearDeletedRows(state);
-}
-
 function readArchive() {
     const saved = store.get(PING_ARCHIVE_KEY);
     const archive = Object.fromEntries(ROOM_IDS.map((room) => [room, []]));
@@ -212,181 +185,6 @@ function messageKey(id) {
     return String(id);
 }
 
-function cacheRow(state, row, tab) {
-    const id = row.dataset.mid;
-    if (!areDeletedMessagesEnabled() || !id || row.classList.contains(cls('archive-row'))
-        || row.classList.contains(cls('deleted-message'))) return;
-    const existing = state.deletedRows.get(id);
-    const children = row.parentElement ? [...row.parentElement.children] : [];
-    const index = children.indexOf(row);
-    const isMessageRow = (item) => item.dataset.mid
-        && !item.classList.contains(cls('archive-row'));
-    const next = children.slice(index + 1).find(isMessageRow);
-    const previous = children.slice(0, index).reverse().find(isMessageRow);
-    const clone = row.cloneNode(true);
-    const sourceSpans = row.querySelectorAll(SEL.messageContent);
-    const cloneSpans = clone.querySelectorAll(SEL.messageContent);
-    if (sourceSpans.length && cloneSpans.length)
-        copyOriginalMessageSource(sourceSpans[sourceSpans.length - 1], cloneSpans[cloneSpans.length - 1]);
-    state.deletedRows.set(id, {
-        node: clone,
-        tab: existing ? existing.tab : tab,
-        beforeId: next?.dataset.mid || existing?.beforeId || '',
-        afterId: previous?.dataset.mid || existing?.afterId || '',
-        position: index >= 0 ? index : existing?.position ?? -1
-    });
-    trimDeletedMessages(state);
-}
-
-function markDeletedRow(row) {
-    row.classList.add(cls('deleted-message'));
-    let label = row.querySelector(`:scope > .${cls('deleted-label')}`);
-    if (!label) {
-        label = document.createElement('span');
-        label.className = cls('deleted-label');
-        row.appendChild(label);
-    }
-    label.textContent = ' - deleted';
-}
-
-function createDeletedSnapshot(message) {
-    if (!CHAT_TABS.has(message.tab)) return null;
-    const row = document.createElement('li');
-    row.dataset.mid = message.id;
-    const nick = document.createElement('b');
-    nick.dataset.nick = message.l;
-    nick.tabIndex = 0;
-    nick.textContent = message.n || message.l;
-    const text = document.createElement('span');
-    text.textContent = message.t;
-    row.append(nick, document.createTextNode(' '), text);
-    if (pingSystem.isPinged(message.t)) {
-        row.classList.add(cls('ping'));
-    }
-    return { node: row, tab: message.tab, beforeId: '', afterId: '', position: -1 };
-}
-
-function restoreDeletedRows(state) {
-    if (!areDeletedMessagesEnabled() || !state.list) return;
-    const pending = [];
-    for (const id of state.deletedIds) {
-        const cached = state.deletedRows.get(id);
-        if (!cached || cached.tab !== state.activeTab) continue;
-        const trackedRow = state.restoredDeletedRows.get(id);
-        let row = trackedRow && trackedRow.isConnected && trackedRow.parentElement === state.list
-            ? trackedRow
-            : [...state.list.children].find((item) => item.dataset.mid === id
-                && !item.classList.contains(cls('archive-row')));
-        if (row) {
-            if (row !== trackedRow) state.restoredDeletedRows.delete(id);
-            markDeletedRow(row);
-        } else pending.push({ id, cached });
-    }
-
-    pending.sort((left, right) => {
-        const leftPosition = left.cached.position >= 0 ? left.cached.position : Number.MAX_SAFE_INTEGER;
-        const rightPosition = right.cached.position >= 0 ? right.cached.position : Number.MAX_SAFE_INTEGER;
-        return leftPosition - rightPosition;
-    });
-    if (!pending.length) return;
-
-    chatScroller.keep(state.list, () => {
-        for (const { id, cached } of pending) {
-            const row = cached.node.cloneNode(true);
-            row.classList.remove(cls('archive-row'));
-            unmarkMessageProcessed(row);
-            const children = [...state.list.children];
-            const next = cached.beforeId && children.find((item) =>
-                item.dataset.mid === cached.beforeId
-                && !item.classList.contains(cls('archive-row')));
-            const previous = cached.afterId && children.find((item) =>
-                item.dataset.mid === cached.afterId
-                && !item.classList.contains(cls('archive-row')));
-            if (next) {
-                state.list.insertBefore(row, next);
-            } else if (previous) {
-                previous.after(row);
-            } else if (cached.position >= 0) {
-                state.list.insertBefore(row, children[Math.min(cached.position, children.length)] || null);
-            } else {
-                state.list.appendChild(row);
-            }
-            state.restoredDeletedRows.set(id, row);
-            markDeletedRow(row);
-        }
-    });
-}
-
-function clearDeletedRows(state) {
-    const deletedIds = new Set(state.deletedIds);
-    const restoredRows = new Set(state.restoredDeletedRows.values());
-    for (const row of restoredRows) {
-        if (row.isConnected) row.remove();
-    }
-    if (state.list) {
-        state.list.querySelectorAll(':scope > li[data-mid]').forEach((row) => {
-            if (!deletedIds.has(row.dataset.mid) || restoredRows.has(row)) return;
-            row.classList.remove(cls('deleted-message'));
-            row.querySelector(`:scope > .${cls('deleted-label')}`)?.remove();
-        });
-    }
-    state.deletedRows.clear();
-    state.deletedIds.clear();
-    state.restoredDeletedRows.clear();
-}
-
-function discardDeletedRow(state, id) {
-    const restored = state.restoredDeletedRows.get(id);
-    if (restored) {
-        if (restored.isConnected) restored.remove();
-        state.restoredDeletedRows.delete(id);
-    }
-    if (!state.list) return;
-    const row = [...state.list.querySelectorAll(':scope > li[data-mid]')]
-        .find((item) => item.dataset.mid === id);
-    if (!row) return;
-    row.classList.remove(cls('deleted-message'));
-    row.querySelector(`:scope > .${cls('deleted-label')}`)?.remove();
-}
-
-function trimDeletedMessages(state, limit = getDeletedMessagesLimit()) {
-    const discardedIds = new Set();
-    while (state.deletedRows.size > limit) {
-        const id = state.deletedRows.keys().next().value;
-        state.deletedRows.delete(id);
-        if (state.deletedIds.delete(id)) discardedIds.add(id);
-    }
-    while (state.deletedIds.size > limit) {
-        const id = state.deletedIds.values().next().value;
-        state.deletedIds.delete(id);
-        discardedIds.add(id);
-    }
-    if (!discardedIds.size) return;
-
-    const discardRows = () => {
-        for (const id of discardedIds) discardDeletedRow(state, id);
-    };
-    if (state.list) chatScroller.keep(state.list, discardRows);
-    else discardRows();
-}
-
-function handleExternalDelete(state, ids, messages) {
-    if (!areDeletedMessagesEnabled()) return;
-    const messagesById = new Map(messages.map((message) => [message.id, message]));
-    for (const id of ids) {
-        if (!state.deletedRows.has(id)) {
-            const message = messagesById.get(id);
-            const snapshot = message && createDeletedSnapshot(message);
-            if (snapshot) {
-                state.deletedRows.set(id, snapshot);
-            }
-        }
-        if (!state.deletedIds.has(id)) state.deletedIds.add(id);
-    }
-    trimDeletedMessages(state);
-    restoreDeletedRows(state);
-}
-
 function rememberNotified(key) {
     if (notifiedIds.has(key)) return;
     notifiedIds.add(key);
@@ -435,7 +233,6 @@ function playPingNotification() {
 }
 
 function processRow(state, row, notify, notificationBatch = null) {
-    if (row.classList.contains(cls('deleted-message'))) return false;
     const message = getMessage(row);
     if (!message) return false;
     const room = getRoom(state.box, row);
@@ -467,7 +264,6 @@ function processRow(state, row, notify, notificationBatch = null) {
             }
         }
     }
-    cacheRow(state, row, tab);
     return pinged;
 }
 
@@ -640,52 +436,6 @@ function onExternalMessage(event) {
     if (event.source !== window || event.origin !== location.origin) return;
     const data = event.data;
     if (!data || typeof data.boxId !== 'string' || !/^t7b\d{1,12}$/.test(data.boxId)) return;
-
-    if (data.source === 't7-chat-del') {
-        if (!Array.isArray(data.ids) || data.ids.length > 100
-            || data.ids.some((id) => typeof id !== 'string' || !id || id.length > 200)
-            || !Array.isArray(data.messages) || data.messages.length > 100
-            || data.messages.some((message) => !message || typeof message !== 'object'
-                || typeof message.id !== 'string' || !message.id || message.id.length > 200
-                || typeof message.l !== 'string' || message.l.length > 64
-                || typeof message.n !== 'string' || message.n.length > 128
-                || typeof message.t !== 'string' || message.t.length > 2000
-                || typeof message.tab !== 'string' || !CHAT_TABS.has(message.tab))) return;
-        const box = document.querySelector(`[${CHAT_BOX_ATTRIBUTE}="${CSS.escape(data.boxId)}"]`);
-        if (!box) return;
-        let state = stateByBox.get(box);
-        if (!state) {
-            observeBox(box);
-            state = stateByBox.get(box);
-        }
-        if (state) handleExternalDelete(state, data.ids, data.messages);
-        return;
-    }
-
-    if (data.source === 't7-chat-history-msg') {
-        const msg = data.msg;
-        if (!msg || typeof msg !== 'object'
-            || typeof msg.id !== 'string' || !msg.id || msg.id.length > 200
-            || typeof msg.l !== 'string' || !msg.l || msg.l.length > 64
-            || typeof msg.n !== 'string' || msg.n.length > 128
-            || typeof msg.t !== 'string' || msg.t.length > 2000
-            || typeof msg.at !== 'number' || !Number.isFinite(msg.at)
-            || !['g', 'mn', 'gl', 'tr'].includes(msg.tb)
-            || typeof msg.cn !== 'string' || msg.cn.length > 64
-            || typeof msg.gt !== 'string' || msg.gt.length > 64) return;
-        savePlayerMessage({
-            id: msg.id,
-            login: msg.l,
-            name: msg.n,
-            text: msg.t,
-            at: msg.at,
-            tab: msg.tb,
-            className: msg.cn,
-            guild: msg.gt,
-            exactTimestamp: true
-        });
-        return;
-    }
 
     if (data.source !== 't7-chat-msg'
         || !data.msg || typeof data.msg !== 'object'
@@ -899,12 +649,6 @@ function refreshRows(state, notify = false) {
         if (list) {
             chatScroller.register(list);
             state.listObserver = new MutationObserver((records) => {
-                for (const record of records) {
-                    for (const node of record.removedNodes) {
-                        if (node.nodeType === Node.ELEMENT_NODE && node.matches('li[data-mid]'))
-                            cacheRow(state, node, state.activeTab);
-                    }
-                }
                 const currentTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab || '';
                 if (currentTab !== state.activeTab) {
                     refreshRows(state, false);
@@ -915,7 +659,6 @@ function refreshRows(state, notify = false) {
                 list.querySelectorAll(`:scope > li:not(.${cls('archive-row')})`)
                     .forEach((row) => processRow(state, row, !quietLoad, notificationBatch));
                 if (quietLoad) state.quietTab = null;
-                restoreDeletedRows(state);
                 paint(state);
                 renderArchivePage(state);
                 if (notificationBatch.play) playPingNotification();
@@ -931,7 +674,6 @@ function refreshRows(state, notify = false) {
             .forEach((row) => processRow(state, row, notify, notificationBatch));
         if (notificationBatch.play) playPingNotification();
     }
-    restoreDeletedRows(state);
     paint(state);
     renderArchivePage(state);
 }
@@ -945,9 +687,6 @@ function observeBox(box) {
         counts: {},
         page: 0,
         seen: new Set(),
-        deletedRows: new Map(),
-        deletedIds: new Set(),
-        restoredDeletedRows: new Map(),
         quietTab: null
     };
     stateByBox.set(box, state);
