@@ -249,22 +249,6 @@ export const chatScroller = {
         return { atEnd: state.atEnd, userScrollVersion: state.userScrollVersion };
     },
 
-    settleAtEnd(list, intent) {
-        if (!list || !intent || !intent.atEnd) return;
-        const state = getState(list);
-        let frames = 18;
-        const settle = () => {
-            requestAnimationFrame(() => {
-                if (!list.isConnected || state.userScrollVersion !== intent.userScrollVersion) return;
-                state.atEnd = true;
-                scrollToEnd(list);
-                commit(list, state);
-                if (--frames) settle();
-            });
-        };
-        settle();
-    },
-
     register,
 
     keep(list, mutate) {

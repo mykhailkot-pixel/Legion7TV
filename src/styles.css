@@ -7,6 +7,8 @@
 .t7-spoiler:not(.t7-spoiler-revealed) *{color:transparent!important;text-shadow:none!important}
 .t7-spoiler.t7-spoiler-revealed{padding:0;border-radius:0;background:transparent;color:inherit!important;cursor:inherit;transition:none}
 .t7-spoiler:focus-visible{outline:2px solid rgba(255,201,77,.75);outline-offset:2px}
+.t7-player-history-trigger{display:inline-grid;place-items:center;box-sizing:border-box;width:17px;height:17px;margin:0 3px 0 0;padding:0;border:0;border-radius:4px;background:transparent;color:#aaa;font:13px/1 system-ui,sans-serif;vertical-align:middle;cursor:pointer}
+.t7-player-history-trigger:hover,.t7-player-history-trigger:focus-visible{background:rgba(255,255,255,.14);color:#ffc94d;outline:none}
 
 .t7-tip{position:fixed;z-index:2147483200;display:flex;flex-direction:column;align-items:center;width:min(210px,calc(100vw - 16px));overflow:hidden;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:#201d2b;color:#f4f1fb;box-shadow:0 5px 20px rgba(0,0,0,.55);font:14px/1.3 Arial,sans-serif;text-align:center;pointer-events:none}
 .t7-tip[hidden]{display:none!important}
@@ -184,6 +186,26 @@
 .t7-sst{min-height:1.3em;font-size:11px;color:var(--t7-mute)}
 .t7-note{display:flex;align-items:center;gap:8px;margin:0;padding:8px 10px;border:1px solid rgba(255,201,77,.3);border-left:3px solid #ffc94d;border-radius:4px;background:rgba(255,201,77,.08);color:#e8d6a4;font-size:12px;line-height:1.35}
 .t7-note-icon{display:grid;place-items:center;flex:none;width:18px;height:18px;border-radius:50%;background:rgba(255,201,77,.18);color:#ffc94d;font-size:12px;font-weight:700}
+.t7-player-history-window{position:fixed;z-index:2147483200;display:flex;flex-direction:column;width:420px;height:360px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:hidden;border:1px solid rgba(255,255,255,.18);border-radius:8px;background:#1b1b24;color:#eee;box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.35 system-ui,sans-serif;pointer-events:auto}
+.t7-player-history-window.t7-player-history-collapsed{height:auto}
+.t7-player-history-window.t7-player-history-drag{user-select:none}
+.t7-player-history-header{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:38px;padding:5px 8px;border-bottom:1px solid rgba(255,255,255,.16);background:#24232e;cursor:grab;touch-action:none}
+.t7-player-history-drag .t7-player-history-header{cursor:grabbing}
+.t7-player-history-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.t7-player-history-controls{display:flex;flex:none;gap:3px}
+.t7-player-history-control{display:grid;place-items:center;width:25px;height:25px;padding:0;border:0;border-radius:4px;background:transparent;color:#ccc;font:18px/1 system-ui,sans-serif}
+.t7-player-history-control:hover,.t7-player-history-control:focus-visible{background:rgba(255,255,255,.14);color:#fff;outline:none}
+.t7-player-history-body{display:flex;flex:1;min-height:0;flex-direction:column;gap:6px;padding:7px}
+.t7-player-history-body[hidden]{display:none}
+.t7-player-history-tabs{display:flex;flex:none;gap:3px;padding:2px;border:1px solid rgba(255,255,255,.16);border-radius:5px;background:#0f0f15}
+.t7-player-history-tabs button{flex:1;min-width:0;padding:5px 4px;border:0;border-radius:3px;background:transparent;color:#aaa;font:12px/1.2 system-ui,sans-serif;white-space:nowrap}
+.t7-player-history-tabs button[aria-selected=true]{background:rgba(255,255,255,.14);color:#fff}
+.t7-player-history-log{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;border-radius:4px;background:#101018}
+.t7-player-history-line{padding:3px 7px;overflow-wrap:anywhere;white-space:pre-wrap}
+.t7-player-history-line+.t7-player-history-line{border-top:1px solid rgba(255,255,255,.04)}
+.t7-player-history-time{color:#aaa;font-variant-numeric:tabular-nums}
+.t7-player-history-nick{color:#c7a6ff}
+.t7-player-history-empty{padding:12px 8px;color:#999;text-align:center}
 
 .t7-sw input[type=text],.t7-sw input[type=number]{
     width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);

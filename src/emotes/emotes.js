@@ -40,6 +40,7 @@ function replaceCatalog(channel, entries, base, persist = true) {
             base: `https://cdn.7tv.app/emote/${encodeURIComponent(id)}`,
             siteBase: imageBase,
             f: ['1x.webp', '2x.webp', '4x.webp'],
+            staticF: ['1x_static.webp', '2x_static.webp', '4x_static.webp'],
             id,
             native: true,
             g: false
@@ -70,25 +71,29 @@ window.addEventListener('message', (event) => {
     replaceCatalog(data.channel, data.entries.slice(0, 5000), data.base);
 });
 
-export function urlFor(emote, resolution) {
+export function urlFor(emote, resolution, staticOnly = false) {
+    const files = staticOnly ? emote.staticF || emote.f : emote.f;
     let best = null;
-    for (const file of emote.f || []) {
+    for (const file of files || []) {
         const size = parseInt(file, 10);
         if (size <= resolution && (best === null || size > parseInt(best, 10))) best = file;
     }
-    return `${emote.base}/${best || (emote.f && emote.f[0]) || '1x.webp'}`;
+    return `${emote.base}/${best || (files && files[0]) || '1x.webp'}`;
 }
 
-function siteUrlFor(emote, resolution) {
-    const file = (emote.f || []).reduce((best, candidate) => {
+function siteUrlFor(emote, resolution, staticOnly) {
+    const files = staticOnly ? emote.staticF || emote.f : emote.f;
+    const file = (files || []).reduce((best, candidate) => {
         const size = parseInt(candidate, 10);
         return size <= resolution && (!best || size > parseInt(best, 10)) ? candidate : best;
-    }, null) || (emote.f && emote.f[0]) || '1x.webp';
+    }, null) || (files && files[0]) || '1x.webp';
     return `${emote.siteBase}/api/emote/7tv/${encodeURIComponent(emote.id)}/${file}`;
 }
 
-export function setEmoteImage(image, emote, resolution, loading = 'lazy', onError, isCurrent = () => true) {
-    const src = urlFor(emote, resolution);
+export function setEmoteImage(image, emote, resolution, loading = 'lazy', onError, options = {}) {
+    const isCurrent = typeof options.isCurrent === 'function' ? options.isCurrent : () => true;
+    const staticOnly = options.staticOnly === true;
+    const src = urlFor(emote, resolution, staticOnly);
     image.loading = loading;
     image.decoding = 'async';
     image.removeAttribute('srcset');
@@ -102,11 +107,25 @@ export function setEmoteImage(image, emote, resolution, loading = 'lazy', onErro
         if (isCurrent()) image.src = cachedUrl;
         return cachedUrl;
     }, (error) => {
+        const fallbackSrc = staticOnly ? urlFor(emote, resolution) : '';
+        if (fallbackSrc && fallbackSrc !== src) {
+            return fetchImg(fallbackSrc, false).then((cachedUrl) => {
+                if (isCurrent()) image.src = cachedUrl;
+                return cachedUrl;
+            }, (fallbackError) => {
+                if (!isCurrent()) return '';
+                image.onerror = () => {
+                    if (isCurrent() && onError) onError(fallbackError);
+                };
+                image.src = siteUrlFor(emote, resolution, false);
+                return '';
+            });
+        }
         if (!isCurrent()) return '';
         image.onerror = () => {
             if (isCurrent() && onError) onError(error);
         };
-        image.src = siteUrlFor(emote, resolution);
+        image.src = siteUrlFor(emote, resolution, false);
         return '';
     });
 }

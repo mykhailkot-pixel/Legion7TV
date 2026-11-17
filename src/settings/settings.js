@@ -11,7 +11,7 @@ import { getRecentLimit, setRecentLimit } from '../chat/prefs.js';
 import { areImagePreviewsEnabled, isLinkEncodingEnabled, setImagePreviewsEnabled, setLinkEncodingEnabled } from '../chat/messages/links.js';
 import { isMarkdownEnabled, setMarkdownEnabled } from '../chat/messages/markdown.js';
 import { CHAT_TABS, getChatTabPrefs, setChatTabPrefs } from '../chat/prefs.js';
-import { EV, STORE, on as onExtensionEvent } from '../core/consts.js';
+import { emit, EV, STORE, on as onExtensionEvent } from '../core/consts.js';
 import { arePastesEnabled, setPastesEnabled } from '../chat/ui/pastes.js';
 import { clearResolvedImageCache } from '../chat/ui/imageProviders.js';
 import { isImagePickerButtonEnabled, setImagePickerButtonEnabled } from '../chat/ui/imagePicker.js';
@@ -166,7 +166,14 @@ function buildSettingsMarkup(root) {
         settingsSection('Отображение',
             settingsToggle('t7-on', 'Показывать смайлы сайта в чате'),
             settingsToggle('t7-emote-tooltip-enabled', 'Показывать попап эмоута при наведении'),
-            settingsToggle('t7-emote-completion', 'Показывать карусель эмоутов по Tab')
+            settingsToggle('t7-emote-completion', 'Показывать карусель эмоутов по Tab'),
+            settingsToggle('t7-popup-emote-animation', 'Анимировать эмоуты в попапе'),
+            createNode('div', { className: 't7-note', role: 'note' }, [
+                createNode('span', { className: 't7-note-icon', 'aria-hidden': 'true' }, ['!']),
+                createNode('span', {}, [
+                    'Если эмоуты в меню выбора тормозят, включите аппаратное ускорение в браузере или отключите анимацию эмоутов выше.'
+                ])
+            ])
         ),
         settingsSection('Смайлы канала',
             createNode('div', { className: 't7-sst', role: 'status' })
@@ -193,6 +200,7 @@ function buildSettingsMarkup(root) {
             settingsToggle('t7-markdown-enabled', 'Обрабатывать Markdown-разметку')
         ),
         settingsSection('Кнопки в чате',
+            settingsToggle('t7-player-history-button-enabled', 'Показывать кнопку истории игроков'),
             settingsToggle('t7-pastes-enabled', 'Показывать кнопку паст в чате'),
             settingsToggle('t7-image-picker-enabled', 'Показывать кнопку imgBB в чате')
         ),
@@ -386,6 +394,20 @@ export function openSettings() {
     emoteTooltipEnabled.addEventListener('change', () => {
         store.set(STORE.emoteTooltipEnabled, emoteTooltipEnabled.checked);
         setEmoteTooltipEnabled(emoteTooltipEnabled.checked);
+    });
+
+    const popupEmoteAnimation = el.querySelector('.t7-popup-emote-animation');
+    popupEmoteAnimation.checked = store.get(STORE.popupEmoteAnimation) !== false;
+    popupEmoteAnimation.addEventListener('change', () => {
+        store.set(STORE.popupEmoteAnimation, popupEmoteAnimation.checked);
+        emit(EV.popupEmoteAnimationChange);
+    });
+
+    const playerHistoryButtonEnabled = el.querySelector('.t7-player-history-button-enabled');
+    playerHistoryButtonEnabled.checked = store.get(STORE.playerHistoryButtonEnabled) !== false;
+    playerHistoryButtonEnabled.addEventListener('change', () => {
+        store.set(STORE.playerHistoryButtonEnabled, playerHistoryButtonEnabled.checked);
+        emit(EV.playerHistoryButtonChange);
     });
 
     const pastesEnabled = el.querySelector('.t7-pastes-enabled');

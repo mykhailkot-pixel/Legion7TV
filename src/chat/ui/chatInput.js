@@ -10,6 +10,7 @@ import { disposeImagePicker, isImagePickerButtonEnabled, openImagePicker } from 
 import { cls, getOverlayRoot } from '../../core/ui.js';
 import { registerChatButton } from './chatButtonState.js';
 import { insertText } from '../../core/insertText.js';
+import { chatScroller } from '../messages/scrollState.js';
 
 const bindings = new WeakMap();
 const emoteBindings = new WeakMap();
@@ -436,7 +437,11 @@ function bindChatForm(form, input) {
     const onSubmit = (event) => {
         if (blockBannedWord(event)) return;
         record();
+        const list = form.closest(SEL.chatRoot)?.querySelector(SEL.chatList);
         requestAnimationFrame(() => {
+            if (list && list.isConnected) {
+                chatScroller.scrollToEnd(list);
+            }
             if (!form.isConnected) return;
             const active = document.activeElement;
             if (active !== document.body && !form.contains(active)) return;

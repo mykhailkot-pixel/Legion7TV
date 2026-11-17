@@ -25,6 +25,9 @@ let renderedWindow = '';
 on(EV.recentLimitChange, () => {
     if (st.pop && gridMode === 'recent') renderGrid();
 });
+on(EV.popupEmoteAnimationChange, () => {
+    if (st.pop) renderGrid();
+});
 
 function readEntries(key) {
     const value = store.get(key);
@@ -95,9 +98,9 @@ function onVis(entries) {
         el.dataset.l = '1';
         const resolution = SIZES[S.size].n;
         const image = el.firstChild;
-        setEmoteImage(image, em, resolution, 'lazy', (error) => {
+        setEmoteImage(image, em, resolution, 'eager', (error) => {
             console.warn('[Images] картинка смайла сайта не загрузилась', el.dataset.name, error);
-        });
+        }, { staticOnly: store.get(STORE.popupEmoteAnimation) === false });
     }
 }
 

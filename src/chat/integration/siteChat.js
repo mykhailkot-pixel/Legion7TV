@@ -1,6 +1,7 @@
 import { setupTabs } from './chatTabs.js';
 import { startChatPingIntegration } from './chatPings.js';
 import { startDirectMessageObserver } from './directMessages.js';
+import { startPlayerHistory } from './playerHistory.js';
 import { store } from '../../core/store.js';
 
 const OBSOLETE_HISTORY_KEYS = [
@@ -21,6 +22,7 @@ export function startSiteChatIntegration() {
         if (value !== undefined && value !== null) store.set(key, null);
     }
     setupTabs();
+    startPlayerHistory();
     startChatPingIntegration();
     startDirectMessageObserver();
 }

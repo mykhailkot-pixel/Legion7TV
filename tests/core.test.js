@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { clamp, emit, on, STORE, SEL } from '../src/core/consts.js';
+import { clamp, emit, on, EV, STORE, SEL } from '../src/core/consts.js';
 import { has, parseNick } from '../src/core/util.js';
 import {
     configureExtensionStore,
@@ -13,6 +13,9 @@ describe('core constants and helpers', () => {
     it('keeps configuration keys and selectors stable', () => {
         expect(Object.isFrozen(STORE)).toBe(true);
         expect(STORE.pingConfig).toBe('t7ping');
+        expect(STORE.popupEmoteAnimation).toBe('t7PopupEmoteAnimation');
+        expect(STORE.playerHistoryButtonEnabled).toBe('t7PlayerHistoryButtonEnabled');
+        expect(EV.playerHistoryButtonChange).toBe('t7-player-history-button-change');
         expect(SEL.chatRoot).toBe('.cy-chat');
         expect(SEL.dmRows).toContain('.dm-l');
     });

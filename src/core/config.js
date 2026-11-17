@@ -7,7 +7,7 @@ export const SIZES = {
     xxl: { h: '3.4em', n: 4, p: 84, label: 'XXL' }
 };
 
-export const EMOTE_LINE_SPACING = 1.25;
+export const EMOTE_LINE_SPACING = 1.125;
 
 export const HARD_BANNED_WORDS = [
     // Гомофобные оскорбления

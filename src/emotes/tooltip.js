@@ -110,7 +110,7 @@ function show(target) {
                 image.classList.remove('t7-tip-loading');
                 console.warn('[Images] не удалось загрузить смайл сайта', name, error);
             }
-        }, () => isCurrent() && !(sourceImage && sourceImage.getAttribute('src')));
+        }, { isCurrent: () => isCurrent() && !(sourceImage && sourceImage.getAttribute('src')) });
     }
 }
 

@@ -68,6 +68,36 @@ describe('site-native emote catalog', () => {
         expect(image.src).toBe('blob:cached');
     });
 
+    it('uses the static CDN variant when popup animation is disabled', async () => {
+        const id = '0123456789abcdefghij';
+        sendCatalog(location.pathname, [['Pog', id]]);
+        const image = document.createElement('img');
+
+        await setEmoteImage(image, EM.Pog, 2, 'eager', undefined, { staticOnly: true });
+
+        expect(mocks.fetchImg).toHaveBeenCalledWith(
+            `https://cdn.7tv.app/emote/${id}/2x_static.webp`, false
+        );
+        expect(image.src).toBe('blob:cached');
+    });
+
+    it('falls back to the regular image when a static variant is unavailable', async () => {
+        const id = '0123456789abcdefghij';
+        sendCatalog(location.pathname, [['Pog', id]]);
+        mocks.fetchImg
+            .mockRejectedValueOnce(new Error('static variant unavailable'))
+            .mockResolvedValueOnce('blob:regular');
+        const image = document.createElement('img');
+
+        await setEmoteImage(image, EM.Pog, 2, 'eager', undefined, { staticOnly: true });
+
+        expect(mocks.fetchImg.mock.calls).toEqual([
+            [`https://cdn.7tv.app/emote/${id}/2x_static.webp`, false],
+            [`https://cdn.7tv.app/emote/${id}/2x.webp`, false]
+        ]);
+        expect(image.src).toBe('blob:regular');
+    });
+
     it('restores a previously saved channel catalog before the site sends it again', async () => {
         const id = '0123456789abcdefghij';
         sendCatalog(location.pathname, [['Pog', id]]);

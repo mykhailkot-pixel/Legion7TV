@@ -90,18 +90,18 @@ describe('chat message processing pipeline', () => {
         refreshEmotes();
         const frame = row.querySelector('.ext-native-emote-frame');
         expect(row.style.lineHeight).toBe('20px');
-        expect(frame.style.height).toBe('2em');
+        expect(frame.style.height).toBe('1.8em');
         expect(frame.style.display).toBe('inline-flex');
         expect(plainRow.style.lineHeight).toBe('20px');
         expect(image.style.height).not.toBe('');
         expect(image.style.display).toBe('block');
         expect(image.style.height).toBe('100%');
-        expect(image.style.marginLeft).toBe('1px');
-        expect(image.style.marginRight).toBe('1px');
+        expect(image.style.marginLeft).toBe('0px');
+        expect(image.style.marginRight).toBe('0px');
 
         S.size = 'xxl';
         refreshEmotes();
-        expect(frame.style.height).toBe('4.25em');
+        expect(parseFloat(frame.style.height)).toBeCloseTo(3.825);
 
         S.on = false;
         refreshEmotes();
