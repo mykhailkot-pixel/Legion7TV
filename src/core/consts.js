@@ -17,7 +17,6 @@ export const STORE = Object.freeze({
     chatFontFile: 't7ChatFontFile',
     chatFontSize: 't7ChatFontSize',
     chatCustomCss: 't7ChatCustomCss',
-    chatTheme: 't7ChatTheme',
     markdownEnabled: 't7MarkdownEnabled',
     pingOnly: 't7PingOnly',
     pingArchive: 't7PingArchive',

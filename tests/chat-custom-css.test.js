@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { applyChatCustomCss, applyChatTheme } from '../src/chat/ui/chatCustomCss.js';
+import { applyChatCustomCss } from '../src/chat/ui/chatCustomCss.js';
 
 function parseRules(cssText) {
     const rules = [];
@@ -41,17 +41,6 @@ class TestStyleSheet {
     }
 }
 
-function pngAssetData() {
-    const bytes = new Uint8Array(24);
-    bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-    bytes.set([0x49, 0x48, 0x44, 0x52], 12);
-    bytes[19] = 1;
-    bytes[23] = 1;
-    let binary = '';
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    return btoa(binary);
-}
-
 describe('chat custom CSS', () => {
     let adoptedStyleSheets;
 
@@ -86,28 +75,26 @@ describe('chat custom CSS', () => {
         expect(adoptedStyleSheets).toEqual([activeSheet]);
     });
 
-    it('resolves saved image assets and rejects external URLs or unsupported at-rules', () => {
-        const asset = {
-            mime: 'image/png',
-            data: pngAssetData(),
-            width: 1,
-            height: 1
-        };
-        applyChatTheme({
-            version: 1,
-            css: '.cy-chat { background-image: url("t7-asset:brass"); }',
-            assets: { brass: asset }
-        });
-        expect(adoptedStyleSheets[0].cssRules[0].style.cssText)
-            .toContain(`url("data:image/png;base64,${pngAssetData()}")`);
+    it('allows direct HTTPS image URLs and rejects unsafe URL schemes and local hosts', () => {
+        const css = '.cy-chat { background-image: url("https://cdn.example.com/brass.webp"); }';
+        applyChatCustomCss(css);
+        expect(adoptedStyleSheets[0].cssRules[0].style.cssText).toContain('https://cdn.example.com/brass.webp');
 
-        expect(() => applyChatCustomCss('.cy-chat { background: url(https://example.com/image.png); }'))
-            .toThrow('Внешние CSS-ссылки запрещены');
-        expect(() => applyChatTheme({
-            version: 1,
-            css: '.cy-chat { background: url("t7-asset:missing"); }',
-            assets: {}
-        })).toThrow('нет изображения');
+        expect(() => applyChatCustomCss('.cy-chat { background: url(http://cdn.example.com/image.png); }'))
+            .toThrow('только HTTPS-ссылки');
+        expect(() => applyChatCustomCss('.cy-chat { background: url(https://127.0.0.1/image.png); }'))
+            .toThrow('публичный HTTPS-домен');
+        expect(() => applyChatCustomCss('.cy-chat { background: url(https://printer.local/image.png); }'))
+            .toThrow('публичный HTTPS-домен');
+        expect(() => applyChatCustomCss('.cy-chat { background: url(data:image/png;base64,abc); }'))
+            .toThrow('только HTTPS-ссылки');
+        expect(() => applyChatCustomCss('.cy-chat { background: url(https://user:pass@cdn.example.com/image.png); }'))
+            .toThrow('без логина и пароля');
+    });
+
+    it('does not interpret url-like text strings as image loads and rejects unsupported at-rules', () => {
+        expect(() => applyChatCustomCss('.cy-chat::before { content: "url(http://127.0.0.1/image.png)"; }'))
+            .not.toThrow();
         expect(() => applyChatCustomCss('@font-face { font-family: test; }'))
             .toThrow('только CSS-правила чата и медиазапросы');
     });

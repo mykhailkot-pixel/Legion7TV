@@ -1,7 +1,8 @@
 import { STORE } from '../../core/consts.js';
 import { store } from '../../core/store.js';
-import { normalizeChatTheme } from './themeAssets.js';
 
+const LEGACY_CHAT_THEME_KEY = 't7ChatTheme';
+const MAX_CHAT_CSS_LENGTH = 100 * 1024;
 let chatStyleSheet = null;
 let storageListenerInstalled = false;
 
@@ -49,34 +50,62 @@ function isChatSelector(selector) {
     return /^\.cy-chat(?=$|[\s.#:[>+~])/.test(selector);
 }
 
-function replaceAssetUrls(cssText, assets) {
-    let rewritten = '';
+function isPrivateIpv4(hostname) {
+    const parts = hostname.split('.');
+    if (parts.length !== 4 || parts.some((part) => !/^\d{1,3}$/.test(part) || Number(part) > 255))
+        return false;
+    const [first, second, third] = parts.map(Number);
+    return first === 0 || first === 10 || first === 127
+        || (first === 169 && second === 254)
+        || (first === 172 && second >= 16 && second <= 31)
+        || (first === 192 && (second === 168 || (second === 0 && third <= 2) || (second === 88 && third === 99)))
+        || (first === 100 && second >= 64 && second <= 127)
+        || (first === 198 && (second === 18 || second === 19 || (second === 51 && third === 100)))
+        || (first === 203 && second === 0 && third === 113)
+        || first >= 224;
+}
+
+function validateExternalUrl(value) {
+    let url;
+    try {
+        url = new URL(value);
+    } catch {
+        throw new Error('В url() нужна прямая HTTPS-ссылка на изображение.');
+    }
+    if (url.protocol !== 'https:' || url.username || url.password)
+        throw new Error('В url() разрешены только HTTPS-ссылки без логина и пароля.');
+
+    const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '');
+    const isIpv4 = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname);
+    if (!hostname.includes('.') || hostname.includes(':') || (isIpv4 && isPrivateIpv4(hostname))
+        || /\.(localhost|local|internal|home\.arpa|test|invalid|example)$/.test(hostname))
+        throw new Error('Используйте публичный HTTPS-домен; локальные адреса запрещены.');
+    return url;
+}
+
+function validateCssUrls(cssText) {
     let quote = '';
     let escaped = false;
 
     for (let index = 0; index < cssText.length;) {
         const character = cssText[index];
         if (escaped) {
-            rewritten += character;
             escaped = false;
             index += 1;
             continue;
         }
         if (character === '\\') {
-            rewritten += character;
             escaped = true;
             index += 1;
             continue;
         }
         if (quote) {
-            rewritten += character;
             if (character === quote) quote = '';
             index += 1;
             continue;
         }
         if (character === '"' || character === "'") {
             quote = character;
-            rewritten += character;
             index += 1;
             continue;
         }
@@ -85,7 +114,6 @@ function replaceAssetUrls(cssText, assets) {
         const isUrlToken = cssText.slice(index, index + 3).toLowerCase() === 'url'
             && !/[\w-]/.test(previous);
         if (!isUrlToken) {
-            rewritten += character;
             index += 1;
             continue;
         }
@@ -93,7 +121,6 @@ function replaceAssetUrls(cssText, assets) {
         let open = index + 3;
         while (/\s/.test(cssText[open] || '')) open += 1;
         if (cssText[open] !== '(') {
-            rewritten += character;
             index += 1;
             continue;
         }
@@ -112,46 +139,42 @@ function replaceAssetUrls(cssText, assets) {
         }
         if (close >= cssText.length) throw new Error('Некорректная CSS-функция url().');
 
-        let assetId = cssText.slice(open + 1, close).trim();
-        if ((assetId.startsWith('"') && assetId.endsWith('"'))
-            || (assetId.startsWith("'") && assetId.endsWith("'")))
-            assetId = assetId.slice(1, -1);
-        const match = assetId.match(/^t7-asset:([a-z0-9][a-z0-9_-]{0,31})$/i);
-        if (!match)
-            throw new Error('Внешние CSS-ссылки запрещены. Используйте url("t7-asset:ID").');
-        const id = match[1].toLowerCase();
-        const asset = assets[id];
-        if (!asset) throw new Error(`В теме нет изображения с ID «${id}».`);
-        rewritten += `url("data:${asset.mime};base64,${asset.data}")`;
+        let value = cssText.slice(open + 1, close).trim();
+        if ((value.startsWith('"') && value.endsWith('"'))
+            || (value.startsWith("'") && value.endsWith("'")))
+            value = value.slice(1, -1);
+        validateExternalUrl(value);
         index = close + 1;
     }
-
-    return rewritten;
 }
 
-function validateRules(rules, assets) {
+function validateRules(rules) {
     for (const rule of rules) {
         if (rule.type === 1) {
             const selectors = splitSelectors(rule.selectorText || '');
             if (!selectors.length || selectors.some((selector) => !isChatSelector(selector)))
                 throw new Error('Каждый селектор должен начинаться с .cy-chat.');
-            rule.style.cssText = replaceAssetUrls(rule.style.cssText, assets);
+            validateCssUrls(rule.style.cssText);
             continue;
         }
         if (rule.type === 4 && rule.cssRules) {
-            validateRules(rule.cssRules, assets);
+            validateRules(rule.cssRules);
             continue;
         }
         throw new Error('Поддерживаются только CSS-правила чата и медиазапросы @media.');
     }
 }
 
-function createValidatedStyleSheet(cssText, assets) {
+function createValidatedStyleSheet(cssText) {
+    if (typeof cssText !== 'string')
+        throw new TypeError('CSS чата должен быть текстом.');
+    if (cssText.length > MAX_CHAT_CSS_LENGTH)
+        throw new Error('CSS не должен быть длиннее 100 КиБ.');
     const sheet = new CSSStyleSheet();
     sheet.replaceSync(cssText);
     if (!sheet.cssRules.length)
         throw new Error('Не удалось разобрать CSS. Проверьте синтаксис правил.');
-    validateRules(sheet.cssRules, assets);
+    validateRules(sheet.cssRules);
     return sheet;
 }
 
@@ -161,30 +184,27 @@ function removeChatStyleSheet() {
     chatStyleSheet = null;
 }
 
-export function applyChatTheme(value) {
-    const theme = normalizeChatTheme(value);
-    if (!theme.css.trim()) {
+export function validateChatCustomCss(cssText) {
+    if (typeof cssText !== 'string')
+        throw new TypeError('CSS чата должен быть текстом.');
+    if (cssText.trim()) createValidatedStyleSheet(cssText);
+    return cssText;
+}
+
+export function applyChatCustomCss(cssText) {
+    if (typeof cssText !== 'string')
+        throw new TypeError('CSS чата должен быть текстом.');
+    if (!cssText.trim()) {
         removeChatStyleSheet();
-        return theme;
+        return;
     }
 
-    const nextStyleSheet = createValidatedStyleSheet(theme.css, theme.assets);
+    const nextStyleSheet = createValidatedStyleSheet(cssText);
     document.adoptedStyleSheets = [
         ...document.adoptedStyleSheets.filter((sheet) => sheet !== chatStyleSheet),
         nextStyleSheet
     ];
     chatStyleSheet = nextStyleSheet;
-    return theme;
-}
-
-export function validateChatTheme(value) {
-    const theme = normalizeChatTheme(value);
-    if (theme.css.trim()) createValidatedStyleSheet(theme.css, theme.assets);
-    return theme;
-}
-
-export function applyChatCustomCss(cssText) {
-    return applyChatTheme({ version: 1, css: cssText, assets: {} });
 }
 
 export function initializeChatCustomCss() {
@@ -192,28 +212,27 @@ export function initializeChatCustomCss() {
         const api = globalThis.browser || globalThis.chrome;
         if (api && api.storage && api.storage.onChanged) {
             api.storage.onChanged.addListener((changes, area) => {
-                if (area !== 'local' || !changes[STORE.chatTheme]
-                    || !Object.prototype.hasOwnProperty.call(changes[STORE.chatTheme], 'newValue'))
+                if (area !== 'local' || !changes[STORE.chatCustomCss]
+                    || !Object.prototype.hasOwnProperty.call(changes[STORE.chatCustomCss], 'newValue'))
                     return;
                 try {
-                    applyChatTheme(changes[STORE.chatTheme].newValue);
+                    applyChatCustomCss(changes[STORE.chatCustomCss].newValue || '');
                 } catch (error) {
-                    console.warn('[Legion7TV] Updated custom chat theme was not applied.', error);
+                    console.warn('[Legion7TV] Updated custom chat CSS was not applied.', error);
                 }
             });
         }
         storageListenerInstalled = true;
     }
 
-    const savedTheme = store.get(STORE.chatTheme);
+    const legacyChatTheme = store.get(LEGACY_CHAT_THEME_KEY);
+    if (legacyChatTheme !== undefined && legacyChatTheme !== null)
+        store.set(LEGACY_CHAT_THEME_KEY, null);
     const savedCss = store.get(STORE.chatCustomCss);
-    if (savedTheme === undefined && (savedCss === undefined || savedCss === null || savedCss === '')) return;
-
+    if (savedCss === undefined || savedCss === null || savedCss === '') return;
     try {
-        applyChatTheme(savedTheme === undefined
-            ? { version: 1, css: savedCss, assets: {} }
-            : savedTheme);
+        applyChatCustomCss(savedCss);
     } catch (error) {
-        console.warn('[Legion7TV] Stored custom chat theme was not applied.', error);
+        console.warn('[Legion7TV] Stored custom chat CSS was not applied.', error);
     }
 }

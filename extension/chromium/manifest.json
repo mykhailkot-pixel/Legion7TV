@@ -10,7 +10,6 @@
     "128": "icons/icon128.png"
   },
   "action": {
-    "default_popup": "theme-assets.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png"
@@ -32,9 +31,6 @@
     "https://imgbb.com/*",
     "https://www.imgbb.com/*",
     "https://i.ibb.co/*"
-  ],
-  "optional_host_permissions": [
-    "https://*/*"
   ],
   "background": {
     "service_worker": "background.js"
