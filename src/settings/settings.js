@@ -17,6 +17,7 @@ import { clearResolvedImageCache } from '../chat/ui/imageProviders.js';
 import { isImagePickerButtonEnabled, setImagePickerButtonEnabled } from '../chat/ui/imagePicker.js';
 import { getOverlayRoot } from '../core/ui.js';
 import { isEmoteTooltipEnabled, setEmoteTooltipEnabled } from '../emotes/tooltip.js';
+import { applyChatTheme, validateChatTheme } from '../chat/ui/chatCustomCss.js';
 
 // смещение окна настроек от центра экрана
 let SOFF = (() => {
@@ -235,6 +236,33 @@ function buildSettingsMarkup(root) {
                 })
             ]),
             createNode('div', { className: 't7-ping-status t7-chat-font-status', role: 'status' })
+        ),
+        settingsSection('Экспериментальный CSS',
+            settingsField('CSS только для чата', createNode('textarea', {
+                className: 't7-chat-custom-css', rows: '8', spellcheck: false,
+                placeholder: '.cy-chat .cy-chat-l li { color: #fff; }'
+            })),
+            createNode('div', { className: 't7-row t7-wrap' }, [
+                settingsButton('Применить CSS', 'chat-css-apply'),
+                settingsButton('Загрузить CSS', 'chat-css-import'),
+                settingsButton('Скачать CSS', 'chat-css-export'),
+                settingsButton('Импорт темы', 'chat-theme-import'),
+                settingsButton('Экспорт темы', 'chat-theme-export'),
+                settingsButton('Сбросить CSS', 'chat-css-reset')
+            ]),
+            createNode('input', {
+                type: 'file', className: 't7-chat-css-file', accept: '.css,text/css', hidden: true
+            }),
+            createNode('input', {
+                type: 'file', className: 't7-chat-theme-file', accept: '.json,application/json', hidden: true
+            }),
+            createNode('div', { className: 't7-ping-status t7-chat-custom-css-status', role: 'status' }),
+            createNode('div', { className: 't7-note', role: 'note' }, [
+                createNode('span', { className: 't7-note-icon', 'aria-hidden': 'true' }, ['!']),
+                createNode('span', {}, [
+                    'Селекторы должны начинаться с .cy-chat; разрешены правила @media. Для картинок используйте url("t7-asset:ID"). CSS можно передать как .css; чтобы передать CSS вместе с картинками, используйте экспорт/импорт темы JSON. Картинки загружаются через попап расширения; доступ запрашивается отдельно для домена.'
+                ])
+            ])
         )
     );
 
@@ -665,6 +693,50 @@ export function openSettings() {
         rescanAll();
     });
 
+    const customChatCss = el.querySelector('.t7-chat-custom-css');
+    const customChatCssStatus = el.querySelector('.t7-chat-custom-css-status');
+    const savedTheme = store.get(STORE.chatTheme);
+    const savedCustomChatCss = store.get(STORE.chatCustomCss);
+    customChatCss.value = savedTheme && typeof savedTheme.css === 'string'
+        ? savedTheme.css
+        : typeof savedCustomChatCss === 'string' ? savedCustomChatCss : '';
+    const cssFile = el.querySelector('.t7-chat-css-file');
+    cssFile.addEventListener('change', async () => {
+        const file = cssFile.files && cssFile.files[0];
+        if (!file) return;
+        try {
+            if (file.size > 100 * 1024) throw new Error('CSS-файл не должен быть больше 100 КиБ.');
+            customChatCss.value = await file.text();
+            customChatCssStatus.textContent = 'CSS загружен. Нажмите «Применить CSS», чтобы проверить и применить его.';
+        } catch (error) {
+            customChatCssStatus.textContent = error instanceof Error ? error.message : String(error);
+        } finally {
+            cssFile.value = '';
+        }
+    });
+    const themeFile = el.querySelector('.t7-chat-theme-file');
+    themeFile.addEventListener('change', async () => {
+        const file = themeFile.files && themeFile.files[0];
+        if (!file) return;
+        try {
+            if (file.size > 12 * 1024 * 1024) throw new Error('Файл темы не должен быть больше 12 МиБ.');
+            const imported = JSON.parse(await file.text());
+            if (!imported || imported.format !== 'legion7tv-chat-theme')
+                throw new Error('Это не файл темы Legion7TV.');
+            const themeValue = { ...imported };
+            delete themeValue.format;
+            const theme = applyChatTheme(themeValue);
+            store.set(STORE.chatTheme, theme);
+            store.set(STORE.chatCustomCss, theme.css);
+            customChatCss.value = theme.css;
+            customChatCssStatus.textContent = 'Тема импортирована и применена.';
+        } catch (error) {
+            customChatCssStatus.textContent = error instanceof Error ? error.message : String(error);
+        } finally {
+            themeFile.value = '';
+        }
+    });
+
     el.addEventListener('click', async (e) => {
         const b = e.target.closest('[data-act]');
         if (!b) return;
@@ -680,6 +752,90 @@ export function openSettings() {
             chatFont.value = getChatFont();
             b.disabled = true;
             chatFontStatus.textContent = 'Свой шрифт удалён';
+        }
+        else if (b.dataset.act === 'chat-css-apply') {
+            try {
+                const currentTheme = store.get(STORE.chatTheme);
+                const theme = applyChatTheme({
+                    version: 1,
+                    css: customChatCss.value,
+                    assets: currentTheme && currentTheme.assets && typeof currentTheme.assets === 'object'
+                        ? currentTheme.assets
+                        : {}
+                });
+                store.set(STORE.chatTheme, theme);
+                store.set(STORE.chatCustomCss, customChatCss.value);
+                customChatCssStatus.textContent = 'CSS чата применён и сохранён.';
+            } catch (error) {
+                customChatCssStatus.textContent = error instanceof Error ? error.message : String(error);
+            }
+        }
+        else if (b.dataset.act === 'chat-css-reset') {
+            const currentTheme = store.get(STORE.chatTheme);
+            const theme = applyChatTheme({
+                version: 1,
+                css: '',
+                assets: currentTheme && currentTheme.assets && typeof currentTheme.assets === 'object'
+                    ? currentTheme.assets
+                    : {}
+            });
+            store.set(STORE.chatTheme, theme);
+            store.set(STORE.chatCustomCss, '');
+            customChatCss.value = '';
+            customChatCssStatus.textContent = 'Пользовательский CSS удалён.';
+        }
+        else if (b.dataset.act === 'chat-theme-import') {
+            el.querySelector('.t7-chat-theme-file').click();
+        }
+        else if (b.dataset.act === 'chat-css-import') {
+            el.querySelector('.t7-chat-css-file').click();
+        }
+        else if (b.dataset.act === 'chat-css-export') {
+            try {
+                const currentTheme = store.get(STORE.chatTheme);
+                validateChatTheme({
+                    version: 1,
+                    css: customChatCss.value,
+                    assets: currentTheme && currentTheme.assets && typeof currentTheme.assets === 'object'
+                        ? currentTheme.assets
+                        : {}
+                });
+                const blob = new Blob([customChatCss.value], { type: 'text/css;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'legion7tv-chat.css';
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                customChatCssStatus.textContent = 'CSS-файл экспортирован. Для передачи картинок экспортируйте тему JSON.';
+            } catch (error) {
+                customChatCssStatus.textContent = error instanceof Error ? error.message : String(error);
+            }
+        }
+        else if (b.dataset.act === 'chat-theme-export') {
+            try {
+                const currentTheme = store.get(STORE.chatTheme);
+                const theme = validateChatTheme({
+                    version: 1,
+                    css: customChatCss.value,
+                    assets: currentTheme && currentTheme.assets && typeof currentTheme.assets === 'object'
+                        ? currentTheme.assets
+                        : {}
+                });
+                const blob = new Blob([JSON.stringify({
+                    format: 'legion7tv-chat-theme',
+                    ...theme
+                }, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = 'legion7tv-chat-theme.json';
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+                customChatCssStatus.textContent = 'Тема экспортирована.';
+            } catch (error) {
+                customChatCssStatus.textContent = error instanceof Error ? error.message : String(error);
+            }
         }
         else if (b.dataset.act === 'test-ping') {
             pingSystem.play(true).catch((error) => console.warn('[7TV] не удалось воспроизвести звук пинга', error));

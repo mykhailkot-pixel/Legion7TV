@@ -228,6 +228,8 @@
 .t7-chat-font-actions .t7-b{flex:1 1 130px;min-width:0;white-space:normal}
 .t7-chat-font-actions .t7-b:disabled{opacity:.45;cursor:default}
 .t7-chat-font-status{overflow-wrap:anywhere}
+.t7-chat-custom-css{box-sizing:border-box;min-height:150px!important;resize:vertical;font:12px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace!important}
+.t7-chat-custom-css-status{overflow-wrap:anywhere;min-height:1.3em}
 
 .t7-b{padding:6px 10px;border-radius:6px;border:1px solid var(--t7-line);background:var(--t7-bg-in);color:#ddd}
 .t7-b:hover{background:#1d1d29}

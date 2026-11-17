@@ -111,7 +111,8 @@ async function buildTarget(name) {
         build({
             entryPoints: {
                 'content-bridge': resolve(shared, 'content-bridge.js'),
-                background: resolve(shared, 'background.js')
+                background: resolve(shared, 'background.js'),
+                'theme-assets-popup': resolve(shared, 'theme-assets-popup.js')
             },
             bundle: true,
             format: 'iife',
@@ -125,6 +126,8 @@ async function buildTarget(name) {
         rm(resolve(output, 'page-bridge.js'), { force: true }),
         rm(resolve(output, 'styles.css'), { force: true }),
         cp(resolve(shared, 'site-hook.js'), resolve(output, 'site-hook.js')),
+        cp(resolve(shared, 'theme-assets.html'), resolve(output, 'theme-assets.html')),
+        cp(resolve(shared, 'theme-assets.css'), resolve(output, 'theme-assets.css')),
         writeFile(resolve(output, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n'),
         target.copyIcons(output)
     ]);

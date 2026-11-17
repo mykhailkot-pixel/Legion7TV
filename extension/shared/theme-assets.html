@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Изображения темы чата</title>
+  <link rel="stylesheet" href="theme-assets.css">
+</head>
+<body>
+  <main>
+    <h1>Изображения темы чата</h1>
+    <p class="note">Загрузка происходит только после нажатия кнопки. Браузер запросит доступ лишь к домену картинки. Изображения сохраняются в расширении и не загружаются с сайта при каждом открытии чата.</p>
+    <form id="asset-form">
+      <label>ID для CSS
+        <input id="asset-id" name="assetId" maxlength="32" placeholder="my-image" autocomplete="off" required>
+      </label>
+      <label>HTTPS-ссылка
+        <input id="asset-url" name="assetUrl" type="url" placeholder="https://example.com/texture.webp" autocomplete="url" required>
+      </label>
+      <button id="download" type="submit">Загрузить и сохранить</button>
+    </form>
+    <p id="status" role="status" aria-live="polite"></p>
+    <h2>Сохранённые изображения</h2>
+    <div id="assets" class="assets"></div>
+    <p class="note">В CSS используйте <code>url("t7-asset:ID")</code>. Поддерживаются PNG, JPEG и WebP, до 2 МиБ на файл.</p>
+  </main>
+  <script src="theme-assets-popup.js"></script>
+</body>
+</html>

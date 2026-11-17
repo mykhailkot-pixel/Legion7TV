@@ -10,6 +10,7 @@ import { updateSetStatus } from './settings/settings.js';
 import { ensureButtons } from './chat/ui/chatInput.js';
 import { startChatObservers } from './chat/ui/chatObservers.js';
 import { applyChatFont } from './chat/ui/chatFonts.js';
+import { initializeChatCustomCss } from './chat/ui/chatCustomCss.js';
 import { pingSystem } from './chat/pingSystem.js';
 import { initEmoteTooltip } from './emotes/tooltip.js';
 import { startSiteChatIntegration } from './chat/integration/siteChat.js';
@@ -20,6 +21,7 @@ let started = false;
 function initialize() {
     initializeUiIdentity();
     installUiStyles(css);
+    initializeChatCustomCss();
 
     const size = store.get(STORE.emoteSize);
     if (SIZES[size]) S.size = size;
