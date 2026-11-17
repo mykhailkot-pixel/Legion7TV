@@ -492,7 +492,11 @@ function disposeForm(form) {
     }
     if (buttons) {
         buttons.dispose.forEach((disposeButton) => disposeButton());
-        if (buttons.container) buttons.container.remove();
+        if (buttons.container) {
+            const submit = buttons.container.querySelector(SEL.submitButton);
+            if (submit) buttons.container.before(submit);
+            buttons.container.remove();
+        }
         else {
             buttons.emote.host.remove();
             buttons.image.host?.remove();
@@ -533,6 +537,7 @@ export function ensureButtons() {
             const sheet = new CSSStyleSheet();
             sheet.replaceSync(`
                 :host{display:inline-flex;flex:none;align-self:stretch;min-height:28px;margin:0;vertical-align:middle}
+                :host([hidden]){display:none!important}
                 button{box-sizing:border-box;min-height:28px;padding:0 8px;border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;font:700 11px/1 system-ui,sans-serif;white-space:nowrap;cursor:pointer}
                 button:hover{background:rgb(165,100,255)}
                 button[hidden]{display:none!important}
@@ -563,6 +568,7 @@ export function ensureButtons() {
             () => openImagePicker(input), isImagePickerButtonEnabled()) : null;
         const pastes = createShadowButton('Пасты', 'Сохранённые пасты',
             () => openPastes(input), arePastesEnabled());
+        if (submit) buttonContainer.appendChild(submit);
         if (image) buttonRecords.push(registerChatButton('imagePicker', image.host, image.button, true));
         buttonRecords.push(registerChatButton('pastes', pastes.host, pastes.button, true));
         buttonsByForm.set(form, {
