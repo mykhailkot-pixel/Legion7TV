@@ -10,8 +10,10 @@ describe('chat button visibility', () => {
 
         updateChatButtons('pastes', true);
         expect(button.hidden).toBe(true);
+        expect(host.hidden).toBe(true);
         updateChatButtons('pastes', false);
         expect(button.hidden).toBe(true);
+        expect(host.hidden).toBe(true);
         unregister();
         host.remove();
     });
@@ -24,6 +26,7 @@ describe('chat button visibility', () => {
         expect(() => registerChatButton('unknown', host, button, true)).toThrow(/Unknown/);
         updateChatButtons('imagePicker', true);
         expect(button.hidden).toBe(false);
+        expect(host.hidden).toBe(false);
         host.remove();
         updateChatButtons('imagePicker', false);
         unregister();

@@ -96,6 +96,8 @@ describe('chat message processing pipeline', () => {
         expect(image.style.height).not.toBe('');
         expect(image.style.display).toBe('block');
         expect(image.style.height).toBe('100%');
+        expect(image.style.marginLeft).toBe('1px');
+        expect(image.style.marginRight).toBe('1px');
 
         S.size = 'xxl';
         refreshEmotes();

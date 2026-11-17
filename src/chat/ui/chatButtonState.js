@@ -19,6 +19,8 @@ export function updateChatButtons(feature, isEnabled) {
             buttons.delete(record);
             continue;
         }
-        record.button.hidden = !isEnabled || !record.visible;
+        const hidden = !isEnabled || !record.visible;
+        record.button.hidden = hidden;
+        record.host.hidden = hidden;
     }
 }

@@ -122,9 +122,10 @@ function applyNativeEmote(image) {
     frame.style.display = S.on ? 'inline-flex' : 'none';
     frame.style.height = `${parseFloat(SIZES[S.size].h) * EMOTE_LINE_SPACING}em`;
     image.style.display = 'block';
-    image.style.height = '100%';
+    image.style.height = '90%';
     image.style.verticalAlign = '';
     image.style.width = 'auto';
+    image.style.margin = '0px 1px';
     if (image.alt) setEmoteTooltipData(image, image.alt, EM[image.alt]);
 }
 

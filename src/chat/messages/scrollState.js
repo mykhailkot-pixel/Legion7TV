@@ -29,8 +29,8 @@ function rowsMatchState(list, state) {
     return rows.length === state.rows.size && rows.every((row) => state.rows.has(row));
 }
 
-function isAtEndByIntent(list, state) {
-    return state.atEnd || (rowsMatchState(list, state) && isAtEnd(list));
+function isAtEndByIntent(state) {
+    return state.atEnd;
 }
 
 function getState(list) {
@@ -186,11 +186,13 @@ function register(list, key, restore) {
 
 function updateFromScroll(list) {
     const state = getState(list);
-    if (!rowsMatchState(list, state)) return;
-    if (state.userScrollVersion !== state.handledUserScrollVersion) {
-        state.atEnd = isAtEnd(list);
+    const userScrolled = state.userScrollVersion !== state.handledUserScrollVersion;
+    if (userScrolled) {
+        state.atEnd = list.scrollTop < state.lastScrollTop ? false : isAtEnd(list);
         state.handledUserScrollVersion = state.userScrollVersion;
-    } else if (state.atEnd) {
+    }
+    if (!rowsMatchState(list, state)) return;
+    if (!userScrolled && state.atEnd) {
         scrollToEnd(list);
     }
     commit(list, state);
@@ -244,7 +246,7 @@ export const chatScroller = {
     captureEndIntent(list) {
         if (!list) return null;
         const state = getState(list);
-        return { atEnd: state.atEnd || isAtEnd(list), userScrollVersion: state.userScrollVersion };
+        return { atEnd: state.atEnd, userScrollVersion: state.userScrollVersion };
     },
 
     settleAtEnd(list, intent) {
@@ -269,7 +271,7 @@ export const chatScroller = {
         if (!list) return mutate();
         const state = getState(list);
         const { anchor, rows } = captureAnchor(list);
-        const atEnd = isAtEndByIntent(list, state);
+        const atEnd = isAtEndByIntent(state);
         state.atEnd = atEnd;
         const result = mutate();
         if (!list.isConnected) return result;
@@ -283,7 +285,7 @@ export const chatScroller = {
         if (!list) return mutate();
         const state = getState(list);
         const { anchor, rows } = captureAnchor(list);
-        const atEnd = isAtEndByIntent(list, state);
+        const atEnd = isAtEndByIntent(state);
         const result = mutate();
         if (list.isConnected) {
             state.atEnd = atEnd;

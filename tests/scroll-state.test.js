@@ -55,4 +55,39 @@ describe('chat scroll state', () => {
         expect(list.scrollTop).toBe(250);
         list.remove();
     });
+
+    it('releases end-following after a small upward keyboard scroll', () => {
+        chatScroller.start();
+        const list = document.createElement('ul');
+        list.className = 'cy-chat-l';
+        setScrollMetrics(list, { top: 400, height: 500, viewport: 100 });
+        document.body.appendChild(list);
+        chatScroller.scrollToEnd(list);
+
+        list.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
+        list.scrollTop = 395;
+        list.dispatchEvent(new Event('scroll'));
+
+        expect(list.scrollTop).toBe(395);
+        expect(chatScroller.captureEndIntent(list).atEnd).toBe(false);
+        list.remove();
+    });
+
+    it('does not reattach after a small slow upward scroll near the end', () => {
+        chatScroller.start();
+        const list = document.createElement('ul');
+        list.className = 'cy-chat-l';
+        setScrollMetrics(list, { top: 400, height: 500, viewport: 100 });
+        document.body.appendChild(list);
+        chatScroller.scrollToEnd(list);
+
+        list.dispatchEvent(new WheelEvent('wheel', { deltaY: -1, bubbles: true }));
+        list.scrollTop = 395;
+        list.dispatchEvent(new Event('scroll'));
+        chatScroller.preserve(list, () => {});
+
+        expect(list.scrollTop).toBe(395);
+        expect(chatScroller.captureEndIntent(list).atEnd).toBe(false);
+        list.remove();
+    });
 });

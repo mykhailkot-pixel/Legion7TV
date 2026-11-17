@@ -185,6 +185,25 @@ function messageKey(id) {
     return String(id);
 }
 
+export function getAppendedRowsAfterSeen(list, records, seen) {
+    const rows = [...list.children].filter((row) => row.tagName === 'LI');
+    let lastSeenIndex = -1;
+    rows.forEach((row, index) => {
+        if (row.dataset.mid && seen.has(messageKey(row.dataset.mid))) lastSeenIndex = index;
+    });
+
+    const rowIndices = new Map(rows.map((row, index) => [row, index]));
+    const appendedRows = new Set();
+    for (const record of records) {
+        if (record.target !== list) continue;
+        for (const node of record.addedNodes) {
+            if (node.nodeType !== 1 || node.tagName !== 'LI') continue;
+            if (rowIndices.get(node) > lastSeenIndex) appendedRows.add(node);
+        }
+    }
+    return appendedRows;
+}
+
 function rememberNotified(key) {
     if (notifiedIds.has(key)) return;
     notifiedIds.add(key);
@@ -655,9 +674,11 @@ function refreshRows(state, notify = false) {
                     return;
                 }
                 const quietLoad = state.quietTab === currentTab;
+                const notificationRows = getAppendedRowsAfterSeen(list, records, state.seen);
                 const notificationBatch = { play: false };
                 list.querySelectorAll(`:scope > li:not(.${cls('archive-row')})`)
-                    .forEach((row) => processRow(state, row, !quietLoad, notificationBatch));
+                    .forEach((row) => processRow(state, row,
+                        !quietLoad && notificationRows.has(row), notificationBatch));
                 if (quietLoad) state.quietTab = null;
                 paint(state);
                 renderArchivePage(state);
@@ -691,7 +712,7 @@ function observeBox(box) {
     };
     stateByBox.set(box, state);
     states.add(state);
-    state.boxObserver = new MutationObserver(() => refreshRows(state, true));
+    state.boxObserver = new MutationObserver(() => refreshRows(state, false));
     state.boxObserver.observe(box, { childList: true });
     box.addEventListener('click', (event) => {
         if (!(event.target instanceof Element)) return;

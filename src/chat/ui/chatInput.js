@@ -7,7 +7,7 @@ import { pingSystem } from '../pingSystem.js';
 import { bindOutgoingLinkEncoding } from '../messages/links.js';
 import { arePastesEnabled, openPastes } from './pastes.js';
 import { disposeImagePicker, isImagePickerButtonEnabled, openImagePicker } from './imagePicker.js';
-import { getOverlayRoot } from '../../core/ui.js';
+import { cls, getOverlayRoot } from '../../core/ui.js';
 import { registerChatButton } from './chatButtonState.js';
 import { insertText } from '../../core/insertText.js';
 
@@ -523,18 +523,16 @@ export function ensureButtons() {
         if (buttonsByForm.has(form)) return;
         const submit = form.querySelector(SEL.submitButton);
         const buttonRecords = [];
-        const buttonContainer = form.matches(SEL.dmForm) ? document.createElement('span') : null;
-        if (buttonContainer) {
-            buttonContainer.className = 't7-dm-chat-buttons';
-            if (submit) submit.before(buttonContainer);
-            else form.appendChild(buttonContainer);
-        }
+        const buttonContainer = document.createElement('span');
+        buttonContainer.className = cls('chat-buttons');
+        if (submit) submit.before(buttonContainer);
+        else form.appendChild(buttonContainer);
         const createShadowButton = (text, title, onClick, visible = true) => {
             const host = document.createElement('span');
             const shadow = host.attachShadow({ mode: 'closed' });
             const sheet = new CSSStyleSheet();
             sheet.replaceSync(`
-                :host{display:inline-flex;flex:none;align-self:stretch;min-height:28px;margin:${buttonContainer ? '0' : '0 0 0 4px'};vertical-align:middle}
+                :host{display:inline-flex;flex:none;align-self:stretch;min-height:28px;margin:0;vertical-align:middle}
                 button{box-sizing:border-box;min-height:28px;padding:0 8px;border:1px solid rgba(255,255,255,.25);border-radius:6px;background:rgba(145,70,255,.9);color:#fff;font:700 11px/1 system-ui,sans-serif;white-space:nowrap;cursor:pointer}
                 button:hover{background:rgb(165,100,255)}
                 button[hidden]{display:none!important}
@@ -547,6 +545,7 @@ export function ensureButtons() {
             innerButton.setAttribute('aria-label', title);
             innerButton.setAttribute('aria-haspopup', 'dialog');
             innerButton.hidden = !visible;
+            host.hidden = !visible;
             ['keydown', 'keyup', 'keypress'].forEach((type) =>
                 innerButton.addEventListener(type, (event) => event.stopPropagation()));
             innerButton.addEventListener('click', (event) => {
@@ -555,9 +554,7 @@ export function ensureButtons() {
                 onClick(innerButton);
             });
             shadow.appendChild(innerButton);
-            if (buttonContainer) buttonContainer.appendChild(host);
-            else if (submit) submit.before(host);
-            else form.appendChild(host);
+            buttonContainer.appendChild(host);
             return { host, button: innerButton };
         };
 

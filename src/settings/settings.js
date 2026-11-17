@@ -9,6 +9,7 @@ import { pingSystem } from '../chat/pingSystem.js';
 import { getChatFont, getChatFontSize, getCustomChatFont, setChatFont, setChatFontSize, uploadChatFont, removeCustomChatFont } from '../chat/ui/chatFonts.js';
 import { getRecentLimit, setRecentLimit } from '../chat/prefs.js';
 import { areImagePreviewsEnabled, isLinkEncodingEnabled, setImagePreviewsEnabled, setLinkEncodingEnabled } from '../chat/messages/links.js';
+import { isMarkdownEnabled, setMarkdownEnabled } from '../chat/messages/markdown.js';
 import { CHAT_TABS, getChatTabPrefs, setChatTabPrefs } from '../chat/prefs.js';
 import { EV, STORE, on as onExtensionEvent } from '../core/consts.js';
 import { arePastesEnabled, setPastesEnabled } from '../chat/ui/pastes.js';
@@ -188,6 +189,9 @@ function buildSettingsMarkup(root) {
     const chatPanel = panel('chat');
     chatPanel.append(
         settingsSection('Вкладки чата', createNode('div', { className: 't7-chat-tab-list' })),
+        settingsSection('Сообщения',
+            settingsToggle('t7-markdown-enabled', 'Обрабатывать Markdown-разметку')
+        ),
         settingsSection('Кнопки в чате',
             settingsToggle('t7-pastes-enabled', 'Показывать кнопку паст в чате'),
             settingsToggle('t7-image-picker-enabled', 'Показывать кнопку imgBB в чате')
@@ -630,6 +634,12 @@ export function openSettings() {
     imagePreviews.checked = areImagePreviewsEnabled();
     imagePreviews.addEventListener('change', () => {
         setImagePreviewsEnabled(imagePreviews.checked);
+        rescanAll();
+    });
+    const markdownEnabled = el.querySelector('.t7-markdown-enabled');
+    markdownEnabled.checked = isMarkdownEnabled();
+    markdownEnabled.addEventListener('change', () => {
+        setMarkdownEnabled(markdownEnabled.checked);
         rescanAll();
     });
 

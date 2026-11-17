@@ -3,10 +3,14 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('../src/core/ui.js', () => ({ cls: (name) => `ext-${name}` }));
 vi.mock('../src/chat/pingSystem.js', () => ({ pingSystem: { config: { pingColor: '#123456' } } }));
 
-import { processMarkdown } from '../src/chat/messages/markdown.js';
+import { isMarkdownEnabled, processMarkdown, setMarkdownEnabled } from '../src/chat/messages/markdown.js';
 import { processMentions } from '../src/chat/messages/mentions.js';
 
 describe('message markdown', () => {
+    it('is enabled by default', () => {
+        expect(isMarkdownEnabled()).toBe(true);
+    });
+
     it('parses nested formatting and creates an initially concealed spoiler', () => {
         const content = document.createElement('div');
         content.textContent = '***bold italic*** ||secret||';
@@ -38,6 +42,29 @@ describe('message markdown', () => {
         processMarkdown({ content, kind: 'message', source: content.textContent });
         expect(content.textContent).toBe('under_score *open');
         expect(content.querySelector('em')).toBeNull();
+    });
+
+    it('renders escaped markdown markers literally', () => {
+        const content = document.createElement('div');
+        const source = '\\*text*';
+        content.textContent = source;
+
+        processMarkdown({ content, kind: 'message', source });
+
+        expect(content.textContent).toBe('*text*');
+        expect(content.querySelector('em')).toBeNull();
+    });
+
+    it('leaves markup untouched when markdown is disabled', () => {
+        const content = document.createElement('div');
+        const source = '**plain**';
+        content.textContent = source;
+        setMarkdownEnabled(false);
+
+        processMarkdown({ content, kind: 'message', source });
+
+        expect(content.textContent).toBe(source);
+        expect(content.querySelector('strong')).toBeNull();
     });
 });
 

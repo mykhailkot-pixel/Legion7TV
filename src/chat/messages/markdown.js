@@ -1,5 +1,8 @@
 import { cls } from '../../core/ui.js';
+import { store } from '../../core/store.js';
+import { STORE } from '../../core/consts.js';
 
+const MARKDOWN_ENABLED_KEY = STORE.markdownEnabled;
 const MARKERS = [
     { token: '***', tag: 'strong', nestedTag: 'em' },
     { token: '**', tag: 'strong' },
@@ -13,6 +16,10 @@ const WORD_CHAR_RE = /[\p{L}\p{N}_]/u;
 const URL_PREFIX_RE = /(?:\[ref\]\{[^{}\s]+\}|https?:\/\/[^\s<>"']+|www\.[^\s<>"']+)/iy;
 const MENTION_RE = /(?<![\p{L}\p{N}_])@[a-z0-9_]{1,25}(?![\p{L}\p{N}_])/iy;
 const MARKER_SUFFIX_RE = /(?:\*{1,3}|_{1,2}|~{2}|\|{2})+$/;
+const ESCAPABLE_MARKER_RE = /[*_~|\\]/;
+
+export const isMarkdownEnabled = () => store.get(MARKDOWN_ENABLED_KEY) !== false;
+export const setMarkdownEnabled = (enabled) => store.set(MARKDOWN_ENABLED_KEY, !!enabled);
 
 function isUnderscoreBoundary(text, index, opening) {
     const adjacent = opening ? text[index + 1] : text[index - 1];
@@ -60,6 +67,15 @@ function parseInline(text, start = 0, closing = null, depth = 0) {
     let changed = false;
 
     while (index < text.length) {
+        if (text[index] === '\\' && ESCAPABLE_MARKER_RE.test(text[index + 1])) {
+            fragment.appendChild(document.createTextNode(text.slice(offset, index)));
+            fragment.appendChild(document.createTextNode(text[index + 1]));
+            index += 2;
+            offset = index;
+            changed = true;
+            continue;
+        }
+
         URL_PREFIX_RE.lastIndex = index;
         const url = URL_PREFIX_RE.exec(text);
         if (url) {
@@ -113,7 +129,7 @@ function parseInline(text, start = 0, closing = null, depth = 0) {
 }
 
 export function processMarkdown({ content, kind, source }) {
-    if (kind !== 'message') return;
+    if (kind !== 'message' || !isMarkdownEnabled()) return;
     const parsed = parseInline(source);
     if (parsed.changed) content.replaceChildren(parsed.fragment);
 }
