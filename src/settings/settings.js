@@ -18,6 +18,8 @@ import { isImagePickerButtonEnabled, setImagePickerButtonEnabled } from '../chat
 import { getOverlayRoot } from '../core/ui.js';
 import { isEmoteTooltipEnabled, setEmoteTooltipEnabled } from '../emotes/tooltip.js';
 import { applyChatCustomCss, validateChatCustomCss } from '../chat/ui/chatCustomCss.js';
+import { CHAT_CSS_PROMPT } from './chatCssPrompt.js';
+import { copyTextToClipboard } from './clipboard.js';
 
 // смещение окна настроек от центра экрана
 let SOFF = (() => {
@@ -141,7 +143,9 @@ function buildSettingsMarkup(root) {
         role: 'tablist',
         'aria-label': 'Разделы настроек'
     });
-    const tabNames = [['emotes', 'Эмоуты'], ['chat', 'Чат'], ['pings', 'Пинги'], ['data', 'Данные']];
+    const tabNames = [
+        ['emotes', 'Эмоуты'], ['chat', 'Чат'], ['chat-css', 'CSS'], ['pings', 'Пинги'], ['data', 'Данные']
+    ];
     for (const [id, title] of tabNames) {
         tabs.appendChild(createNode('button', {
             type: 'button',
@@ -237,8 +241,23 @@ function buildSettingsMarkup(root) {
             ]),
             createNode('div', { className: 't7-ping-status t7-chat-font-status', role: 'status' })
         ),
-        settingsSection('Экспериментальный CSS',
-            settingsField('CSS только для чата', createNode('textarea', {
+    );
+
+    const chatCssPanel = panel('chat-css');
+    chatCssPanel.append(
+        settingsSection('Создание темы чата',
+            createNode('ol', { className: 't7-chat-prompt-steps' }, [
+                createNode('li', {}, ['Нажмите «Скопировать промпт» и отправьте его нейросети.']),
+                createNode('li', {}, ['Следующим отдельным сообщением опишите стиль своими словами.']),
+                createNode('li', {}, ['Приложите скрин исходного чата и как можно больше картинок-референсов: чем больше подходящих примеров, тем точнее получится оформление.'])
+            ]),
+            createNode('div', { className: 't7-row t7-wrap' }, [
+                settingsButton('Скопировать промпт', 'chat-css-prompt-copy')
+            ]),
+            createNode('div', { className: 't7-ping-status t7-chat-prompt-status', role: 'status' })
+        ),
+        settingsSection('Пользовательский CSS',
+            settingsField('CSS чата', createNode('textarea', {
                 className: 't7-chat-custom-css', rows: '8', spellcheck: false,
                 placeholder: '.cy-chat .cy-chat-l li { color: #fff; }'
             })),
@@ -255,7 +274,7 @@ function buildSettingsMarkup(root) {
             createNode('div', { className: 't7-note', role: 'note' }, [
                 createNode('span', { className: 't7-note-icon', 'aria-hidden': 'true' }, ['!']),
                 createNode('span', {}, [
-                    'Селекторы должны начинаться с .cy-chat; разрешены @media и @keyframes. Используйте уникальные имена анимаций, чтобы не пересекаться со стилями сайта. Для картинок используйте прямые публичные HTTPS-ссылки в url(). При загрузке изображения удалённый хост получает сетевой запрос от вашего браузера. Передавайте CSS как .css.'
+                    'Селекторы должны начинаться с .cy-chat; разрешены @media и @keyframes. Для картинок используйте прямые публичные HTTPS-ссылки в url(). При загрузке изображения браузер обращается к указанному хосту. Передавайте CSS как .css.'
                 ])
             ])
         )
@@ -342,7 +361,7 @@ function buildSettingsMarkup(root) {
         ])
     ));
 
-    dialog.append(header, tabs, emotesPanel, chatPanel, pingsPanel, dataPanel);
+    dialog.append(header, tabs, emotesPanel, chatPanel, chatCssPanel, pingsPanel, dataPanel);
     root.appendChild(dialog);
 }
 
@@ -721,6 +740,15 @@ export function openSettings() {
             chatFont.value = getChatFont();
             b.disabled = true;
             chatFontStatus.textContent = 'Свой шрифт удалён';
+        }
+        else if (b.dataset.act === 'chat-css-prompt-copy') {
+            const promptStatus = el.querySelector('.t7-chat-prompt-status');
+            try {
+                await copyTextToClipboard(CHAT_CSS_PROMPT);
+                promptStatus.textContent = 'Промпт скопирован. Отправьте его, затем отдельным сообщением опишите стиль.';
+            } catch (error) {
+                promptStatus.textContent = error instanceof Error ? error.message : String(error);
+            }
         }
         else if (b.dataset.act === 'chat-css-apply') {
             try {

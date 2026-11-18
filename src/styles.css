@@ -147,13 +147,15 @@
     padding:14px;background:var(--t7-bg);color:var(--t7-fg);
     border:1px solid rgba(255,255,255,.18);border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
 .t7-sw.t7-drag{will-change:transform}
-.t7-settings-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:3px;border:1px solid var(--t7-line);border-radius:8px;background:var(--t7-bg-in)}
+.t7-settings-tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;padding:3px;border:1px solid var(--t7-line);border-radius:8px;background:var(--t7-bg-in)}
 .t7-settings-tabs button{min-width:0;padding:7px 3px;border:0;border-radius:6px;background:transparent;color:var(--t7-mute);font-size:12px;font-weight:600;white-space:nowrap}
 .t7-settings-tabs button:hover{background:var(--t7-hover);color:var(--t7-fg)}
 .t7-settings-tabs button[aria-selected=true]{background:#ffc94d;color:#211b11}
 .t7-settings-tabs button:focus-visible{outline:2px solid #ffc94d;outline-offset:1px}
 .t7-setting-panel{display:flex;flex-direction:column;gap:8px;min-width:0}
 .t7-setting-panel[hidden]{display:none!important}
+.t7-chat-prompt-steps{margin:0;padding-left:22px;color:var(--t7-mute);font-size:12px;line-height:1.45}
+.t7-chat-prompt-steps li+li{margin-top:5px}
 
 .t7-sec{display:flex;flex-direction:column;gap:6px;padding:0 0 6px;border-bottom:1px solid rgba(255,255,255,.1);interpolate-size:allow-keywords}
 .t7-sec:last-of-type{padding-bottom:0;border-bottom:0}
