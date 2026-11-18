@@ -20,7 +20,7 @@ import { isEmoteTooltipEnabled, setEmoteTooltipEnabled } from '../emotes/tooltip
 import { applyChatCustomCss, validateChatCustomCss } from '../chat/ui/chatCustomCss.js';
 import { CHAT_CSS_PROMPT } from './chatCssPrompt.js';
 import { copyTextToClipboard } from './clipboard.js';
-import { fetchChatCssFromUrl, fetchChatThemeCatalog } from '../chat/ui/chatCssSource.js';
+import { fetchChatCssFromUrl, fetchChatThemeCatalog, filterChatThemes } from '../chat/ui/chatCssSource.js';
 import { getBuf } from '../network/net.js';
 
 // смещение окна настроек от центра экрана
@@ -261,6 +261,12 @@ function buildSettingsMarkup(root) {
                 settingsButton('Открыть браузер тем', 'chat-theme-catalog-load')
             ]),
             createNode('div', { className: 't7-ping-status t7-chat-theme-status', role: 'status' }),
+            createNode('input', {
+                type: 'search',
+                className: 't7-chat-theme-search',
+                placeholder: 'Поиск по названию, автору и тегам',
+                'aria-label': 'Поиск тем'
+            }),
             createNode('div', {
                 className: 't7-chat-theme-list',
                 'aria-live': 'polite'
@@ -732,7 +738,9 @@ export function openSettings() {
     const customChatCssStatus = el.querySelector('.t7-chat-custom-css-status');
     const chatThemeList = el.querySelector('.t7-chat-theme-list');
     const chatThemeStatus = el.querySelector('.t7-chat-theme-status');
+    const chatThemeSearch = el.querySelector('.t7-chat-theme-search');
     let chatThemes = new Map();
+    let chatThemeWarning = '';
     let themePreviewObserver = null;
     let themePreviewLoaders = new WeakMap();
     const readThemePreview = (blob) => new Promise((resolve, reject) => {
@@ -745,6 +753,23 @@ export function openSettings() {
     });
     const savedCustomChatCss = store.get(STORE.chatCustomCss);
     customChatCss.value = typeof savedCustomChatCss === 'string' ? savedCustomChatCss : '';
+    const updateVisibleChatThemes = () => {
+        const visibleIds = new Set(filterChatThemes([...chatThemes.values()], chatThemeSearch.value)
+            .map((theme) => theme.id));
+        chatThemeList.querySelectorAll('.t7-chat-theme-card').forEach((card) => {
+            card.hidden = !visibleIds.has(card.dataset.themeId);
+        });
+        if (chatThemes.size) {
+            const visibleCount = visibleIds.size;
+            const resultStatus = visibleCount
+                ? `Показано тем: ${visibleCount} из ${chatThemes.size}.`
+                : 'По вашему запросу темы не найдены.';
+            chatThemeStatus.textContent = chatThemeWarning
+                ? `${resultStatus} ${chatThemeWarning}`
+                : resultStatus;
+        }
+    };
+    chatThemeSearch.addEventListener('input', updateVisibleChatThemes);
     const cssFile = el.querySelector('.t7-chat-css-file');
     cssFile.addEventListener('change', async () => {
         const file = cssFile.files && cssFile.files[0];
@@ -786,10 +811,12 @@ export function openSettings() {
         }
         else if (b.dataset.act === 'chat-theme-catalog-load') {
             b.disabled = true;
-            chatThemeStatus.textContent = 'Сбрасываю кеш и загружаю каталог тем…';
+            chatThemeStatus.textContent = 'Загружаю каталог тем…';
+            chatThemeWarning = '';
             try {
                 const { themes, warning } = await fetchChatThemeCatalog();
                 chatThemes = new Map(themes.map((theme) => [theme.id, theme]));
+                chatThemeWarning = warning;
                 b.textContent = 'Обновить каталог';
                 if (themePreviewObserver) themePreviewObserver.disconnect();
                 themePreviewLoaders = new WeakMap();
@@ -803,7 +830,10 @@ export function openSettings() {
                     }
                 }, { rootMargin: '120px' });
                 chatThemeList.replaceChildren(...themes.map((theme) => {
-                    const card = createNode('article', { className: 't7-chat-theme-card' });
+                    const card = createNode('article', {
+                        className: 't7-chat-theme-card',
+                        'data-theme-id': theme.id
+                    });
                     if (theme.preview) {
                         const preview = createNode('img', {
                             className: 't7-chat-theme-preview',
@@ -843,7 +873,7 @@ export function openSettings() {
                     card.appendChild(createNode('div', { className: 't7-chat-theme-info' }, [
                         createNode('h3', { className: 't7-chat-theme-name' }, [theme.name]),
                         createNode('p', { className: 't7-chat-theme-meta' }, [
-                            `${theme.author} · ${theme.version}${theme.license ? ` · ${theme.license}` : ''}`
+                            `${theme.author} · ${theme.version}`
                         ]),
                         createNode('p', { className: 't7-chat-theme-description' }, [theme.description]),
                         createNode('div', { className: 't7-chat-theme-tags' },
@@ -862,6 +892,7 @@ export function openSettings() {
                     ? `В каталоге тем: ${themes.length}. Выберите тему для загрузки CSS в редактор.`
                     : 'Каталог пока пуст.';
                 chatThemeStatus.textContent = warning ? `${status} ${warning}` : status;
+                updateVisibleChatThemes();
             } catch (error) {
                 chatThemeStatus.textContent = error instanceof Error ? error.message : String(error);
             } finally {

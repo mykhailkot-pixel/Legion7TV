@@ -33,7 +33,13 @@ vi.mock('../src/chat/messages/chatEmotes.js', () => ({
     restoreNativeEmotes: mocks.restoreNativeEmotes
 }));
 vi.mock('../src/chat/messages/mentions.js', () => ({ processMentions: mocks.processMentions }));
-import { registerChatProcessor, refreshEmotes, rescanAll, scan } from '../src/chat/messages/chat.js';
+import {
+    prioritizeVisibleEmotes,
+    registerChatProcessor,
+    refreshEmotes,
+    rescanAll,
+    scan
+} from '../src/chat/messages/chat.js';
 import { isMessageProcessed } from '../src/chat/messages/messageState.js';
 import { S } from '../src/core/state.js';
 
@@ -111,5 +117,33 @@ describe('chat message processing pipeline', () => {
         expect(image.classList.contains('ext-native-emote-hidden')).toBe(true);
         S.on = true;
         S.size = 'm';
+    });
+
+    it('prioritizes loading only emotes visible in chat when a background tab returns', () => {
+        const list = document.createElement('ul');
+        list.className = 'cy-chat-l';
+        const row = document.createElement('li');
+        const visibleImage = document.createElement('img');
+        visibleImage.className = 'cy-emo';
+        visibleImage.loading = 'lazy';
+        visibleImage.getBoundingClientRect = () => ({
+            top: 10, right: 30, bottom: 30, left: 10, width: 20, height: 20
+        });
+        const offscreenImage = document.createElement('img');
+        offscreenImage.className = 'cy-emo';
+        offscreenImage.loading = 'lazy';
+        offscreenImage.getBoundingClientRect = () => ({
+            top: 2000, right: 30, bottom: 2020, left: 10, width: 20, height: 20
+        });
+        row.append(visibleImage, offscreenImage);
+        list.append(row);
+        document.body.append(list);
+
+        prioritizeVisibleEmotes();
+
+        expect(visibleImage.loading).toBe('eager');
+        expect(visibleImage.decoding).toBe('sync');
+        expect(offscreenImage.loading).toBe('lazy');
+        list.remove();
     });
 });

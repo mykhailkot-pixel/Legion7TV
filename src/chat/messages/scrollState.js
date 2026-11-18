@@ -159,6 +159,19 @@ function setupObservers(list, state) {
     }
 }
 
+function restoreAtEndLists() {
+    document.querySelectorAll(scrollListSelector).forEach((list) => {
+        const state = states.get(list);
+        if (!state || !state.atEnd) return;
+        scrollToEnd(list);
+        commit(list, state);
+    });
+}
+
+function scheduleEndRestore() {
+    requestAnimationFrame(() => requestAnimationFrame(restoreAtEndLists));
+}
+
 function register(list, key, restore) {
     if (!list) return;
     const state = getState(list);
@@ -230,10 +243,16 @@ export const chatScroller = {
             const list = event.target;
             if (list && list.matches && list.matches(scrollListSelector)) updateFromScroll(list);
         }, true);
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') scheduleEndRestore();
+        });
+        window.addEventListener('pageshow', scheduleEndRestore);
+        window.addEventListener('focus', scheduleEndRestore);
     },
 
     getContainer,
     isAtEnd,
+    restoreAtEnd: restoreAtEndLists,
 
     scrollToEnd(list) {
         if (!list) return;

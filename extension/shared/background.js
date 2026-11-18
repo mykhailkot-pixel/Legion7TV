@@ -159,59 +159,38 @@ async function fetchChatCssCatalogResource(message) {
         : DEFAULT_TIMEOUT;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
-    const purgeUrl = new URL(CHAT_THEME_CATALOG_URL);
-    purgeUrl.hostname = 'purge.jsdelivr.net';
-    const purgePath = new URL(CHAT_THEME_CATALOG_URL).pathname;
-    let catalogUrl = CHAT_THEME_CATALOG_URL;
-    let warning = '';
 
     try {
+        let response;
+        let catalogUrl = CHAT_THEME_CATALOG_URL;
+        let warning = '';
         try {
-            const purgeResponse = await fetch(purgeUrl.href, {
+            response = await fetch(catalogUrl, {
                 method: 'GET',
                 credentials: 'omit',
                 redirect: 'error',
-                cache: 'no-store',
+                cache: 'no-cache',
                 signal: controller.signal
             });
-            if (purgeResponse.url !== purgeUrl.href)
-                throw new Error('Адрес сброса кеша каталога изменился при запросе.');
-            if (!purgeResponse.ok)
-                throw new Error(`Сервер ответил ${purgeResponse.status}.`);
-
-            const purgeBody = await readLimitedResponseText(
-                purgeResponse,
-                16 * 1024,
-                'Ответ purge API слишком большой.'
-            );
-            const purgeResult = JSON.parse(purgeBody);
-            const purgePathResult = purgeResult.paths && purgeResult.paths[purgePath];
-            if (purgeResult.status !== 'finished' || !purgePathResult)
-                throw new Error('Purge API не подтвердил сброс кеша.');
-            if (purgePathResult.throttled) {
-                catalogUrl = CHAT_THEME_CATALOG_FALLBACK_URL;
-                const resetMinutes = Number.isFinite(purgePathResult.throttlingReset)
-                    ? Math.ceil(purgePathResult.throttlingReset / 60)
-                    : 0;
-                warning = `jsDelivr ограничил частоту сброса кеша${resetMinutes ? `; повторите через ${resetMinutes} мин.` : ''} Каталог загружен напрямую с GitHub.`;
-            }
+            if (response.url !== catalogUrl)
+                throw new Error('Адрес каталога тем изменился при загрузке.');
+            if (!response.ok)
+                throw new Error(`Сервер ответил ${response.status}.`);
         } catch (error) {
             if (controller.signal.aborted) throw error;
             catalogUrl = CHAT_THEME_CATALOG_FALLBACK_URL;
-            warning = `Не удалось подтвердить сброс кеша jsDelivr. Каталог загружен напрямую с GitHub (${String(error && error.message || error).slice(0, 160)}).`;
+            warning = `Каталог загружен через jsDelivr, так как GitHub Raw недоступен (${String(error && error.message || error).slice(0, 160)}).`;
+            response = await fetch(catalogUrl, {
+                method: 'GET',
+                credentials: 'omit',
+                redirect: 'error',
+                signal: controller.signal
+            });
+            if (response.url !== catalogUrl)
+                throw new Error('Адрес резервного каталога тем изменился при загрузке.');
+            if (!response.ok)
+                throw new Error(`Не удалось загрузить каталог тем: сервер ответил ${response.status}.`);
         }
-
-        const response = await fetch(catalogUrl, {
-            method: 'GET',
-            credentials: 'omit',
-            redirect: 'error',
-            cache: 'no-store',
-            signal: controller.signal
-        });
-        if (response.url !== catalogUrl)
-            throw new Error('Адрес каталога тем изменился при загрузке.');
-        if (!response.ok)
-            throw new Error(`Не удалось загрузить каталог тем: сервер ответил ${response.status}.`);
 
         const body = await readLimitedResponseText(
             response,

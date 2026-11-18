@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
     fetchChatCssFromUrl,
     fetchChatThemeCatalog,
+    filterChatThemes,
     validateChatCssUrl
 } from '../src/chat/ui/chatCssSource.js';
 
@@ -15,6 +16,19 @@ describe('chat CSS URL source', () => {
 
     it('accepts direct, versioned jsDelivr GitHub CSS URLs', () => {
         expect(validateChatCssUrl(` ${VALID_URL} `)).toBe(VALID_URL);
+    });
+
+    it('filters the theme catalog by name, author, description, or tag', () => {
+        const themes = [
+            { id: 'one', name: 'Copper Night', author: 'Mika', description: 'Warm panels', tags: ['steampunk'] },
+            { id: 'two', name: 'Lavender', author: 'Rin', description: 'Soft colors', tags: ['pastel'] }
+        ];
+
+        expect(filterChatThemes(themes, 'STEAMPUNK').map((theme) => theme.id)).toEqual(['one']);
+        expect(filterChatThemes(themes, 'rin').map((theme) => theme.id)).toEqual(['two']);
+        expect(filterChatThemes(themes, 'panels').map((theme) => theme.id)).toEqual(['one']);
+        expect(filterChatThemes(themes, '   ')).toEqual(themes);
+        expect(filterChatThemes(themes, 'missing')).toEqual([]);
     });
 
     it.each([
@@ -104,24 +118,53 @@ describe('chat CSS URL source', () => {
         });
     });
 
-    it('surfaces a catalog cache purge warning from the background', async () => {
+    it('surfaces a warning when the catalog is loaded from the fallback source', async () => {
         globalThis.chrome = {
             runtime: {
                 sendMessage: vi.fn().mockResolvedValue({
                     ok: true,
                     body: JSON.stringify({ schemaVersion: 1, themes: [] }),
-                    warning: 'jsDelivr ограничил частоту сброса кеша.'
+                    warning: 'Каталог загружен через jsDelivr, так как GitHub Raw недоступен.'
                 })
             }
         };
 
         await expect(fetchChatThemeCatalog()).resolves.toMatchObject({
             themes: [],
-            warning: 'jsDelivr ограничил частоту сброса кеша.'
+            warning: 'Каталог загружен через jsDelivr, так как GitHub Raw недоступен.'
         });
     });
 
-    it('rejects catalog entries that link CSS outside the themes repository', async () => {
+    it('loads all entries from a schema version 2 catalog', async () => {
+        const catalog = {
+            schemaVersion: 2,
+            updatedAt: '2026-11-18T20:01:43+01:00',
+            themes: ['clouds', 'neon1', 'femboy1'].map((id) => ({
+                id,
+                name: id,
+                author: 'theme author',
+                version: '1.0.0',
+                description: '',
+                tags: [],
+                css: `https://cdn.jsdelivr.net/gh/mykhailkot-pixel/legion7tv-themes@main/themes/${id}/style.css`
+            }))
+        };
+        globalThis.chrome = {
+            runtime: {
+                sendMessage: vi.fn().mockResolvedValue({
+                    ok: true,
+                    body: JSON.stringify(catalog)
+                })
+            }
+        };
+
+        await expect(fetchChatThemeCatalog()).resolves.toMatchObject({
+            themes: [{ id: 'clouds' }, { id: 'neon1' }, { id: 'femboy1' }],
+            warning: ''
+        });
+    });
+
+    it('skips an invalid theme entry while keeping the rest of the catalog available', async () => {
         globalThis.chrome = {
             runtime: {
                 sendMessage: vi.fn().mockResolvedValue({
@@ -129,8 +172,16 @@ describe('chat CSS URL source', () => {
                     body: JSON.stringify({
                         schemaVersion: 1,
                         themes: [{
-                            id: 'demo',
-                            name: 'Demo',
+                            id: 'good',
+                            name: 'Good theme',
+                            author: 'Author',
+                            version: '1',
+                            description: '',
+                            tags: [],
+                            css: 'https://cdn.jsdelivr.net/gh/mykhailkot-pixel/legion7tv-themes@v1/themes/good.css'
+                        }, {
+                            id: 'bad',
+                            name: 'Broken theme',
                             author: 'Author',
                             version: '1',
                             description: '',
@@ -142,6 +193,9 @@ describe('chat CSS URL source', () => {
             }
         };
 
-        await expect(fetchChatThemeCatalog()).rejects.toThrow('Файлы темы должны находиться');
+        await expect(fetchChatThemeCatalog()).resolves.toMatchObject({
+            themes: [{ id: 'good', name: 'Good theme' }],
+            warning: 'Пропущено тем с некорректными данными: 1.'
+        });
     });
 });

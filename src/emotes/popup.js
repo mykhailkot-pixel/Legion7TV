@@ -60,13 +60,49 @@ function updateViewButtons() {
     });
 }
 
-function toggleFavorite(name) {
+function updateFavoriteButton(button, isFavorite) {
+    button.textContent = isFavorite ? '★' : '☆';
+    button.title = isFavorite ? 'Убрать из избранного' : 'Добавить в избранное';
+    button.setAttribute('aria-label', button.title + ': ' + button.dataset.name);
+    button.setAttribute('aria-pressed', String(isFavorite));
+}
+
+export function toggleFavorite(name) {
     const favorites = readEntries(FAVORITES_KEY);
     const index = favorites.findIndex((item) => item.name === name);
     if (index >= 0) favorites.splice(index, 1);
     else favorites.push({ name });
     store.set(FAVORITES_KEY, favorites);
-    renderGrid();
+    gridFavorites = new Set(favorites.map((item) => item.name));
+    if (st.pop) {
+        st.pop.querySelectorAll('.t7-fav').forEach((button) => {
+            const isFavorite = gridFavorites.has(button.dataset.name);
+            updateFavoriteButton(button, isFavorite);
+        });
+    }
+
+    if (gridMode !== 'favorites' || index < 0 || !st.pop) return;
+
+    gridSourceNames = gridSourceNames.filter((item) => item !== name);
+    const query = st.pop.querySelector('.t7-q').value.trim().toLowerCase();
+    gridNames = query ? gridSourceNames.filter((item) => item.toLowerCase().includes(query)) : gridSourceNames;
+    gridItemCache.delete(name);
+    const grid = st.pop.querySelector('.t7-gr');
+    let empty = grid.querySelector('.t7-emp');
+    if (!gridSourceNames.length) {
+        if (!empty) {
+            empty = document.createElement('div');
+            empty.className = 't7-emp';
+            empty.textContent = 'Избранных смайлов пока нет на этом канале';
+            grid.appendChild(empty);
+        }
+    } else if (empty) {
+        empty.remove();
+    }
+    const heading = grid.querySelector('.t7-sh');
+    if (heading) heading.textContent = `Избранное · ${gridSourceNames.length}`;
+    renderedWindow = '';
+    renderVisibleGrid(true);
 }
 
 /* ---------- вставка эмоута в поле чата ---------- */
@@ -187,10 +223,7 @@ function renderVisibleGrid(force = false) {
             favorite.type = 'button';
             favorite.className = 't7-fav';
             favorite.dataset.name = n;
-            favorite.textContent = isFavorite ? '★' : '☆';
-            favorite.title = isFavorite ? 'Убрать из избранного' : 'Добавить в избранное';
-            favorite.setAttribute('aria-label', favorite.title + ': ' + n);
-            favorite.setAttribute('aria-pressed', String(isFavorite));
+            updateFavoriteButton(favorite, isFavorite);
             item.append(b, favorite);
             gridItemCache.set(n, item);
         }

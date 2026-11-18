@@ -188,7 +188,9 @@
 .t7-sst{min-height:1.3em;font-size:11px;color:var(--t7-mute)}
 .t7-note{display:flex;align-items:center;gap:8px;margin:0;padding:8px 10px;border:1px solid rgba(255,201,77,.3);border-left:3px solid #ffc94d;border-radius:4px;background:rgba(255,201,77,.08);color:#e8d6a4;font-size:12px;line-height:1.35}
 .t7-note-icon{display:grid;place-items:center;flex:none;width:18px;height:18px;border-radius:50%;background:rgba(255,201,77,.18);color:#ffc94d;font-size:12px;font-weight:700}
-.t7-chat-theme-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
+.t7-chat-theme-search{position:sticky;top:0;z-index:1}
+.t7-chat-theme-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));align-content:start;gap:8px;max-height:min(460px,55vh);overflow-y:auto;overscroll-behavior:contain;padding:2px 4px 2px 0}
+.t7-chat-theme-card[hidden]{display:none}
 .t7-chat-theme-card{display:flex;min-width:0;overflow:hidden;flex-direction:column;border:1px solid var(--t7-line);border-radius:7px;background:var(--t7-bg-in)}
 .t7-chat-theme-preview-wrap{display:grid;min-height:64px;place-items:center;background:#111}
 .t7-chat-theme-preview{display:block;width:100%;max-height:150px;object-fit:cover}
@@ -296,6 +298,7 @@
 .cy-chat-l>li.t7-ping{background:rgba(255,201,77,.14);border-radius:6px;box-shadow:inset 3px 0 0 #ffc94d;padding-left:6px}
 .cy-chat-l,.dm-l{font-family:var(--t7-chat-font,inherit);font-size:var(--t7-chat-font-size,14px);font-synthesis:weight style}
 .t7-mention{color:var(--t7-ping-color,#e89aa3);font-weight:600}
+.cy-chat [data-t7-reused-message],.cy-chat [data-t7-reused-message] *,.cy-chat [data-t7-reused-message]::before,.cy-chat [data-t7-reused-message]::after,.cy-chat [data-t7-reused-message] *::before,.cy-chat [data-t7-reused-message] *::after{animation:none!important}
 .mn .cy-chat-l,.mn .cy-chat-l li,.mn .cy-chat-l li *{-webkit-user-select:text!important;user-select:text!important}
 .cy-chat-l li b[data-nick]{-webkit-user-select:text!important;user-select:text!important}
 

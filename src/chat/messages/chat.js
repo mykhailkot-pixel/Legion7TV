@@ -32,6 +32,35 @@ function processDmMessage(message, isInitial) {
 
 chatScroller.start();
 
+export function prioritizeVisibleEmotes() {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    document.querySelectorAll(`${SEL.chatRows} img.cy-emo, ${SEL.dmRows} img.cy-emo`)
+        .forEach((image) => {
+            const rect = image.getBoundingClientRect();
+            if (!rect.width || !rect.height || rect.bottom <= 0 || rect.right <= 0
+                || rect.top >= viewportHeight || rect.left >= viewportWidth) return;
+            image.loading = 'eager';
+            image.decoding = 'sync';
+        });
+}
+
+let visibleEmoteRefreshScheduled = false;
+function scheduleVisibleEmoteRefresh() {
+    if (visibleEmoteRefreshScheduled) return;
+    visibleEmoteRefreshScheduled = true;
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        visibleEmoteRefreshScheduled = false;
+        if (document.visibilityState === 'visible') prioritizeVisibleEmotes();
+    }));
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') scheduleVisibleEmoteRefresh();
+});
+window.addEventListener('pageshow', scheduleVisibleEmoteRefresh);
+window.addEventListener('focus', scheduleVisibleEmoteRefresh);
+
 function processMessage(message, room) {
     if (isMessageProcessed(message) || message.matches(SEL.emptyMessage)) return;
 
