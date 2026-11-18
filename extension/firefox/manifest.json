@@ -29,7 +29,10 @@
     "https://www.ibb.co/*",
     "https://imgbb.com/*",
     "https://www.imgbb.com/*",
-    "https://i.ibb.co/*"
+    "https://i.ibb.co/*",
+    "https://cdn.jsdelivr.net/*",
+    "https://purge.jsdelivr.net/*",
+    "https://raw.githubusercontent.com/*"
   ],
   "background": {
     "scripts": [

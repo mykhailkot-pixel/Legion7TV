@@ -20,6 +20,8 @@ import { isEmoteTooltipEnabled, setEmoteTooltipEnabled } from '../emotes/tooltip
 import { applyChatCustomCss, validateChatCustomCss } from '../chat/ui/chatCustomCss.js';
 import { CHAT_CSS_PROMPT } from './chatCssPrompt.js';
 import { copyTextToClipboard } from './clipboard.js';
+import { fetchChatCssFromUrl, fetchChatThemeCatalog } from '../chat/ui/chatCssSource.js';
+import { getBuf } from '../network/net.js';
 
 // смещение окна настроек от центра экрана
 let SOFF = (() => {
@@ -245,6 +247,25 @@ function buildSettingsMarkup(root) {
 
     const chatCssPanel = panel('chat-css');
     chatCssPanel.append(
+        settingsSection('Браузер тем',
+            createNode('p', { className: 't7-note' }, [
+                'Темы загружаются из ',
+                createNode('a', {
+                    href: 'https://github.com/mykhailkot-pixel/legion7tv-themes/blob/main/catalog.json',
+                    target: '_blank',
+                    rel: 'noopener noreferrer'
+                }, ['каталога Legion7TV Themes']),
+                '. Выберите тему, чтобы загрузить её CSS в редактор.'
+            ]),
+            createNode('div', { className: 't7-row t7-wrap' }, [
+                settingsButton('Открыть браузер тем', 'chat-theme-catalog-load')
+            ]),
+            createNode('div', { className: 't7-ping-status t7-chat-theme-status', role: 'status' }),
+            createNode('div', {
+                className: 't7-chat-theme-list',
+                'aria-live': 'polite'
+            })
+        ),
         settingsSection('Создание темы чата',
             createNode('ol', { className: 't7-chat-prompt-steps' }, [
                 createNode('li', {}, ['Нажмите «Скопировать промпт» и отправьте его нейросети.']),
@@ -274,7 +295,7 @@ function buildSettingsMarkup(root) {
             createNode('div', { className: 't7-note', role: 'note' }, [
                 createNode('span', { className: 't7-note-icon', 'aria-hidden': 'true' }, ['!']),
                 createNode('span', {}, [
-                    'Селекторы должны начинаться с .cy-chat; разрешены @media и @keyframes. Для картинок используйте прямые публичные HTTPS-ссылки в url(). При загрузке изображения браузер обращается к указанному хосту. Передавайте CSS как .css.'
+                    'Селекторы должны начинаться с .cy-chat; разрешены @media и @keyframes. Для изображений используйте прямые публичные HTTPS-ссылки в url(). CSS можно загрузить из браузера тем или файлом; удалённые изображения загружаются напрямую браузером.'
                 ])
             ])
         )
@@ -709,6 +730,19 @@ export function openSettings() {
 
     const customChatCss = el.querySelector('.t7-chat-custom-css');
     const customChatCssStatus = el.querySelector('.t7-chat-custom-css-status');
+    const chatThemeList = el.querySelector('.t7-chat-theme-list');
+    const chatThemeStatus = el.querySelector('.t7-chat-theme-status');
+    let chatThemes = new Map();
+    let themePreviewObserver = null;
+    let themePreviewLoaders = new WeakMap();
+    const readThemePreview = (blob) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => typeof reader.result === 'string'
+            ? resolve(reader.result)
+            : reject(new Error('Не удалось прочитать превью темы.'));
+        reader.onerror = () => reject(reader.error || new Error('Не удалось прочитать превью темы.'));
+        reader.readAsDataURL(blob);
+    });
     const savedCustomChatCss = store.get(STORE.chatCustomCss);
     customChatCss.value = typeof savedCustomChatCss === 'string' ? savedCustomChatCss : '';
     const cssFile = el.querySelector('.t7-chat-css-file');
@@ -748,6 +782,109 @@ export function openSettings() {
                 promptStatus.textContent = 'Промпт скопирован. Отправьте его, затем отдельным сообщением опишите стиль.';
             } catch (error) {
                 promptStatus.textContent = error instanceof Error ? error.message : String(error);
+            }
+        }
+        else if (b.dataset.act === 'chat-theme-catalog-load') {
+            b.disabled = true;
+            chatThemeStatus.textContent = 'Сбрасываю кеш и загружаю каталог тем…';
+            try {
+                const { themes, warning } = await fetchChatThemeCatalog();
+                chatThemes = new Map(themes.map((theme) => [theme.id, theme]));
+                b.textContent = 'Обновить каталог';
+                if (themePreviewObserver) themePreviewObserver.disconnect();
+                themePreviewLoaders = new WeakMap();
+                themePreviewObserver = new IntersectionObserver((entries, observer) => {
+                    for (const entry of entries) {
+                        if (!entry.isIntersecting) continue;
+                        observer.unobserve(entry.target);
+                        const load = themePreviewLoaders.get(entry.target);
+                        themePreviewLoaders.delete(entry.target);
+                        if (load) load();
+                    }
+                }, { rootMargin: '120px' });
+                chatThemeList.replaceChildren(...themes.map((theme) => {
+                    const card = createNode('article', { className: 't7-chat-theme-card' });
+                    if (theme.preview) {
+                        const preview = createNode('img', {
+                            className: 't7-chat-theme-preview',
+                            alt: `Превью темы «${theme.name}»`,
+                            loading: 'lazy'
+                        });
+                        const previewFallback = createNode('span', {
+                            className: 't7-chat-theme-preview-fallback',
+                            hidden: true
+                        }, ['Превью недоступно']);
+                        const previewContainer = createNode('div', {
+                            className: 't7-chat-theme-preview-wrap'
+                        }, [preview, previewFallback]);
+                        const showPreviewError = (message) => {
+                            preview.remove();
+                            previewFallback.textContent = `Превью недоступно: ${String(message).slice(0, 120)}`;
+                            previewFallback.hidden = false;
+                        };
+                        preview.addEventListener('error', () => {
+                            showPreviewError('браузер не смог открыть изображение');
+                        }, { once: true });
+                        themePreviewLoaders.set(preview, () => {
+                            getBuf(theme.preview, 2 * 1024 * 1024).then(async (blob) => {
+                                if (!preview.isConnected) return;
+                                if (blob.size > 2 * 1024 * 1024
+                                    || !/^image\/(?:png|jpeg|gif|webp)$/i.test(blob.type))
+                                    throw new Error('Превью имеет неподдерживаемый формат или размер.');
+                                const dataUrl = await readThemePreview(blob);
+                                if (preview.isConnected) preview.src = dataUrl;
+                            }).catch((error) => {
+                                showPreviewError(error instanceof Error ? error.message : String(error));
+                            });
+                        });
+                        themePreviewObserver.observe(preview);
+                        card.appendChild(previewContainer);
+                    }
+                    card.appendChild(createNode('div', { className: 't7-chat-theme-info' }, [
+                        createNode('h3', { className: 't7-chat-theme-name' }, [theme.name]),
+                        createNode('p', { className: 't7-chat-theme-meta' }, [
+                            `${theme.author} · ${theme.version}${theme.license ? ` · ${theme.license}` : ''}`
+                        ]),
+                        createNode('p', { className: 't7-chat-theme-description' }, [theme.description]),
+                        createNode('div', { className: 't7-chat-theme-tags' },
+                            theme.tags.map((tag) => createNode('span', { className: 't7-chat-theme-tag' }, [tag]))
+                        ),
+                        createNode('button', {
+                            type: 'button',
+                            className: 't7-b',
+                            'data-act': 'chat-theme-load',
+                            'data-theme-id': theme.id
+                        }, ['Загрузить CSS'])
+                    ]));
+                    return card;
+                }));
+                const status = themes.length
+                    ? `В каталоге тем: ${themes.length}. Выберите тему для загрузки CSS в редактор.`
+                    : 'Каталог пока пуст.';
+                chatThemeStatus.textContent = warning ? `${status} ${warning}` : status;
+            } catch (error) {
+                chatThemeStatus.textContent = error instanceof Error ? error.message : String(error);
+            } finally {
+                b.disabled = false;
+            }
+        }
+        else if (b.dataset.act === 'chat-theme-load') {
+            const theme = chatThemes.get(b.dataset.themeId);
+            if (!theme) {
+                chatThemeStatus.textContent = 'Эта тема больше не найдена в каталоге. Обновите список.';
+                return;
+            }
+            b.disabled = true;
+            chatThemeStatus.textContent = `Загружаю тему «${theme.name}»…`;
+            try {
+                const css = await fetchChatCssFromUrl(theme.css);
+                validateChatCustomCss(css);
+                customChatCss.value = css;
+                chatThemeStatus.textContent = `CSS темы «${theme.name}» загружен и проверен. Просмотрите его и нажмите «Применить CSS».`;
+            } catch (error) {
+                chatThemeStatus.textContent = error instanceof Error ? error.message : String(error);
+            } finally {
+                b.disabled = false;
             }
         }
         else if (b.dataset.act === 'chat-css-apply') {

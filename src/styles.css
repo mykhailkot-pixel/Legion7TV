@@ -188,6 +188,18 @@
 .t7-sst{min-height:1.3em;font-size:11px;color:var(--t7-mute)}
 .t7-note{display:flex;align-items:center;gap:8px;margin:0;padding:8px 10px;border:1px solid rgba(255,201,77,.3);border-left:3px solid #ffc94d;border-radius:4px;background:rgba(255,201,77,.08);color:#e8d6a4;font-size:12px;line-height:1.35}
 .t7-note-icon{display:grid;place-items:center;flex:none;width:18px;height:18px;border-radius:50%;background:rgba(255,201,77,.18);color:#ffc94d;font-size:12px;font-weight:700}
+.t7-chat-theme-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px}
+.t7-chat-theme-card{display:flex;min-width:0;overflow:hidden;flex-direction:column;border:1px solid var(--t7-line);border-radius:7px;background:var(--t7-bg-in)}
+.t7-chat-theme-preview-wrap{display:grid;min-height:64px;place-items:center;background:#111}
+.t7-chat-theme-preview{display:block;width:100%;max-height:150px;object-fit:cover}
+.t7-chat-theme-preview-fallback{padding:18px;color:var(--t7-mute);font-size:11px}
+.t7-chat-theme-preview-fallback[hidden]{display:none}
+.t7-chat-theme-info{display:flex;flex:1;align-items:flex-start;flex-direction:column;gap:5px;padding:9px}
+.t7-chat-theme-name{margin:0;color:var(--t7-fg);font-size:13px;font-weight:700}
+.t7-chat-theme-meta,.t7-chat-theme-description{margin:0;color:var(--t7-mute);font-size:11px;line-height:1.4}
+.t7-chat-theme-tags{display:flex;flex-wrap:wrap;gap:4px}
+.t7-chat-theme-tag{padding:2px 6px;border:1px solid var(--t7-line);border-radius:999px;color:var(--t7-mute);font-size:10px}
+.t7-chat-theme-info button{margin-top:auto}
 .t7-player-history-window{position:fixed;z-index:2147483200;display:flex;flex-direction:column;width:420px;height:360px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:hidden;border:1px solid rgba(255,255,255,.18);border-radius:8px;background:#1b1b24;color:#eee;box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.35 system-ui,sans-serif;pointer-events:auto}
 .t7-player-history-window.t7-player-history-collapsed{height:auto}
 .t7-player-history-window.t7-player-history-drag{user-select:none}
@@ -209,7 +221,7 @@
 .t7-player-history-nick{color:#c7a6ff}
 .t7-player-history-empty{padding:12px 8px;color:#999;text-align:center}
 
-.t7-sw input[type=text],.t7-sw input[type=number]{
+.t7-sw input[type=text],.t7-sw input[type=number],.t7-sw input[type=url]{
     width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--t7-line);
     background:var(--t7-bg-in);color:#fff;font:13px system-ui,sans-serif}
 .t7-sw textarea,.t7-sw select{

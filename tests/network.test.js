@@ -55,22 +55,32 @@ describe('network helpers', () => {
     });
 
     it('decodes extension blob responses to a typed Blob', async () => {
+        const previewUrl = 'https://cdn.jsdelivr.net/gh/mykhailkot-pixel/legion7tv-themes@main/themes/demo/preview.png';
+        const maxBytes = 2 * 1024 * 1024;
+        const sendMessage = vi.fn().mockResolvedValue({
+            ok: true,
+            status: 200,
+            body: btoa('image-bytes'),
+            contentType: 'image/png'
+        });
         globalThis.chrome = {
-            runtime: { sendMessage: vi.fn().mockResolvedValue({
-                ok: true,
-                status: 200,
-                body: btoa('image-bytes'),
-                contentType: 'image/png'
-            }) }
+            runtime: { sendMessage }
         };
         const originalFileReader = globalThis.FileReader;
         globalThis.FileReader = class {
             constructor() { throw new Error('getBuf should not copy through FileReader'); }
         };
         try {
-            const blob = await getBuf('https://cdn.7tv.app/image');
+            const blob = await getBuf(previewUrl, maxBytes);
             expect(blob.type).toBe('image/png');
             expect(blob.size).toBe('image-bytes'.length);
+            expect(sendMessage).toHaveBeenCalledWith({
+                type: 'LEGION7TV_FETCH',
+                url: previewUrl,
+                responseType: 'blob',
+                timeout: 15000,
+                maxBytes
+            });
         } finally {
             globalThis.FileReader = originalFileReader;
         }

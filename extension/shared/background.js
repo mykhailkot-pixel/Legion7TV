@@ -1,3 +1,9 @@
+import {
+    CHAT_THEME_CATALOG_FALLBACK_URL,
+    CHAT_THEME_CATALOG_URL,
+    validateChatCssUrl
+} from '../../src/chat/ui/chatCssSource.js';
+
 const ALLOWED_HOSTS = new Set([
     '7tv.io',
     'cdn.7tv.app',
@@ -6,9 +12,11 @@ const ALLOWED_HOSTS = new Set([
     'www.ibb.co',
     'imgbb.com',
     'www.imgbb.com',
-    'i.ibb.co'
+    'i.ibb.co',
+    'cdn.jsdelivr.net'
 ]);
 const MAX_RESPONSE_BYTES = 12 * 1024 * 1024;
+const MAX_CHAT_CSS_BYTES = 100 * 1024;
 const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 const MAX_IMAGE_BASE64_LENGTH = Math.ceil(MAX_IMAGE_BYTES / 3) * 4;
 const DEFAULT_TIMEOUT = 15000;
@@ -42,6 +50,9 @@ async function fetchResource(message) {
     const timeout = Number.isFinite(message.timeout)
         ? Math.max(1000, Math.min(message.timeout, 30000))
         : DEFAULT_TIMEOUT;
+    const responseLimit = Number.isSafeInteger(message.maxBytes)
+        ? Math.min(MAX_RESPONSE_BYTES, Math.max(1, message.maxBytes))
+        : MAX_RESPONSE_BYTES;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeout);
 
@@ -55,14 +66,160 @@ async function fetchResource(message) {
         if (!isAllowedUrl(response.url)) throw new Error('redirect target is not allowed');
         if (!response.ok) throw new Error(`${message.url} -> ${response.status}`);
         const buffer = await response.arrayBuffer();
-        if (buffer.byteLength > MAX_RESPONSE_BYTES)
-            throw new Error(`response exceeds ${MAX_RESPONSE_BYTES} bytes`);
+        if (buffer.byteLength > responseLimit)
+            throw new Error(`response exceeds ${responseLimit} bytes`);
 
         const contentType = response.headers.get('content-type') || 'application/octet-stream';
         const body = message.responseType === 'blob'
             ? encodeBase64(buffer)
             : new TextDecoder().decode(buffer);
         return { ok: true, status: response.status, contentType, body };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function readLimitedResponseText(response, maxBytes, errorMessage) {
+    const contentLength = Number(response.headers.get('content-length'));
+    if (Number.isFinite(contentLength) && contentLength > maxBytes)
+        throw new Error(errorMessage);
+
+    if (!response.body || typeof response.body.getReader !== 'function') {
+        const buffer = await response.arrayBuffer();
+        if (buffer.byteLength > maxBytes) throw new Error(errorMessage);
+        return new TextDecoder().decode(buffer);
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let byteLength = 0;
+    let text = '';
+    try {
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            byteLength += value.byteLength;
+            if (byteLength > maxBytes) {
+                await reader.cancel();
+                throw new Error(errorMessage);
+            }
+            text += decoder.decode(value, { stream: true });
+        }
+        return text + decoder.decode();
+    } finally {
+        reader.releaseLock();
+    }
+}
+
+async function fetchChatCssResource(message) {
+    let url;
+    try {
+        url = validateChatCssUrl(message.url);
+    } catch (error) {
+        throw new Error(error instanceof Error ? error.message : 'Некорректная ссылка на CSS.');
+    }
+
+    const timeout = Number.isFinite(message.timeout)
+        ? Math.max(1000, Math.min(message.timeout, 30000))
+        : DEFAULT_TIMEOUT;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            credentials: 'omit',
+            redirect: 'error',
+            signal: controller.signal
+        });
+        try {
+            validateChatCssUrl(response.url);
+        } catch {
+            throw new Error('Ссылка перенаправила на недопустимый адрес.');
+        }
+        if (!response.ok)
+            throw new Error(`Не удалось загрузить CSS: сервер ответил ${response.status}.`);
+
+        const body = await readLimitedResponseText(
+            response,
+            MAX_CHAT_CSS_BYTES,
+            'CSS-файл не должен быть больше 100 КиБ.'
+        );
+
+        if (!body.trim()) throw new Error('CSS-файл пустой.');
+        return { ok: true, status: response.status, body };
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function fetchChatCssCatalogResource(message) {
+    const timeout = Number.isFinite(message.timeout)
+        ? Math.max(1000, Math.min(message.timeout, 30000))
+        : DEFAULT_TIMEOUT;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeout);
+    const purgeUrl = new URL(CHAT_THEME_CATALOG_URL);
+    purgeUrl.hostname = 'purge.jsdelivr.net';
+    const purgePath = new URL(CHAT_THEME_CATALOG_URL).pathname;
+    let catalogUrl = CHAT_THEME_CATALOG_URL;
+    let warning = '';
+
+    try {
+        try {
+            const purgeResponse = await fetch(purgeUrl.href, {
+                method: 'GET',
+                credentials: 'omit',
+                redirect: 'error',
+                cache: 'no-store',
+                signal: controller.signal
+            });
+            if (purgeResponse.url !== purgeUrl.href)
+                throw new Error('Адрес сброса кеша каталога изменился при запросе.');
+            if (!purgeResponse.ok)
+                throw new Error(`Сервер ответил ${purgeResponse.status}.`);
+
+            const purgeBody = await readLimitedResponseText(
+                purgeResponse,
+                16 * 1024,
+                'Ответ purge API слишком большой.'
+            );
+            const purgeResult = JSON.parse(purgeBody);
+            const purgePathResult = purgeResult.paths && purgeResult.paths[purgePath];
+            if (purgeResult.status !== 'finished' || !purgePathResult)
+                throw new Error('Purge API не подтвердил сброс кеша.');
+            if (purgePathResult.throttled) {
+                catalogUrl = CHAT_THEME_CATALOG_FALLBACK_URL;
+                const resetMinutes = Number.isFinite(purgePathResult.throttlingReset)
+                    ? Math.ceil(purgePathResult.throttlingReset / 60)
+                    : 0;
+                warning = `jsDelivr ограничил частоту сброса кеша${resetMinutes ? `; повторите через ${resetMinutes} мин.` : ''} Каталог загружен напрямую с GitHub.`;
+            }
+        } catch (error) {
+            if (controller.signal.aborted) throw error;
+            catalogUrl = CHAT_THEME_CATALOG_FALLBACK_URL;
+            warning = `Не удалось подтвердить сброс кеша jsDelivr. Каталог загружен напрямую с GitHub (${String(error && error.message || error).slice(0, 160)}).`;
+        }
+
+        const response = await fetch(catalogUrl, {
+            method: 'GET',
+            credentials: 'omit',
+            redirect: 'error',
+            cache: 'no-store',
+            signal: controller.signal
+        });
+        if (response.url !== catalogUrl)
+            throw new Error('Адрес каталога тем изменился при загрузке.');
+        if (!response.ok)
+            throw new Error(`Не удалось загрузить каталог тем: сервер ответил ${response.status}.`);
+
+        const body = await readLimitedResponseText(
+            response,
+            MAX_CHAT_CSS_BYTES,
+            'Каталог тем не должен быть больше 100 КиБ.'
+        );
+        if (!body.trim()) throw new Error('Каталог тем пустой.');
+        return { ok: true, status: response.status, body, warning };
     } finally {
         clearTimeout(timer);
     }
@@ -207,6 +364,30 @@ function isAllowedPageSender(sender) {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message) return false;
+    if (message.type === 'LEGION7TV_FETCH_CHAT_CSS_CATALOG') {
+        if (!isAllowedPageSender(sender)) {
+            sendResponse({ ok: false, error: 'Источник запроса не разрешён.' });
+            return false;
+        }
+
+        fetchChatCssCatalogResource(message).then(
+            (result) => sendResponse(result),
+            (error) => sendResponse({ ok: false, error: String(error && error.message || error) })
+        );
+        return true;
+    }
+    if (message.type === 'LEGION7TV_FETCH_CHAT_CSS') {
+        if (!isAllowedPageSender(sender)) {
+            sendResponse({ ok: false, error: 'Источник запроса не разрешён.' });
+            return false;
+        }
+
+        fetchChatCssResource(message).then(
+            (result) => sendResponse(result),
+            (error) => sendResponse({ ok: false, error: String(error && error.message || error) })
+        );
+        return true;
+    }
     if (message.type === 'LEGION7TV_FETCH') {
         if (!isAllowedPageSender(sender)) {
             sendResponse({ ok: false, error: 'request sender is not an allowed page' });

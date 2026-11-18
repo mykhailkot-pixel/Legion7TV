@@ -1,7 +1,7 @@
 import { store } from '../core/store.js';
 import { STORE } from '../core/consts.js';
 
-const ALLOWED = ['7tv.io', 'cdn.7tv.app', 'api.ivr.fi', 'ibb.co', 'www.ibb.co', 'imgbb.com', 'www.imgbb.com', 'i.ibb.co'];
+const ALLOWED = ['7tv.io', 'cdn.7tv.app', 'api.ivr.fi', 'ibb.co', 'www.ibb.co', 'imgbb.com', 'www.imgbb.com', 'i.ibb.co', 'cdn.jsdelivr.net'];
 const ROUTES = { '7tv.io': 'api', 'cdn.7tv.app': 'cdn', 'api.ivr.fi': 'ivr' };
 
 // Прокси по умолчанию для всех, кто не настроил свой. '' = напрямую.
@@ -35,13 +35,15 @@ function viaProxy(url) {
     return `${proxy}/${ROUTES[u.hostname]}${u.pathname}${u.search}`;
 }
 
-const extensionRequest = (url, responseType, timeout) => new Promise((resolve, reject) => {
+const extensionRequest = (url, responseType, timeout, maxBytes) => new Promise((resolve, reject) => {
     const api = globalThis.browser || globalThis.chrome;
     if (!api || !api.runtime || typeof api.runtime.sendMessage !== 'function') {
         reject(new Error('no supported extension request API is available'));
         return;
     }
-    const request = api.runtime.sendMessage({ type: 'LEGION7TV_FETCH', url, responseType, timeout });
+    const message = { type: 'LEGION7TV_FETCH', url, responseType, timeout };
+    if (maxBytes !== undefined) message.maxBytes = maxBytes;
+    const request = api.runtime.sendMessage(message);
     Promise.resolve(request).then((result) => {
         if (!result || !result.ok) {
             reject(new Error(result && result.error || 'extension request failed'));
@@ -58,14 +60,14 @@ const extensionRequest = (url, responseType, timeout) => new Promise((resolve, r
     }, reject);
 });
 
-const requestAllowed = async (url, responseType) => {
+const requestAllowed = async (url, responseType, maxBytes) => {
     if (!urlOk(url)) throw new Error('url not allowed');
     const route = ROUTES[new URL(url).hostname];
     if (proxy && route && Date.now() > proxyDownUntil) {
-        try { return await extensionRequest(viaProxy(url), responseType, 6000); }
+        try { return await extensionRequest(viaProxy(url), responseType, 6000, maxBytes); }
         catch { proxyDownUntil = Date.now() + 120000; }   // 2 минуты идём напрямую
     }
-    return extensionRequest(url, responseType, 15000);
+    return extensionRequest(url, responseType, 15000, maxBytes);
 };
 
 // проверка прокси из настроек
@@ -81,8 +83,10 @@ export async function testProxy(v) {
 export const getJson = async (url) => JSON.parse((await requestAllowed(url)).responseText);
 export const getText = async (url) => (await requestAllowed(url)).responseText;
 
-export const getBuf = async (url) => {
-    const r = await requestAllowed(url, 'blob');
+export const getBuf = async (url, maxBytes) => {
+    if (maxBytes !== undefined && (!Number.isSafeInteger(maxBytes) || maxBytes < 1))
+        throw new Error('image response size limit is invalid');
+    const r = await requestAllowed(url, 'blob', maxBytes);
     const blob = r.response;
     if (!(blob instanceof Blob)) throw new Error('image response is not a Blob');
     const type = blob.type || 'image/webp';
