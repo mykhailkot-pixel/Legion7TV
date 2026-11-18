@@ -255,7 +255,12 @@ function buildSettingsMarkup(root) {
                     target: '_blank',
                     rel: 'noopener noreferrer'
                 }, ['каталога Legion7TV Themes']),
-                '. Выберите тему, чтобы загрузить её CSS в редактор.'
+                '. Выберите тему, чтобы загрузить её CSS в редактор. ',
+                createNode('a', {
+                    href: 'https://docs.google.com/forms/d/e/1FAIpQLSdBTateU2vPHnrjIg9xGgtzLa690tuIuVxwj4VUeN19ejSbYg/viewform',
+                    target: '_blank',
+                    rel: 'noopener noreferrer'
+                }, ['Предложить свой стиль'])
             ]),
             createNode('div', { className: 't7-row t7-wrap' }, [
                 settingsButton('Открыть браузер тем', 'chat-theme-catalog-load')
