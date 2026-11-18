@@ -187,6 +187,9 @@
 .t7-toggle-switch:has(input:disabled){cursor:not-allowed;opacity:.5}
 .t7-sst{min-height:1.3em;font-size:11px;color:var(--t7-mute)}
 .t7-note{display:flex;align-items:center;gap:8px;margin:0;padding:8px 10px;border:1px solid rgba(255,201,77,.3);border-left:3px solid #ffc94d;border-radius:4px;background:rgba(255,201,77,.08);color:#e8d6a4;font-size:12px;line-height:1.35}
+.t7-note a,.t7-note a:visited{color:#7fe0ff;font-weight:700;text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:2px}
+.t7-note a:hover,.t7-note a:focus-visible{color:#c5f3ff;text-decoration-thickness:2px}
+.t7-note a:focus-visible{border-radius:2px;outline:2px solid #7fe0ff;outline-offset:2px}
 .t7-note-icon{display:grid;place-items:center;flex:none;width:18px;height:18px;border-radius:50%;background:rgba(255,201,77,.18);color:#ffc94d;font-size:12px;font-weight:700}
 .t7-chat-theme-search{position:sticky;top:0;z-index:1}
 .t7-chat-theme-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));align-content:start;gap:8px;max-height:min(460px,55vh);overflow-y:auto;overscroll-behavior:contain;padding:2px 4px 2px 0}
