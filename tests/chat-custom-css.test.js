@@ -24,6 +24,16 @@ function parseRules(cssText) {
         const body = cssText.slice(open + 1, close - 1);
         if (header.startsWith('@media')) {
             rules.push({ type: 4, cssRules: parseRules(body) });
+        } else if (header.startsWith('@keyframes')) {
+            const name = /^@keyframes\s+[-_a-zA-Z][\w-]*$/.test(header);
+            if (!name) {
+                rules.push({ type: 99 });
+            } else {
+                const keyframes = parseRules(body).map((frame) => frame.type === 1
+                    ? { type: 8, keyText: frame.selectorText, style: frame.style }
+                    : frame);
+                rules.push({ type: 7, cssRules: keyframes });
+            }
         } else if (header.startsWith('@')) {
             rules.push({ type: 99 });
         } else {
@@ -64,6 +74,23 @@ describe('chat custom CSS', () => {
         expect(adoptedStyleSheets[0].cssRules).toHaveLength(2);
     });
 
+    it('allows keyframe animations, including within media queries', () => {
+        const css = '.cy-chat .float { animation: fb-float 2s ease-in-out infinite; }'
+            + '@keyframes fb-float { 0%, 100% { transform: translateY(0); } 50% { opacity: .5; } }'
+            + '@media (max-width: 700px) { @keyframes fb-float-mobile { from { opacity: 1; } to { opacity: .5; } } }';
+
+        applyChatCustomCss(css);
+
+        expect(adoptedStyleSheets[0].cssRules).toHaveLength(3);
+    });
+
+    it('validates keyframe offsets and image URLs', () => {
+        expect(() => applyChatCustomCss('@keyframes fb-float { .cy-chat { opacity: 1; } }'))
+            .toThrow('В @keyframes разрешены только');
+        expect(() => applyChatCustomCss('@keyframes fb-float { 50% { background: url(http://cdn.example.com/image.png); } }'))
+            .toThrow('только HTTPS-ссылки');
+    });
+
     it('rejects selectors outside the chat without replacing the active stylesheet', () => {
         applyChatCustomCss('.cy-chat { color: white; }');
         const activeSheet = adoptedStyleSheets[0];
@@ -96,7 +123,7 @@ describe('chat custom CSS', () => {
         expect(() => applyChatCustomCss('.cy-chat::before { content: "url(http://127.0.0.1/image.png)"; }'))
             .not.toThrow();
         expect(() => applyChatCustomCss('@font-face { font-family: test; }'))
-            .toThrow('только CSS-правила чата и медиазапросы');
+            .toThrow('CSS-правила чата, медиазапросы @media и анимации @keyframes');
     });
 
     it('replaces or removes the previously applied stylesheet', () => {

@@ -3,6 +3,10 @@ import { store } from '../../core/store.js';
 
 const LEGACY_CHAT_THEME_KEY = 't7ChatTheme';
 const MAX_CHAT_CSS_LENGTH = 100 * 1024;
+const CSS_STYLE_RULE = 1;
+const CSS_MEDIA_RULE = 4;
+const CSS_KEYFRAMES_RULE = 7;
+const CSS_KEYFRAME_RULE = 8;
 let chatStyleSheet = null;
 let storageListenerInstalled = false;
 
@@ -48,6 +52,14 @@ function splitSelectors(selectorText) {
 
 function isChatSelector(selector) {
     return /^\.cy-chat(?=$|[\s.#:[>+~])/.test(selector);
+}
+
+function isKeyframeOffset(selector) {
+    if (/^(from|to)$/i.test(selector)) return true;
+    const match = /^([+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?)%$/i.exec(selector);
+    if (!match) return false;
+    const offset = Number(match[1]);
+    return offset >= 0 && offset <= 100;
 }
 
 function isPrivateIpv4(hostname) {
@@ -150,18 +162,28 @@ function validateCssUrls(cssText) {
 
 function validateRules(rules) {
     for (const rule of rules) {
-        if (rule.type === 1) {
+        if (rule.type === CSS_STYLE_RULE) {
             const selectors = splitSelectors(rule.selectorText || '');
             if (!selectors.length || selectors.some((selector) => !isChatSelector(selector)))
                 throw new Error('Каждый селектор должен начинаться с .cy-chat.');
             validateCssUrls(rule.style.cssText);
             continue;
         }
-        if (rule.type === 4 && rule.cssRules) {
+        if (rule.type === CSS_MEDIA_RULE && rule.cssRules) {
             validateRules(rule.cssRules);
             continue;
         }
-        throw new Error('Поддерживаются только CSS-правила чата и медиазапросы @media.');
+        if (rule.type === CSS_KEYFRAMES_RULE && rule.cssRules) {
+            for (const keyframe of rule.cssRules) {
+                const offsets = splitSelectors(keyframe.keyText || '');
+                if (keyframe.type !== CSS_KEYFRAME_RULE
+                    || !offsets.length || offsets.some((offset) => !isKeyframeOffset(offset)))
+                    throw new Error('В @keyframes разрешены только from, to и процентные позиции от 0% до 100%.');
+                validateCssUrls(keyframe.style.cssText);
+            }
+            continue;
+        }
+        throw new Error('Поддерживаются только CSS-правила чата, медиазапросы @media и анимации @keyframes.');
     }
 }
 
