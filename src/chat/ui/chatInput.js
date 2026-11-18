@@ -438,6 +438,9 @@ function bindChatForm(form, input) {
         if (blockBannedWord(event)) return;
         record();
         const list = form.closest(SEL.chatRoot)?.querySelector(SEL.chatList);
+        if (list && list.isConnected) {
+            chatScroller.scrollToEnd(list);
+        }
         requestAnimationFrame(() => {
             if (list && list.isConnected) {
                 chatScroller.scrollToEnd(list);
