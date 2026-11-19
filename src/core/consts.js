@@ -19,8 +19,6 @@ export const STORE = Object.freeze({
     chatCustomCss: 't7ChatCustomCss',
     chatThemeFavorites: 't7ChatThemeFavorites',
     markdownEnabled: 't7MarkdownEnabled',
-    pingOnly: 't7PingOnly',
-    pingArchive: 't7PingArchive',
     chatTabPrefs: 't7ChatTabPrefs',
     linkEncoding: 't7LinkEncoding',
     imagePreviews: 't7ImagePreviews',

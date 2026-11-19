@@ -1,15 +1,9 @@
 import { pingSystem } from '../pingSystem.js';
 import { chatScroller } from '../messages/scrollState.js';
-import { store } from '../../core/store.js';
-import { SEL, STORE } from '../../core/consts.js';
+import { SEL } from '../../core/consts.js';
 import { cls } from '../../core/ui.js';
 import { pageChan } from '../../core/config.js';
 
-const PING_ONLY_KEY = STORE.pingOnly;
-const PING_ARCHIVE_KEY = STORE.pingArchive;
-const PING_ARCHIVE_LIMIT = 500;
-const PING_PAGE_SIZE = 50;
-const ROOM_IDS = ['city', 'mine', 'one'];
 const CHAT_TABS = new Set(['g', 'tr', 'mn', 'dm', 'gl', 'lg']);
 const NOTIFIED_LIMIT = 1000;
 const PAGE_STARTED_AT = performance.timeOrigin || Date.now();
@@ -26,12 +20,8 @@ const stateByBox = new WeakMap();
 const notifiedIds = new Set();
 const guildEveryonePingIds = new Set();
 const recentGuildEveryoneNotifications = new Map();
-const noPingIndicators = new WeakMap();
 let pointerSelectionTarget = null;
-let pingOnly = store.get(PING_ONLY_KEY) === true;
-let saveTimer = 0;
 let documentObserver = null;
-let storedArchive = readArchive();
 let guildMembership = { guildId: '', role: '' };
 let guildRolePromise = Promise.resolve();
 
@@ -100,52 +90,6 @@ async function loadGuildChatMessages() {
     }
 }
 
-function readArchive() {
-    const saved = store.get(PING_ARCHIVE_KEY);
-    const archive = Object.fromEntries(ROOM_IDS.map((room) => [room, []]));
-    for (const room of ROOM_IDS) {
-        const values = saved && Array.isArray(saved[room]) ? saved[room] : [];
-        for (const message of values) {
-            if (!message || message.id == null) continue;
-            const text = typeof message.text === 'string' ? message.text : String(message.t || '');
-            const login = String(message.login || message.l || '');
-            const name = String(message.name || message.n || login);
-            const tab = String(message.tab || message.tb || inferTab(message));
-            archive[room].push({
-                id: String(message.id),
-                login,
-                name,
-                text,
-                tab,
-                at: Number(message.at) || 0
-            });
-        }
-    }
-    return archive;
-}
-
-function inferTab(message) {
-    if (message.rm === 'mine') return 'mn';
-    if (message.k === 'tr') return 'tr';
-    if (message.k === 'dm') return 'dm';
-    return 'g';
-}
-
-function saveArchiveSoon() {
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => {
-        saveTimer = 0;
-        store.set(PING_ARCHIVE_KEY, storedArchive);
-    }, 500);
-}
-
-function getRoom(box, row) {
-    if (box.closest('.co-host, .co-float')) return 'one';
-    if (row.dataset.rm === 'mine' || box.closest('.mn')) return 'mine';
-    if (row.dataset.rm === 'city') return 'city';
-    return 'city';
-}
-
 function getTab(box, row) {
     if (row.dataset.rm === 'mine') return 'mn';
     const selected = box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`);
@@ -153,32 +97,13 @@ function getTab(box, row) {
 }
 
 function getMessage(row) {
-    if (row.matches(`${SEL.emptyMessage}, ${SEL.systemMessage}, ${SEL.eventMessage}`)
-        || row.classList.contains(cls('archive-row'))) return null;
+    if (row.matches(`${SEL.emptyMessage}, ${SEL.systemMessage}, ${SEL.eventMessage}`)) return null;
     const nick = row.querySelector(':scope > b[data-nick]');
     const content = row.querySelector(':scope > span:not([class])');
     const login = nick && String(nick.dataset.nick || '').trim();
     const text = content ? content.textContent : '';
     if (!login || !text) return null;
     return { login, name: nick.textContent.trim() || login, text };
-}
-
-function archiveMessage(room, tab, message) {
-    if (!message.id) return;
-    const id = `${room}:${message.id}`;
-    if (storedArchive[room].some((item) => `${room}:${item.id}` === id)) return;
-    storedArchive[room].push({
-        id: message.id,
-        login: message.login,
-        name: message.name,
-        text: message.text,
-        tab,
-        at: Number(message.at) || Date.now()
-    });
-    storedArchive[room].sort((a, b) => a.at - b.at);
-    if (storedArchive[room].length > PING_ARCHIVE_LIMIT)
-        storedArchive[room].splice(0, storedArchive[room].length - PING_ARCHIVE_LIMIT);
-    saveArchiveSoon();
 }
 
 function messageKey(id) {
@@ -254,7 +179,6 @@ function playPingNotification() {
 function processRow(state, row, notify, notificationBatch = null) {
     const message = getMessage(row);
     if (!message) return false;
-    const room = getRoom(state.box, row);
     const tab = getTab(state.box, row);
     const key = row.dataset.mid ? messageKey(row.dataset.mid) : '';
     const previouslySeen = key && state.seen.has(key);
@@ -265,8 +189,6 @@ function processRow(state, row, notify, notificationBatch = null) {
         && (nativePing || pingSystem.isPinged(message.text) || guildEveryonePingIds.has(key));
     row.classList.toggle(cls('ping'), pinged && !nativePing);
     if (pinged) {
-        const id = row.dataset.mid || '';
-        archiveMessage(room, tab, { ...message, id });
         const currentTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab;
         if (!previouslySeen && notify) {
             const alreadyNotified = key && notifiedIds.has(key);
@@ -416,7 +338,6 @@ function paint(state) {
 
 async function handleExternalMessage(state, payload) {
     const { msg } = payload;
-    const room = msg.rm === 'mine' ? 'mine' : 'city';
     const key = messageKey(msg.id);
     if (notifiedIds.has(key)) return;
 
@@ -438,13 +359,6 @@ async function handleExternalMessage(state, payload) {
     if (payload.observedAt - PAGE_STARTED_AT < STARTUP_NOTIFICATION_GRACE_MS
         || Date.now() - msg.at > 60_000) return;
 
-    archiveMessage(room, msg.tab, {
-        id: msg.id,
-        login: msg.l,
-        name: msg.n,
-        text: msg.t,
-        at: msg.at
-    });
     if (!(payload.open && msg.tab === payload.activeTab))
         state.counts[msg.tab] = (state.counts[msg.tab] || 0) + 1;
     paint(state);
@@ -486,164 +400,12 @@ function onExternalMessage(event) {
     }
 }
 
-function visibleArchive(state) {
-    const activeTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab;
-    const rooms = state.box.closest('.mn') ? ['mine']
-        : state.box.closest('.co-host, .co-float') ? ['one', 'city', 'mine'] : ['city'];
-    const messages = rooms.flatMap((room) => storedArchive[room] || []);
-    return [...new Map(messages.map((item) => [item.id, item])).values()]
-        .filter((item) => item.tab === activeTab)
-        .sort((a, b) => a.at - b.at);
-}
-
-function archiveRow(message) {
-    const row = document.createElement('li');
-    row.className = `${cls('archive-row')} ping`;
-    row.dataset.mid = message.id;
-    row.title = message.at ? new Date(message.at).toLocaleTimeString() : '';
-    const nick = document.createElement('b');
-    nick.dataset.nick = message.login;
-    nick.tabIndex = 0;
-    nick.textContent = message.name || message.login;
-    const text = document.createElement('span');
-    text.textContent = message.text;
-    row.append(nick, document.createTextNode(' '), text);
-    return row;
-}
-
-function updateArchiveControls(state) {
-    const nav = state.box.querySelector(`.${cls('ping-nav')}`);
-    if (!nav) return;
-    const messages = visibleArchive(state);
-    const pages = Math.ceil(messages.length / PING_PAGE_SIZE);
-    state.page = Math.min(state.page, Math.max(0, pages - 1));
-    nav.hidden = !pingOnly || pages < 2;
-    const older = nav.querySelector('[data-direction="older"]');
-    const newer = nav.querySelector('[data-direction="newer"]');
-    if (older) older.disabled = state.page >= pages - 1;
-    if (newer) newer.disabled = state.page === 0;
-}
-
-function renderArchivePage(state) {
-    const list = state.list;
-    if (!list) return;
-    const messages = visibleArchive(state);
-    const start = Math.max(0, messages.length - (state.page + 1) * PING_PAGE_SIZE);
-    const end = messages.length - state.page * PING_PAGE_SIZE;
-    const pageMessages = messages.slice(start, end);
-    const wanted = new Set(pageMessages.map((message) => message.id));
-
-    chatScroller.keep(list, () => {
-        list.querySelectorAll(`:scope > li:not(.${cls('archive-row')})`).forEach((row) => {
-            if (noPingIndicators.get(list) === row) return;
-            const keep = state.page === 0
-                && (row.classList.contains('ping') || row.classList.contains(cls('ping')));
-            row.classList.toggle(cls('ping-hidden'), pingOnly && !keep);
-        });
-        list.querySelectorAll(`:scope > .${cls('archive-row')}`).forEach((row) => {
-            if (!wanted.has(row.dataset.mid)) row.remove();
-        });
-        if (pingOnly) {
-            const present = new Set([...list.querySelectorAll(':scope > li[data-mid]')].map((row) => row.dataset.mid));
-            const missing = pageMessages.filter((message) => !present.has(message.id))
-                    .map(archiveRow);
-            if (missing.length) {
-                const firstLiveRow = list.querySelector(`:scope > li:not(.${cls('archive-row')})`);
-                if (firstLiveRow) firstLiveRow.before(...missing);
-                else list.append(...missing);
-            }
-        }
-        updateNoPingIndicator(list, pingOnly && !pageMessages.length);
-    });
-    updateArchiveControls(state);
-}
-
-function updateNoPingIndicator(list, visible) {
-    let indicator = noPingIndicators.get(list);
-    if (!visible) {
-        if (indicator) indicator.remove();
-        noPingIndicators.delete(list);
-        return;
-    }
-    if (!indicator) {
-        indicator = document.createElement('li');
-        indicator.textContent = 'Пингов пока нет';
-        Object.assign(indicator.style, {
-            display: 'block',
-            padding: '12px 6px',
-            color: '#aaa',
-            font: '12px/1.4 system-ui, sans-serif',
-            textAlign: 'center'
-        });
-        noPingIndicators.set(list, indicator);
-    }
-    if (indicator.parentElement !== list) list.appendChild(indicator);
-}
-
-function ensureControls(state) {
-    const header = state.box.querySelector(SEL.chatHeader);
-    if (!header) return;
-
-    let filter = header.querySelector(`.${cls('chat-filter')}`);
-    if (!filter) {
-        filter = document.createElement('label');
-        filter.className = cls('chat-filter');
-        filter.title = 'Показывать только сообщения с упоминанием';
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        const text = document.createElement('span');
-        text.textContent = 'Только пинги';
-        filter.append(checkbox, text);
-        filter.addEventListener('click', (event) => event.stopPropagation());
-        checkbox.addEventListener('change', () => {
-            pingOnly = checkbox.checked;
-            store.set(PING_ONLY_KEY, pingOnly);
-            for (const current of states) {
-                const input = current.box.querySelector(`.${cls('chat-filter')} input`);
-                if (input) input.checked = pingOnly;
-                current.page = 0;
-                renderArchivePage(current);
-            }
-        });
-    }
-    filter.querySelector('input').checked = pingOnly;
-    const close = header.querySelector(SEL.chatCloseButton);
-    if (!filter.isConnected) header.insertBefore(filter, close || null);
-
-    let nav = header.querySelector(`.${cls('ping-nav')}`);
-    if (!nav) {
-        nav = document.createElement('span');
-        nav.className = cls('ping-nav');
-        for (const [direction, title, symbol] of [
-            ['older', 'Показать более старые пинги', '‹'],
-            ['newer', 'Показать более новые пинги', '›']
-        ]) {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.dataset.direction = direction;
-            button.title = title;
-            button.setAttribute('aria-label', title);
-            button.textContent = symbol;
-            nav.appendChild(button);
-        }
-        nav.addEventListener('click', (event) => {
-            const button = event.target.closest('button[data-direction]');
-            if (!button) return;
-            event.stopPropagation();
-            state.page = Math.max(0, state.page + (button.dataset.direction === 'older' ? 1 : -1));
-            renderArchivePage(state);
-        });
-        header.insertBefore(nav, close || null);
-    }
-}
-
 function refreshRows(state, notify = false) {
     if (!state.box.isConnected) return;
     const activeTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab || '';
     if (state.activeTab !== activeTab) {
         if (state.activeTab) state.quietTab = activeTab;
         state.activeTab = activeTab;
-        state.page = 0;
         notify = false;
     }
     const tabs = state.box.querySelector(SEL.chatTabs);
@@ -663,7 +425,6 @@ function refreshRows(state, notify = false) {
     if (list !== state.list) {
         state.listObserver?.disconnect();
         state.list = list;
-        state.page = 0;
         notify = false;
         if (list) {
             chatScroller.register(list);
@@ -676,27 +437,24 @@ function refreshRows(state, notify = false) {
                 const quietLoad = state.quietTab === currentTab;
                 const notificationRows = getAppendedRowsAfterSeen(list, records, state.seen);
                 const notificationBatch = { play: false };
-                list.querySelectorAll(`:scope > li:not(.${cls('archive-row')})`)
+                list.querySelectorAll(':scope > li')
                     .forEach((row) => processRow(state, row,
                         !quietLoad && notificationRows.has(row), notificationBatch));
                 if (quietLoad) state.quietTab = null;
                 paint(state);
-                renderArchivePage(state);
                 if (notificationBatch.play) playPingNotification();
                 restoreNickSelection(state);
             });
             state.listObserver.observe(list, { childList: true });
         }
     }
-    ensureControls(state);
     if (state.list) {
         const notificationBatch = { play: false };
-        state.list.querySelectorAll(`:scope > li:not(.${cls('archive-row')})`)
+        state.list.querySelectorAll(':scope > li')
             .forEach((row) => processRow(state, row, notify, notificationBatch));
         if (notificationBatch.play) playPingNotification();
     }
     paint(state);
-    renderArchivePage(state);
 }
 
 function observeBox(box) {
@@ -706,7 +464,6 @@ function observeBox(box) {
         list: null,
         listObserver: null,
         counts: {},
-        page: 0,
         seen: new Set(),
         quietTab: null
     };

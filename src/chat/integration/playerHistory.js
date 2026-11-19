@@ -80,8 +80,7 @@ function formatTime(row, observedAt) {
 }
 
 function messageFromRow(row, tab, observedAt) {
-    if (row.matches('.cy-chat-sys, .cy-chat-ev, .cy-chat-0')
-        || row.classList.contains(cls('archive-row'))) return null;
+    if (row.matches('.cy-chat-sys, .cy-chat-ev, .cy-chat-0')) return null;
     const nick = row.querySelector(':scope > b[data-nick]');
     const content = row.querySelector(':scope > span:not([class])');
     const login = nick && String(nick.dataset.nick || '').trim();

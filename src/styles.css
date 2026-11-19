@@ -280,13 +280,6 @@
 .cy-chat-h .t7-chat-window-button{display:inline-flex;flex:none;align-items:center;justify-content:center;min-width:24px;height:24px;margin:0 3px;padding:2px 5px;border:1px solid rgba(255,255,255,.2);border-radius:4px;background:transparent;color:inherit;font:16px/1 system-ui,sans-serif;cursor:pointer}
 .cy-chat-h .t7-chat-window-button:hover,.cy-chat-h .t7-chat-window-button:focus-visible{background:rgba(255,255,255,.14);outline:none}
 .cy-chat-h .t7-chat-window-button:disabled{opacity:.55;cursor:progress}
-.cy-chat-h .t7-chat-filter{display:inline-flex;align-items:center;gap:4px;margin-left:auto;padding:3px 5px;border-radius:4px;font:11px/1.2 system-ui,sans-serif;white-space:nowrap;cursor:pointer;user-select:none}
-.cy-chat-h .t7-chat-filter input{width:13px;height:13px;margin:0;accent-color:#ffc94d;flex:none}
-.cy-chat-h .t7-chat-filter span{white-space:nowrap}
-.cy-chat-h .t7-ping-nav{display:inline-flex;align-items:center;gap:2px;margin-left:4px}
-.cy-chat-h .t7-ping-nav[hidden]{display:none!important}
-.cy-chat-h .t7-ping-nav button{display:grid;place-items:center;width:22px;height:22px;padding:0;border:1px solid rgba(255,255,255,.16);border-radius:3px;background:transparent;color:inherit;font:16px/1 system-ui,sans-serif;cursor:pointer}
-.cy-chat-h .t7-ping-nav button:disabled{opacity:.35;cursor:default}
 
 /* ========== Кружки: новые сообщения (красные) и пинги (жёлтые) ========== */
 .cy-chat .cy-chat-n,
@@ -303,7 +296,6 @@
 .cy-chat .cy-chat-tn[hidden],
 .cy-chat .cy-chat-tp[hidden],
 .cy-chat .cy-chat-pn[hidden]{display:none!important}
-.cy-chat-l>li.t7-ping-hidden{display:none!important}
 .cy-chat-l>li.t7-ping{background:rgba(255,201,77,.14);border-radius:6px;box-shadow:inset 3px 0 0 #ffc94d;padding-left:6px}
 .cy-chat-l,.dm-l{font-family:var(--t7-chat-font,inherit);font-size:var(--t7-chat-font-size,14px);font-synthesis:weight style}
 .t7-mention{color:var(--t7-ping-color,#e89aa3);font-weight:600}
