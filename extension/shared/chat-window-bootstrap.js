@@ -30,8 +30,9 @@ if (new URL(location.href).searchParams.get('l7tv_chat_window') === '1') {
             z-index: 2147483640 !important;
             visibility: visible !important;
         }
-        body .cy-chat:focus-within,
-        body .cy-chat:focus-within .cy-chat-b {
+        body .cy-chat,
+        body .cy-chat-b:not([hidden]),
+        body .cy-chat-h {
             transform: none !important;
         }
         body .cy-chat-b:not([hidden]) {
@@ -56,14 +57,9 @@ if (new URL(location.href).searchParams.get('l7tv_chat_window') === '1') {
             position: sticky !important;
             top: 0 !important;
             z-index: 1 !important;
-            transform: none !important;
             flex-shrink: 0 !important;
             min-height: 28px !important;
-        }
-        body .cy-chat:focus-within .cy-chat-h {
-            top: 0 !important;
             margin-top: 0 !important;
-            transform: none !important;
         }
         body .cy-chat-tabs:not([hidden]) {
             flex-shrink: 0 !important;
