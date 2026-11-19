@@ -3,12 +3,14 @@ import { chatScroller } from '../messages/scrollState.js';
 import { SEL } from '../../core/consts.js';
 import { cls } from '../../core/ui.js';
 import { pageChan } from '../../core/config.js';
+import { CHAT_WINDOW_QUERY } from '../ui/chatWindow.js';
 
 const CHAT_TABS = new Set(['g', 'tr', 'mn', 'dm', 'gl', 'lg']);
 const NOTIFIED_LIMIT = 1000;
 const PAGE_STARTED_AT = performance.timeOrigin || Date.now();
 const STARTUP_NOTIFICATION_GRACE_MS = 3000;
 const CHAT_BOX_ATTRIBUTE = 'data-t7-box';
+const CHAT_READ_MESSAGE = 'LEGION7TV_CHAT_READ';
 const GUILD_EVERYONE_RE = /(?<![\p{L}\p{N}_])@everyone(?![\p{L}\p{N}_])/iu;
 const GUILD_EVERYONE_ROLES = Object.freeze({
     leader: 'guildEveryoneLeader',
@@ -110,6 +112,105 @@ function messageKey(id) {
     return String(id);
 }
 
+function getChatReadScope() {
+    const url = new URL(location.href);
+    url.searchParams.delete(CHAT_WINDOW_QUERY);
+    url.hash = '';
+    return url.href;
+}
+
+function isReadMessage(state, tab, id) {
+    return !!id && !!state.readIds.get(tab)?.has(id);
+}
+
+function getMessageIds(collection, tab) {
+    let ids = collection.get(tab);
+    if (!ids) {
+        ids = new Set();
+        collection.set(tab, ids);
+    }
+    return ids;
+}
+
+export function applyReadMarker(state, tab, ids) {
+    const readIds = getMessageIds(state.readIds, tab);
+    const unreadIds = getMessageIds(state.unreadIds, tab);
+    const unreadMessageIds = getMessageIds(state.unreadMessageIds, tab);
+    state.trackedMessageTabs.add(tab);
+    let removed = 0;
+    for (const id of ids) {
+        if (typeof id !== 'string' || !id || id.length > 200) continue;
+        readIds.add(id);
+        if (unreadIds.delete(id)) removed++;
+        unreadMessageIds.delete(id);
+    }
+    while (readIds.size > NOTIFIED_LIMIT)
+        readIds.delete(readIds.values().next().value);
+    if (removed)
+        state.counts[tab] = Math.max(0, (state.counts[tab] || 0) - removed);
+    return removed;
+}
+
+function sendReadMarker(tab, ids) {
+    const api = globalThis.browser || globalThis.chrome;
+    if (!api?.runtime || typeof api.runtime.sendMessage !== 'function') {
+        console.warn('[Legion7TV] API расширения недоступно для синхронизации прочитанных сообщений');
+        return;
+    }
+    try {
+        Promise.resolve(api.runtime.sendMessage({
+            type: CHAT_READ_MESSAGE,
+            tab,
+            ids
+        })).then((result) => {
+            if (!result || result.ok !== true)
+                console.warn('[Legion7TV] Не удалось синхронизировать прочитанные сообщения', result?.error);
+        }).catch((error) => {
+            console.warn('[Legion7TV] Не удалось синхронизировать прочитанные сообщения', error);
+        });
+    } catch (error) {
+        console.warn('[Legion7TV] Не удалось синхронизировать прочитанные сообщения', error);
+    }
+}
+
+function markMessagesRead(tab, ids) {
+    const uniqueIds = [...new Set(ids)].filter((id) =>
+        typeof id === 'string' && id.length > 0 && id.length <= 200);
+    if (!uniqueIds.length) return;
+    const boundedIds = uniqueIds.slice(-NOTIFIED_LIMIT);
+    for (const current of states) {
+        applyReadMarker(current, tab, boundedIds);
+        renderBadges(current);
+    }
+    sendReadMarker(tab, boundedIds);
+}
+
+function markTabRead(state, tab) {
+    const ids = new Set(getMessageIds(state.unreadIds, tab));
+    for (const id of getMessageIds(state.unreadMessageIds, tab)) ids.add(id);
+    if (state.list) {
+        state.list.querySelectorAll(':scope > li[data-mid]').forEach((row) => {
+            if (getTab(state.box, row) !== tab || !getMessage(row)) return;
+            const id = messageKey(row.dataset.mid);
+            if (!isReadMessage(state, tab, id)) ids.add(id);
+        });
+    }
+    markMessagesRead(tab, [...ids]);
+}
+
+function onChatReadMessage(message) {
+    if (!message || message.type !== CHAT_READ_MESSAGE
+        || message.scope !== getChatReadScope()
+        || !CHAT_TABS.has(message.tab)
+        || !Array.isArray(message.ids) || message.ids.length > NOTIFIED_LIMIT) return;
+    const ids = message.ids.filter((id) =>
+        typeof id === 'string' && id.length > 0 && id.length <= 200);
+    for (const state of states) {
+        applyReadMarker(state, message.tab, ids);
+        paint(state);
+    }
+}
+
 export function getAppendedRowsAfterSeen(list, records, seen) {
     const rows = [...list.children].filter((row) => row.tagName === 'LI');
     let lastSeenIndex = -1;
@@ -183,6 +284,16 @@ function processRow(state, row, notify, notificationBatch = null) {
     const key = row.dataset.mid ? messageKey(row.dataset.mid) : '';
     const previouslySeen = key && state.seen.has(key);
     if (key) state.seen.add(key);
+    const alreadyRead = isReadMessage(state, tab, key);
+    if (!previouslySeen && notify && key && !row.classList.contains('me')
+        && !alreadyRead
+        && Date.now() - PAGE_STARTED_AT >= STARTUP_NOTIFICATION_GRACE_MS) {
+        const activeTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab;
+        if (!isTabVisible(state, tab, activeTab)) {
+            getMessageIds(state.unreadMessageIds, tab).add(key);
+            state.trackedMessageTabs.add(tab);
+        }
+    }
 
     const nativePing = row.classList.contains('ping');
     const pinged = !row.classList.contains('me')
@@ -196,10 +307,12 @@ function processRow(state, row, notify, notificationBatch = null) {
             const duplicateEveryone = !alreadyNotified && tab === 'gl'
                 && GUILD_EVERYONE_RE.test(message.text)
                 && isDuplicateGuildEveryoneNotification(message);
-            if (!alreadyNotified && !duplicateEveryone
+            if (!alreadyNotified && !duplicateEveryone && !alreadyRead
                 && Date.now() - PAGE_STARTED_AT >= STARTUP_NOTIFICATION_GRACE_MS) {
-                if (!(state.box.classList.contains('open') && tab === currentTab))
+                if (!isTabVisible(state, tab, currentTab)) {
                     state.counts[tab] = (state.counts[tab] || 0) + 1;
+                    if (key) getMessageIds(state.unreadIds, tab).add(key);
+                }
                 if (notificationBatch) notificationBatch.play = true;
                 else playPingNotification();
             }
@@ -312,33 +425,107 @@ function clearSelectionOnKey(event) {
 }
 
 function badge(parent, className, count, title) {
-    let element = parent.querySelector(`:scope > .${className}`);
+    let element = parent.querySelector(`:scope > .${className}`)
+        || parent.querySelector(`.${className}`);
     if (!element) {
         element = document.createElement('b');
         element.className = className;
         parent.appendChild(element);
     }
-    element.hidden = count <= 0;
-    element.textContent = count > 99 ? '99+' : count ? String(count) : '';
-    element.title = count > 0 ? `${title}: ${count}` : '';
+    const hidden = count <= 0;
+    const text = count > 99 ? '99+' : count ? String(count) : '';
+    const tooltip = count > 0 ? `${title}: ${count}` : '';
+    if (element.hidden !== hidden) element.hidden = hidden;
+    if (element.textContent !== text) element.textContent = text;
+    if (element.title !== tooltip) element.title = tooltip;
 }
 
-function paint(state) {
-    const activeTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab;
-    if (state.box.classList.contains('open') && activeTab) state.counts[activeTab] = 0;
+function isTabVisible(state, tab, activeTab) {
+    const selectedTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab;
+    return state.box.classList.contains('open')
+        && tab === activeTab
+        && tab === selectedTab
+        && document.visibilityState === 'visible'
+        && document.hasFocus();
+}
+
+function renderBadges(state) {
     let total = 0;
+    let newMessageTotal = 0;
     state.box.querySelectorAll(SEL.chatTabButtons).forEach((button) => {
         const count = state.counts[button.dataset.tab] || 0;
         total += count;
         badge(button, cls('chat-tp'), count, 'Упоминаний');
+        const tracked = state.trackedMessageTabs.has(button.dataset.tab);
+        const newMessages = tracked
+            ? state.unreadMessageIds.get(button.dataset.tab)?.size || 0
+            : readBadgeCount(button, 'cy-chat-tn');
+        newMessageTotal += newMessages;
+        if (tracked)
+            badge(button, 'cy-chat-tn', newMessages, 'Новых сообщений');
     });
     const toggle = state.box.querySelector(SEL.chatToggleButton);
     if (toggle) badge(toggle, cls('chat-pn'), state.box.classList.contains('open') ? 0 : total, 'Упоминаний');
+    if (toggle && state.trackedMessageTabs.size)
+        badge(toggle, 'cy-chat-n', state.box.classList.contains('open') ? 0 : newMessageTotal,
+            'Новых сообщений');
+}
+
+function readBadgeCount(parent, className) {
+    const element = parent.querySelector(`:scope > .${className}`)
+        || parent.querySelector(`.${className}`);
+    if (!element || element.hidden) return 0;
+    const text = element.textContent.trim();
+    const value = Number.parseInt(text, 10);
+    return Number.isFinite(value) ? value : 0;
+}
+
+function observeBadgeTargets(state) {
+    const targets = [
+        state.box.querySelector(SEL.chatTabs),
+        state.box.querySelector(SEL.chatToggleButton)
+    ].filter(Boolean);
+    if (targets.length === state.badgeTargets.length
+        && targets.every((target, index) => target === state.badgeTargets[index])) return;
+
+    state.badgeObserver?.disconnect();
+    state.badgeTargets = targets;
+    state.badgeObserver = new MutationObserver(() => renderBadges(state));
+    for (const target of targets) {
+        state.badgeObserver.observe(target, {
+            attributes: true,
+            attributeFilter: ['hidden'],
+            childList: true,
+            characterData: true,
+            subtree: true
+        });
+    }
+}
+
+function paint(state) {
+    const activeTab = state.box.querySelector(`${SEL.chatTabs} [data-tab][aria-selected="true"]`)?.dataset.tab;
+    if (activeTab && isTabVisible(state, activeTab, activeTab)) {
+        markTabRead(state, activeTab);
+        state.counts[activeTab] = 0;
+    }
+    renderBadges(state);
 }
 
 async function handleExternalMessage(state, payload) {
     const { msg } = payload;
     const key = messageKey(msg.id);
+    const alreadyReadAtArrival = isReadMessage(state, msg.tab, key);
+    if (payload.observedAt - PAGE_STARTED_AT >= STARTUP_NOTIFICATION_GRACE_MS
+        && Date.now() - msg.at <= 60_000
+        && !alreadyReadAtArrival) {
+        if (isTabVisible(state, msg.tab, payload.activeTab)) {
+            markMessagesRead(msg.tab, [key]);
+        } else {
+            getMessageIds(state.unreadMessageIds, msg.tab).add(key);
+            state.trackedMessageTabs.add(msg.tab);
+        }
+        paint(state);
+    }
     if (notifiedIds.has(key)) return;
 
     const regularPing = msg.nativePing || pingSystem.isPinged(msg.t);
@@ -359,10 +546,15 @@ async function handleExternalMessage(state, payload) {
     if (payload.observedAt - PAGE_STARTED_AT < STARTUP_NOTIFICATION_GRACE_MS
         || Date.now() - msg.at > 60_000) return;
 
-    if (!(payload.open && msg.tab === payload.activeTab))
-        state.counts[msg.tab] = (state.counts[msg.tab] || 0) + 1;
+    const alreadyRead = alreadyReadAtArrival;
+    if (!alreadyRead) {
+        if (!isTabVisible(state, msg.tab, payload.activeTab)) {
+            state.counts[msg.tab] = (state.counts[msg.tab] || 0) + 1;
+            getMessageIds(state.unreadIds, msg.tab).add(key);
+        }
+    }
     paint(state);
-    playPingNotification();
+    if (!alreadyRead) playPingNotification();
 }
 
 function onExternalMessage(event) {
@@ -421,6 +613,7 @@ function refreshRows(state, notify = false) {
             });
         }
     }
+    observeBadgeTargets(state);
     const list = state.box.querySelector(SEL.chatList);
     if (list !== state.list) {
         state.listObserver?.disconnect();
@@ -465,6 +658,12 @@ function observeBox(box) {
         listObserver: null,
         counts: {},
         seen: new Set(),
+        unreadIds: new Map(),
+        unreadMessageIds: new Map(),
+        readIds: new Map(),
+        trackedMessageTabs: new Set(),
+        badgeTargets: [],
+        badgeObserver: null,
         quietTab: null
     };
     stateByBox.set(box, state);
@@ -503,6 +702,7 @@ function startDocumentObserver() {
                     state.boxObserver.disconnect();
                     state.listObserver?.disconnect();
                     state.tabsObserver?.disconnect();
+                    state.badgeObserver?.disconnect();
                     states.delete(state);
                     stateByBox.delete(box);
                 }
@@ -528,7 +728,12 @@ export function startChatPingIntegration() {
     if (pageChan) window.setInterval(() => {
         guildRolePromise = refreshGuildRole();
     }, 5 * 60 * 1000);
+    const api = globalThis.browser || globalThis.chrome;
+    api?.runtime?.onMessage?.addListener(onChatReadMessage);
     window.addEventListener('message', onExternalMessage);
+    const refreshVisibleReadState = () => states.forEach(paint);
+    document.addEventListener('visibilitychange', refreshVisibleReadState);
+    window.addEventListener('focus', refreshVisibleReadState);
     document.addEventListener('selectionchange', rememberSelectionInChats);
     document.addEventListener('pointerdown', beginNickSelection, true);
     document.addEventListener('pointerup', finishNickSelection, true);

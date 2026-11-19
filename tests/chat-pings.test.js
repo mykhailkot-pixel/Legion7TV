@@ -1,7 +1,34 @@
 import { describe, expect, it } from 'vitest';
-import { getAppendedRowsAfterSeen } from '../src/chat/integration/chatPings.js';
+import {
+    applyReadMarker,
+    getAppendedRowsAfterSeen
+} from '../src/chat/integration/chatPings.js';
 
 describe('chat ping notification rows', () => {
+    it('clears only matching unread ping IDs and ignores duplicate read markers', () => {
+        const state = {
+            counts: { g: 2, tr: 1 },
+            unreadIds: new Map([
+                ['g', new Set(['first', 'second'])],
+                ['tr', new Set(['third'])]
+            ]),
+            unreadMessageIds: new Map([['g', new Set(['first', 'second'])]]),
+            trackedMessageTabs: new Set(),
+            readIds: new Map()
+        };
+
+        expect(applyReadMarker(state, 'g', ['first', 'other'])).toBe(1);
+        expect(state.counts.g).toBe(1);
+        expect(state.counts.tr).toBe(1);
+        expect(state.unreadIds.get('g')).toEqual(new Set(['second']));
+        expect(state.unreadMessageIds.get('g')).toEqual(new Set(['second']));
+        expect(state.unreadMessageIds.get('tr')).toEqual(new Set(['third']));
+        expect(state.trackedMessageTabs.has('g')).toBe(true);
+        expect(state.readIds.get('g')).toEqual(new Set(['first', 'other']));
+        expect(applyReadMarker(state, 'g', ['first'])).toBe(0);
+        expect(state.counts.g).toBe(1);
+    });
+
     it('selects only newly appended rows after the previously seen tail', () => {
         const list = document.createElement('ul');
         const older = document.createElement('li');

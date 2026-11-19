@@ -3,7 +3,7 @@ import {
     CHAT_THEME_CATALOG_URL,
     validateChatCssUrl
 } from '../../src/chat/ui/chatCssSource.js';
-import { buildDetachedChatUrl } from '../../src/chat/ui/chatWindow.js';
+import { buildDetachedChatUrl, CHAT_WINDOW_QUERY } from '../../src/chat/ui/chatWindow.js';
 
 const ALLOWED_HOSTS = new Set([
     '7tv.io',
@@ -342,6 +342,59 @@ function isAllowedPageSender(sender) {
     return !!sender.tab && senderIsAllowed;
 }
 
+function getChatReadScope(value) {
+    try {
+        const url = new URL(value);
+        if (url.origin !== 'https://legiongame.gg') return '';
+        url.searchParams.delete(CHAT_WINDOW_QUERY);
+        url.hash = '';
+        return url.href;
+    } catch {
+        return '';
+    }
+}
+
+function relayChatRead(message, sender, sendResponse) {
+    const tabs = new Set(['g', 'tr', 'mn', 'dm', 'gl', 'lg']);
+    if (!isAllowedPageSender(sender)
+        || !tabs.has(message.tab)
+        || !Array.isArray(message.ids)
+        || message.ids.length > 1000
+        || message.ids.some((id) => typeof id !== 'string' || !id || id.length > 200)) {
+        sendResponse({ ok: false, error: 'Данные прочитанного сообщения некорректны.' });
+        return false;
+    }
+
+    const scope = getChatReadScope(sender.url);
+    if (!scope) {
+        sendResponse({ ok: false, error: 'Не удалось определить чат для синхронизации.' });
+        return false;
+    }
+
+    chrome.tabs.query({ url: 'https://legiongame.gg/*' }, (openTabs) => {
+        const queryError = chrome.runtime.lastError;
+        if (queryError) {
+            sendResponse({ ok: false, error: queryError.message || 'Не удалось найти открытые чаты.' });
+            return;
+        }
+
+        const payload = {
+            type: 'LEGION7TV_CHAT_READ',
+            scope,
+            tab: message.tab,
+            ids: [...new Set(message.ids)]
+        };
+        for (const tab of openTabs || []) {
+            if (tab.id == null || tab.id === sender.tab.id) continue;
+            chrome.tabs.sendMessage(tab.id, payload, () => {
+                void chrome.runtime.lastError;
+            });
+        }
+        sendResponse({ ok: true });
+    });
+    return true;
+}
+
 function openChatWindow(message, sender, sendResponse) {
     if (!isAllowedPageSender(sender)) {
         sendResponse({ ok: false, error: 'Источник запроса не разрешён.' });
@@ -389,6 +442,8 @@ function openChatWindow(message, sender, sendResponse) {
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message) return false;
+    if (message.type === 'LEGION7TV_CHAT_READ')
+        return relayChatRead(message, sender, sendResponse);
     if (message.type === 'LEGION7TV_OPEN_CHAT_WINDOW')
         return openChatWindow(message, sender, sendResponse);
 
