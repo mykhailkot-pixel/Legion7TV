@@ -16,6 +16,7 @@ describe('core constants and helpers', () => {
         expect(STORE.popupEmoteAnimation).toBe('t7PopupEmoteAnimation');
         expect(STORE.playerHistoryButtonEnabled).toBe('t7PlayerHistoryButtonEnabled');
         expect(STORE.chatCustomCss).toBe('t7ChatCustomCss');
+        expect(STORE.chatThemeFavorites).toBe('t7ChatThemeFavorites');
         expect(EV.playerHistoryButtonChange).toBe('t7-player-history-button-change');
         expect(SEL.chatRoot).toBe('.cy-chat');
         expect(SEL.dmRows).toContain('.dm-l');

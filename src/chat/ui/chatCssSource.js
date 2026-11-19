@@ -5,16 +5,34 @@ export const CHAT_THEME_CATALOG_URL = 'https://raw.githubusercontent.com/mykhail
 export const CHAT_THEME_CATALOG_FALLBACK_URL = 'https://cdn.jsdelivr.net/gh/mykhailkot-pixel/legion7tv-themes@main/catalog.json';
 const MAX_CHAT_THEMES = 100;
 const CHAT_THEME_REPOSITORY_PATH = '/gh/mykhailkot-pixel/legion7tv-themes@';
+const CHAT_THEME_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{0,63}$/i;
 
-export function filterChatThemes(themes, query) {
+export function normalizeChatThemeFavorites(value) {
+    if (!Array.isArray(value)) return new Set();
+    return new Set(value.filter((id) => typeof id === 'string' && CHAT_THEME_ID_PATTERN.test(id)));
+}
+
+export function toggleChatThemeFavorite(favorites, id) {
+    if (typeof id !== 'string' || !CHAT_THEME_ID_PATTERN.test(id))
+        throw new TypeError('Некорректный идентификатор темы.');
+    const next = new Set(favorites);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    return next;
+}
+
+export function filterChatThemes(themes, query, favoriteIds, favoritesOnly = false) {
     const normalizedQuery = String(query || '').trim().toLocaleLowerCase();
-    if (!normalizedQuery) return themes;
-    return themes.filter((theme) => [
-        theme.name,
-        theme.author,
-        theme.description,
-        ...theme.tags
-    ].join(' ').toLocaleLowerCase().includes(normalizedQuery));
+    return themes.filter((theme) => {
+        if (favoritesOnly && !favoriteIds.has(theme.id)) return false;
+        if (!normalizedQuery) return true;
+        return [
+            theme.name,
+            theme.author,
+            theme.description,
+            ...theme.tags
+        ].join(' ').toLocaleLowerCase().includes(normalizedQuery);
+    });
 }
 
 export function validateChatCssUrl(value) {
@@ -88,7 +106,7 @@ function validateThemeAssetUrl(value, extensionPattern) {
 
 function validateChatTheme(value, ids) {
     if (!value || typeof value !== 'object' || Array.isArray(value)
-        || typeof value.id !== 'string' || !/^[a-z0-9][a-z0-9_-]{0,63}$/i.test(value.id)
+        || typeof value.id !== 'string' || !CHAT_THEME_ID_PATTERN.test(value.id)
         || ids.has(value.id)
         || typeof value.name !== 'string' || !value.name.trim() || value.name.length > 100
         || typeof value.author !== 'string' || value.author.length > 80

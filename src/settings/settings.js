@@ -20,7 +20,13 @@ import { isEmoteTooltipEnabled, setEmoteTooltipEnabled } from '../emotes/tooltip
 import { applyChatCustomCss, validateChatCustomCss } from '../chat/ui/chatCustomCss.js';
 import { CHAT_CSS_PROMPT } from './chatCssPrompt.js';
 import { copyTextToClipboard } from './clipboard.js';
-import { fetchChatCssFromUrl, fetchChatThemeCatalog, filterChatThemes } from '../chat/ui/chatCssSource.js';
+import {
+    fetchChatCssFromUrl,
+    fetchChatThemeCatalog,
+    filterChatThemes,
+    normalizeChatThemeFavorites,
+    toggleChatThemeFavorite
+} from '../chat/ui/chatCssSource.js';
 import { getBuf } from '../network/net.js';
 
 // смещение окна настроек от центра экрана
@@ -272,6 +278,9 @@ function buildSettingsMarkup(root) {
                 placeholder: 'Поиск по названию, автору и тегам',
                 'aria-label': 'Поиск тем'
             }),
+            createNode('div', { className: 't7-row t7-wrap' }, [
+                settingsButton('☆ Показать избранное', 'chat-theme-favorites-filter')
+            ]),
             createNode('div', {
                 className: 't7-chat-theme-list',
                 'aria-live': 'polite'
@@ -744,8 +753,11 @@ export function openSettings() {
     const chatThemeList = el.querySelector('.t7-chat-theme-list');
     const chatThemeStatus = el.querySelector('.t7-chat-theme-status');
     const chatThemeSearch = el.querySelector('.t7-chat-theme-search');
+    const chatThemeFavoritesFilter = el.querySelector('[data-act="chat-theme-favorites-filter"]');
     let chatThemes = new Map();
     let chatThemeWarning = '';
+    let chatThemeFavorites = normalizeChatThemeFavorites(store.get(STORE.chatThemeFavorites));
+    let showFavoriteChatThemes = false;
     let themePreviewObserver = null;
     let themePreviewLoaders = new WeakMap();
     const readThemePreview = (blob) => new Promise((resolve, reject) => {
@@ -759,7 +771,12 @@ export function openSettings() {
     const savedCustomChatCss = store.get(STORE.chatCustomCss);
     customChatCss.value = typeof savedCustomChatCss === 'string' ? savedCustomChatCss : '';
     const updateVisibleChatThemes = () => {
-        const visibleIds = new Set(filterChatThemes([...chatThemes.values()], chatThemeSearch.value)
+        const visibleIds = new Set(filterChatThemes(
+            [...chatThemes.values()],
+            chatThemeSearch.value,
+            chatThemeFavorites,
+            showFavoriteChatThemes
+        )
             .map((theme) => theme.id));
         chatThemeList.querySelectorAll('.t7-chat-theme-card').forEach((card) => {
             card.hidden = !visibleIds.has(card.dataset.themeId);
@@ -768,13 +785,17 @@ export function openSettings() {
             const visibleCount = visibleIds.size;
             const resultStatus = visibleCount
                 ? `Показано тем: ${visibleCount} из ${chatThemes.size}.`
-                : 'По вашему запросу темы не найдены.';
+                : showFavoriteChatThemes && !chatThemeSearch.value.trim()
+                    ? 'В избранном нет тем из текущего каталога.'
+                    : 'По вашему запросу темы не найдены.';
             chatThemeStatus.textContent = chatThemeWarning
                 ? `${resultStatus} ${chatThemeWarning}`
                 : resultStatus;
         }
     };
     chatThemeSearch.addEventListener('input', updateVisibleChatThemes);
+    chatThemeFavoritesFilter.disabled = true;
+    chatThemeFavoritesFilter.setAttribute('aria-pressed', 'false');
     const cssFile = el.querySelector('.t7-chat-css-file');
     cssFile.addEventListener('change', async () => {
         const file = cssFile.files && cssFile.files[0];
@@ -823,6 +844,7 @@ export function openSettings() {
                 chatThemes = new Map(themes.map((theme) => [theme.id, theme]));
                 chatThemeWarning = warning;
                 b.textContent = 'Обновить каталог';
+                chatThemeFavoritesFilter.disabled = false;
                 if (themePreviewObserver) themePreviewObserver.disconnect();
                 themePreviewLoaders = new WeakMap();
                 themePreviewObserver = new IntersectionObserver((entries, observer) => {
@@ -884,12 +906,27 @@ export function openSettings() {
                         createNode('div', { className: 't7-chat-theme-tags' },
                             theme.tags.map((tag) => createNode('span', { className: 't7-chat-theme-tag' }, [tag]))
                         ),
-                        createNode('button', {
-                            type: 'button',
-                            className: 't7-b',
-                            'data-act': 'chat-theme-load',
-                            'data-theme-id': theme.id
-                        }, ['Загрузить CSS'])
+                        createNode('div', { className: 't7-chat-theme-actions' }, [
+                            createNode('button', {
+                                type: 'button',
+                                className: 't7-b t7-chat-theme-favorite',
+                                title: chatThemeFavorites.has(theme.id)
+                                    ? 'Убрать из избранного'
+                                    : 'Добавить в избранное',
+                                'aria-label': chatThemeFavorites.has(theme.id)
+                                    ? `Убрать тему «${theme.name}» из избранного`
+                                    : `Добавить тему «${theme.name}» в избранное`,
+                                'aria-pressed': String(chatThemeFavorites.has(theme.id)),
+                                'data-act': 'chat-theme-favorite',
+                                'data-theme-id': theme.id
+                            }, [chatThemeFavorites.has(theme.id) ? '★' : '☆']),
+                            createNode('button', {
+                                type: 'button',
+                                className: 't7-b',
+                                'data-act': 'chat-theme-load',
+                                'data-theme-id': theme.id
+                            }, ['Загрузить CSS'])
+                        ])
                     ]));
                     return card;
                 }));
@@ -904,6 +941,30 @@ export function openSettings() {
                 b.disabled = false;
             }
         }
+        else if (b.dataset.act === 'chat-theme-favorites-filter') {
+            showFavoriteChatThemes = !showFavoriteChatThemes;
+            b.textContent = showFavoriteChatThemes ? 'Показать все темы' : '☆ Показать избранное';
+            b.setAttribute('aria-pressed', String(showFavoriteChatThemes));
+            updateVisibleChatThemes();
+        }
+        else if (b.dataset.act === 'chat-theme-favorite') {
+            const themeId = b.dataset.themeId;
+            try {
+                chatThemeFavorites = toggleChatThemeFavorite(chatThemeFavorites, themeId);
+                store.set(STORE.chatThemeFavorites, [...chatThemeFavorites]);
+                const theme = chatThemes.get(themeId);
+                const isFavorite = chatThemeFavorites.has(themeId);
+                b.textContent = isFavorite ? '★' : '☆';
+                b.title = isFavorite ? 'Убрать из избранного' : 'Добавить в избранное';
+                b.setAttribute('aria-pressed', String(isFavorite));
+                b.setAttribute('aria-label', isFavorite
+                    ? `Убрать тему «${theme.name}» из избранного`
+                    : `Добавить тему «${theme.name}» в избранное`);
+                updateVisibleChatThemes();
+            } catch (error) {
+                chatThemeStatus.textContent = error instanceof Error ? error.message : String(error);
+            }
+        }
         else if (b.dataset.act === 'chat-theme-load') {
             const theme = chatThemes.get(b.dataset.themeId);
             if (!theme) {
@@ -915,8 +976,11 @@ export function openSettings() {
             try {
                 const css = await fetchChatCssFromUrl(theme.css);
                 validateChatCustomCss(css);
+                applyChatCustomCss(css);
+                store.set(STORE.chatCustomCss, css);
                 customChatCss.value = css;
-                chatThemeStatus.textContent = `CSS темы «${theme.name}» загружен и проверен. Просмотрите его и нажмите «Применить CSS».`;
+                customChatCssStatus.textContent = 'CSS чата применён и сохранён.';
+                chatThemeStatus.textContent = `Тема «${theme.name}» загружена, проверена, применена и сохранена.`;
             } catch (error) {
                 chatThemeStatus.textContent = error instanceof Error ? error.message : String(error);
             } finally {

@@ -204,7 +204,10 @@
 .t7-chat-theme-meta,.t7-chat-theme-description{margin:0;color:var(--t7-mute);font-size:11px;line-height:1.4}
 .t7-chat-theme-tags{display:flex;flex-wrap:wrap;gap:4px}
 .t7-chat-theme-tag{padding:2px 6px;border:1px solid var(--t7-line);border-radius:999px;color:var(--t7-mute);font-size:10px}
-.t7-chat-theme-info button{margin-top:auto}
+.t7-chat-theme-actions{display:flex;align-items:center;gap:6px;width:100%;margin-top:auto}
+.t7-chat-theme-actions .t7-b[data-act="chat-theme-load"]{flex:1}
+.t7-chat-theme-favorite{min-width:36px;padding:5px;font-size:16px;line-height:1}
+.t7-chat-theme-favorite[aria-pressed="true"]{border-color:#ffc94d;color:#ffc94d}
 .t7-player-history-window{position:fixed;z-index:2147483200;display:flex;flex-direction:column;width:420px;height:360px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:hidden;border:1px solid rgba(255,255,255,.18);border-radius:8px;background:#1b1b24;color:#eee;box-shadow:0 8px 28px rgba(0,0,0,.55);font:13px/1.35 system-ui,sans-serif;pointer-events:auto}
 .t7-player-history-window.t7-player-history-collapsed{height:auto}
 .t7-player-history-window.t7-player-history-drag{user-select:none}

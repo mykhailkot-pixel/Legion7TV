@@ -3,6 +3,8 @@ import {
     fetchChatCssFromUrl,
     fetchChatThemeCatalog,
     filterChatThemes,
+    normalizeChatThemeFavorites,
+    toggleChatThemeFavorite,
     validateChatCssUrl
 } from '../src/chat/ui/chatCssSource.js';
 
@@ -29,6 +31,22 @@ describe('chat CSS URL source', () => {
         expect(filterChatThemes(themes, 'panels').map((theme) => theme.id)).toEqual(['one']);
         expect(filterChatThemes(themes, '   ')).toEqual(themes);
         expect(filterChatThemes(themes, 'missing')).toEqual([]);
+    });
+
+    it('keeps favorite ids for themes missing from the current catalog', () => {
+        const favorites = normalizeChatThemeFavorites(['gone', 'current', null, '../invalid']);
+        const themes = [
+            { id: 'current', name: 'Current', author: '', description: '', tags: [] },
+            { id: 'other', name: 'Other', author: '', description: '', tags: [] }
+        ];
+
+        expect([...favorites]).toEqual(['gone', 'current']);
+        expect(filterChatThemes(themes, '', favorites, true).map((theme) => theme.id)).toEqual(['current']);
+        expect(favorites.has('gone')).toBe(true);
+
+        const updatedFavorites = toggleChatThemeFavorite(favorites, 'other');
+        expect(updatedFavorites.has('gone')).toBe(true);
+        expect(updatedFavorites.has('other')).toBe(true);
     });
 
     it.each([
