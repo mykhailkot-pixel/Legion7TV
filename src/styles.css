@@ -277,6 +277,9 @@
     flex:0 0 auto;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:3px;
     padding:5px 6px;font-size:11px;line-height:1.2;white-space:nowrap;overflow:visible}
 .cy-chat-tabs>button .cy-chat-tn{flex:none;margin:0;min-width:1.5em;padding:1px 4px;line-height:1.3;text-align:center;overflow:visible}
+.cy-chat-h .t7-chat-window-button{display:inline-flex;flex:none;align-items:center;justify-content:center;min-width:24px;height:24px;margin:0 3px;padding:2px 5px;border:1px solid rgba(255,255,255,.2);border-radius:4px;background:transparent;color:inherit;font:16px/1 system-ui,sans-serif;cursor:pointer}
+.cy-chat-h .t7-chat-window-button:hover,.cy-chat-h .t7-chat-window-button:focus-visible{background:rgba(255,255,255,.14);outline:none}
+.cy-chat-h .t7-chat-window-button:disabled{opacity:.55;cursor:progress}
 .cy-chat-h .t7-chat-filter{display:inline-flex;align-items:center;gap:4px;margin-left:auto;padding:3px 5px;border-radius:4px;font:11px/1.2 system-ui,sans-serif;white-space:nowrap;cursor:pointer;user-select:none}
 .cy-chat-h .t7-chat-filter input{width:13px;height:13px;margin:0;accent-color:#ffc94d;flex:none}
 .cy-chat-h .t7-chat-filter span{white-space:nowrap}

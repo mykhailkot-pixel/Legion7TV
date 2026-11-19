@@ -3,6 +3,7 @@ import {
     CHAT_THEME_CATALOG_URL,
     validateChatCssUrl
 } from '../../src/chat/ui/chatCssSource.js';
+import { buildDetachedChatUrl } from '../../src/chat/ui/chatWindow.js';
 
 const ALLOWED_HOSTS = new Set([
     '7tv.io',
@@ -341,8 +342,56 @@ function isAllowedPageSender(sender) {
     return !!sender.tab && senderIsAllowed;
 }
 
+function openChatWindow(message, sender, sendResponse) {
+    if (!isAllowedPageSender(sender)) {
+        sendResponse({ ok: false, error: 'Источник запроса не разрешён.' });
+        return false;
+    }
+
+    let url;
+    try {
+        url = buildDetachedChatUrl(message.url);
+    } catch (error) {
+        sendResponse({ ok: false, error: String(error && error.message || error) });
+        return false;
+    }
+
+    if (!chrome.windows || typeof chrome.windows.create !== 'function') {
+        sendResponse({ ok: false, error: 'Браузер не поддерживает отдельные окна расширения.' });
+        return false;
+    }
+
+    try {
+        chrome.windows.create({
+            url,
+            type: 'popup',
+            width: 440,
+            height: 720,
+            focused: true
+        }, (openedWindow) => {
+            const error = chrome.runtime.lastError;
+            if (error) {
+                sendResponse({ ok: false, error: error.message || 'Не удалось создать окно чата.' });
+                return;
+            }
+            if (!openedWindow) {
+                sendResponse({ ok: false, error: 'Браузер не создал окно чата.' });
+                return;
+            }
+            sendResponse({ ok: true });
+        });
+    } catch (error) {
+        sendResponse({ ok: false, error: String(error && error.message || error) });
+        return false;
+    }
+    return true;
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message) return false;
+    if (message.type === 'LEGION7TV_OPEN_CHAT_WINDOW')
+        return openChatWindow(message, sender, sendResponse);
+
     if (message.type === 'LEGION7TV_FETCH_CHAT_CSS_CATALOG') {
         if (!isAllowedPageSender(sender)) {
             sendResponse({ ok: false, error: 'Источник запроса не разрешён.' });
