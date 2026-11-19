@@ -18,65 +18,37 @@ export function buildDetachedChatUrl(value) {
         throw new Error('Отдельное окно чата можно открыть только на legiongame.gg.');
 
     url.searchParams.set(CHAT_WINDOW_QUERY, '1');
+    url.hash = '';
     return url.href;
 }
 
 let started = false;
-let detachedStyleSheet = null;
 const expansionRequested = new WeakSet();
 
 function isDetachedWindow() {
     return new URL(location.href).searchParams.get(CHAT_WINDOW_QUERY) === '1';
 }
 
-function installDetachedWindowLayout() {
-    const modeClass = cls('detached-chat-window');
-    document.documentElement.classList.add(modeClass);
-
-    detachedStyleSheet = new CSSStyleSheet();
-    detachedStyleSheet.replaceSync(`
-        html.${modeClass}, html.${modeClass} body {
-            width: 100%;
-            height: 100%;
-            margin: 0 !important;
-            overflow: hidden !important;
-        }
-        html.${modeClass} .cy-chat {
-            position: fixed !important;
-            inset: 0 !important;
-            box-sizing: border-box !important;
-            width: 100vw !important;
-            height: 100vh !important;
-            max-width: none !important;
-            max-height: none !important;
-            margin: 0 !important;
-            z-index: 2147483640 !important;
-        }
-        html.${modeClass} .cy-chat-t {
-            display: none !important;
-        }
-        html.${modeClass} .cy-chat-b:not([hidden]) {
-            position: absolute !important;
-            inset: 0 !important;
-            box-sizing: border-box !important;
-            width: auto !important;
-            height: auto !important;
-            max-width: none !important;
-            max-height: none !important;
-        }
-    `);
-    document.adoptedStyleSheets = [...document.adoptedStyleSheets, detachedStyleSheet];
-}
-
 function expandChat(box) {
     const body = box.querySelector('.cy-chat-b');
     const toggle = box.querySelector(SEL.chatToggleButton);
     if (!body || !toggle || expansionRequested.has(box)) return;
-    if (!body.hidden && getComputedStyle(body).display !== 'none'
-        && toggle.getAttribute('aria-expanded') !== 'false') return;
+    if (!body.hidden && getComputedStyle(body).display !== 'none') {
+        toggle.hidden = true;
+        return;
+    }
 
     expansionRequested.add(box);
     toggle.click();
+    const removeToggleWhenExpanded = () => {
+        const currentBody = box.querySelector('.cy-chat-b');
+        const currentToggle = box.querySelector(SEL.chatToggleButton);
+        if (currentBody && currentToggle && !currentBody.hidden
+            && getComputedStyle(currentBody).display !== 'none')
+            currentToggle.hidden = true;
+    };
+    removeToggleWhenExpanded();
+    requestAnimationFrame(removeToggleWhenExpanded);
 }
 
 async function openDetachedWindow(button) {
@@ -127,7 +99,6 @@ export function startChatWindowIntegration() {
     started = true;
 
     const detached = isDetachedWindow();
-    if (detached) installDetachedWindowLayout();
 
     const update = () => {
         document.querySelectorAll(SEL.chatRoot).forEach((box) => {

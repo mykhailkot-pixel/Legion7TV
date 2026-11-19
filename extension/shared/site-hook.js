@@ -1,4 +1,17 @@
 (function () {
+    if (new URL(location.href).searchParams.get('l7tv_chat_window') === '1') {
+        var storageGetItem = Storage.prototype.getItem;
+        var storageSetItem = Storage.prototype.setItem;
+        Storage.prototype.getItem = function (key) {
+            if (this === window.localStorage && key === 'lgTab') return 'news';
+            return storageGetItem.call(this, key);
+        };
+        Storage.prototype.setItem = function (key, value) {
+            if (this === window.localStorage && key === 'lgTab') return;
+            return storageSetItem.call(this, key, value);
+        };
+    }
+
     var real;
     var uid = 0;
     var wrappedLibraries = [];

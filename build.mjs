@@ -127,6 +127,7 @@ async function buildTarget(name) {
         rm(resolve(output, 'theme-assets-popup.js'), { force: true }),
         rm(resolve(output, 'theme-assets.html'), { force: true }),
         rm(resolve(output, 'theme-assets.css'), { force: true }),
+        cp(resolve(shared, 'chat-window-bootstrap.js'), resolve(output, 'chat-window-bootstrap.js')),
         cp(resolve(shared, 'site-hook.js'), resolve(output, 'site-hook.js')),
         writeFile(resolve(output, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n'),
         target.copyIcons(output)

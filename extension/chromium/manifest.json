@@ -43,6 +43,7 @@
         "https://legiongame.gg/*"
       ],
       "js": [
+        "chat-window-bootstrap.js",
         "content-bridge.js"
       ],
       "run_at": "document_start"
