@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
     buildDetachedChatUrl,
     CHAT_WINDOW_QUERY,
+    shouldSuppressPingSound,
     startChatWindowIntegration
 } from '../src/chat/ui/chatWindow.js';
 
@@ -19,6 +20,22 @@ describe('detached chat window URL', () => {
     it('rejects URLs outside the game origin', () => {
         expect(() => buildDetachedChatUrl('https://example.com/'))
             .toThrow('Отдельное окно чата можно открыть только на legiongame.gg.');
+    });
+
+    it('suppresses only the original chat sound for a detached window on the same route', () => {
+        expect(shouldSuppressPingSound(
+            'https://legiongame.gg/play?room=trade#chat',
+            ['https://legiongame.gg/play?room=trade&l7tv_chat_window=1']
+        )).toBe(true);
+
+        expect(shouldSuppressPingSound(
+            'https://legiongame.gg/play?room=trade',
+            ['https://legiongame.gg/play?room=arena&l7tv_chat_window=1']
+        )).toBe(false);
+        expect(shouldSuppressPingSound(
+            'https://legiongame.gg/play?room=trade&l7tv_chat_window=1',
+            ['https://legiongame.gg/play?room=trade']
+        )).toBe(false);
     });
 
     it('expands the chat and removes its collapse button in the popup', () => {

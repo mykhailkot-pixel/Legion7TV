@@ -452,6 +452,12 @@ function bindChatForm(form, input) {
             if (currentInput) currentInput.focus({ preventScroll: true });
         });
     };
+    const onSent = () => {
+        const list = form.closest(SEL.chatRoot)?.querySelector(SEL.chatList);
+        if (list && list.isConnected) {
+            chatScroller.scrollToEnd(list);
+        }
+    };
     const onClick = (event) => {
         if (event.target.closest(SEL.submitButton)) blockBannedWord(event);
     };
@@ -465,6 +471,7 @@ function bindChatForm(form, input) {
     input.addEventListener('input', onInput);
     input.addEventListener('keydown', onKeyDown, true);
     form.addEventListener('submit', onSubmit, true);
+    form.addEventListener('lg-chat-sent', onSent);
     form.addEventListener('click', onClick, true);
     return () => {
         history.dispose();
@@ -472,6 +479,7 @@ function bindChatForm(form, input) {
         input.removeEventListener('input', onInput);
         input.removeEventListener('keydown', onKeyDown, true);
         form.removeEventListener('submit', onSubmit, true);
+        form.removeEventListener('lg-chat-sent', onSent);
         form.removeEventListener('click', onClick, true);
     };
 }

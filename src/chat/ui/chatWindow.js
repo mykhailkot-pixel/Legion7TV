@@ -3,6 +3,34 @@ import { cls } from '../../core/ui.js';
 
 export const CHAT_WINDOW_QUERY = 'l7tv_chat_window';
 
+export function isDetachedChatUrl(value) {
+    try {
+        return new URL(value).searchParams.get(CHAT_WINDOW_QUERY) === '1';
+    } catch {
+        return false;
+    }
+}
+
+export function getChatWindowScope(value) {
+    try {
+        const url = new URL(value);
+        if (url.origin !== 'https://legiongame.gg' || url.username || url.password) return '';
+        url.searchParams.delete(CHAT_WINDOW_QUERY);
+        url.hash = '';
+        return url.href;
+    } catch {
+        return '';
+    }
+}
+
+export function shouldSuppressPingSound(senderUrl, openTabUrls) {
+    if (isDetachedChatUrl(senderUrl)) return false;
+    const scope = getChatWindowScope(senderUrl);
+    if (!scope) return false;
+    return openTabUrls.some((value) =>
+        isDetachedChatUrl(value) && getChatWindowScope(value) === scope);
+}
+
 export function buildDetachedChatUrl(value) {
     if (typeof value !== 'string' || value.length > 4096)
         throw new Error('Адрес текущей игры некорректен.');
@@ -26,7 +54,7 @@ let started = false;
 const expansionRequested = new WeakSet();
 
 function isDetachedWindow() {
-    return new URL(location.href).searchParams.get(CHAT_WINDOW_QUERY) === '1';
+    return isDetachedChatUrl(location.href);
 }
 
 function expandChat(box) {

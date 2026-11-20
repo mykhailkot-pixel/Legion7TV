@@ -273,8 +273,24 @@ function highlightGuildEveryoneRows(state, message) {
 }
 
 function playPingNotification() {
-    pingSystem.play().catch((error) =>
+    const play = () => pingSystem.play().catch((error) =>
         console.warn('[7TV] не удалось воспроизвести звук пинга', error));
+    const api = globalThis.browser || globalThis.chrome;
+    if (!api?.runtime || typeof api.runtime.sendMessage !== 'function') {
+        play();
+        return;
+    }
+
+    api.runtime.sendMessage({ type: 'LEGION7TV_CHAT_WINDOW_STATUS' }).then((result) => {
+        if (result?.ok && result.suppressSound) return;
+        if (!result?.ok) {
+            console.warn('[7TV] не удалось проверить отдельное окно чата', result?.error || 'неизвестная ошибка');
+        }
+        play();
+    }).catch((error) => {
+        console.warn('[7TV] не удалось проверить отдельное окно чата', error);
+        play();
+    });
 }
 
 function processRow(state, row, notify, notificationBatch = null) {

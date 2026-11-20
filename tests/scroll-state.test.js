@@ -77,6 +77,24 @@ describe('chat scroll state', () => {
         list.remove();
     });
 
+    it('does not mistake an old user-scroll marker for scrolling caused by a sent message', () => {
+        chatScroller.start();
+        const list = document.createElement('ul');
+        list.className = 'cy-chat-l';
+        setScrollMetrics(list, { top: 400, height: 500, viewport: 100 });
+        document.body.appendChild(list);
+        chatScroller.scrollToEnd(list);
+
+        list.dispatchEvent(new WheelEvent('wheel', { bubbles: true }));
+        chatScroller.scrollToEnd(list);
+        list.scrollTop = 395;
+        list.dispatchEvent(new Event('scroll'));
+
+        expect(list.scrollTop).toBe(400);
+        expect(chatScroller.captureEndIntent(list).atEnd).toBe(true);
+        list.remove();
+    });
+
     it('releases end-following after a small upward keyboard scroll', () => {
         chatScroller.start();
         const list = document.createElement('ul');

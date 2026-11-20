@@ -3,7 +3,12 @@ import {
     CHAT_THEME_CATALOG_URL,
     validateChatCssUrl
 } from '../../src/chat/ui/chatCssSource.js';
-import { buildDetachedChatUrl, CHAT_WINDOW_QUERY } from '../../src/chat/ui/chatWindow.js';
+import {
+    buildDetachedChatUrl,
+    getChatWindowScope,
+    isDetachedChatUrl,
+    shouldSuppressPingSound
+} from '../../src/chat/ui/chatWindow.js';
 
 const ALLOWED_HOSTS = new Set([
     '7tv.io',
@@ -342,16 +347,36 @@ function isAllowedPageSender(sender) {
     return !!sender.tab && senderIsAllowed;
 }
 
-function getChatReadScope(value) {
-    try {
-        const url = new URL(value);
-        if (url.origin !== 'https://legiongame.gg') return '';
-        url.searchParams.delete(CHAT_WINDOW_QUERY);
-        url.hash = '';
-        return url.href;
-    } catch {
-        return '';
+function getChatWindowStatus(sender, sendResponse) {
+    if (!isAllowedPageSender(sender)) {
+        sendResponse({ ok: false, error: 'Источник запроса не разрешён.' });
+        return false;
     }
+
+    const scope = getChatWindowScope(sender.url);
+    if (!scope) {
+        sendResponse({ ok: false, error: 'Не удалось определить адрес чата.' });
+        return false;
+    }
+    if (isDetachedChatUrl(sender.url)) {
+        sendResponse({ ok: true, suppressSound: false });
+        return false;
+    }
+
+    chrome.tabs.query({ url: 'https://legiongame.gg/*' }, (openTabs) => {
+        const error = chrome.runtime.lastError;
+        if (error) {
+            sendResponse({ ok: false, error: error.message || 'Не удалось найти открытые чаты.' });
+            return;
+        }
+
+        const suppressSound = shouldSuppressPingSound(
+            sender.url,
+            (openTabs || []).map((tab) => tab.url || tab.pendingUrl || '')
+        );
+        sendResponse({ ok: true, suppressSound });
+    });
+    return true;
 }
 
 function relayChatRead(message, sender, sendResponse) {
@@ -365,7 +390,7 @@ function relayChatRead(message, sender, sendResponse) {
         return false;
     }
 
-    const scope = getChatReadScope(sender.url);
+    const scope = getChatWindowScope(sender.url);
     if (!scope) {
         sendResponse({ ok: false, error: 'Не удалось определить чат для синхронизации.' });
         return false;
@@ -440,8 +465,40 @@ function openChatWindow(message, sender, sendResponse) {
     return true;
 }
 
+function openChatWindowFromAction(tab) {
+    const value = tab && (tab.url || tab.pendingUrl);
+    if (!value || tab.id == null) return;
+
+    let url;
+    try {
+        url = new URL(value);
+    } catch {
+        return;
+    }
+    if (url.origin !== 'https://legiongame.gg') return;
+
+    const pageUrl = url.href;
+    openChatWindow(
+        { url: pageUrl },
+        { url: pageUrl, tab },
+        (result) => {
+            if (!result || !result.ok) {
+                console.warn('[Legion7TV] Не удалось открыть отдельное окно чата', result?.error || 'неизвестная ошибка');
+            }
+        }
+    );
+}
+
+const extensionAction = globalThis.browser?.action
+    || globalThis.chrome?.action
+    || globalThis.browser?.browserAction
+    || globalThis.chrome?.browserAction;
+extensionAction?.onClicked?.addListener(openChatWindowFromAction);
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message) return false;
+    if (message.type === 'LEGION7TV_CHAT_WINDOW_STATUS')
+        return getChatWindowStatus(sender, sendResponse);
     if (message.type === 'LEGION7TV_CHAT_READ')
         return relayChatRead(message, sender, sendResponse);
     if (message.type === 'LEGION7TV_OPEN_CHAT_WINDOW')

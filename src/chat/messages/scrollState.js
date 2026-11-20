@@ -258,6 +258,7 @@ export const chatScroller = {
         if (!list) return;
         const state = getState(list);
         state.atEnd = true;
+        state.handledUserScrollVersion = state.userScrollVersion;
         scrollToEnd(list);
         commit(list, state);
     },
