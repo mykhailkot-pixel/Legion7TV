@@ -104,11 +104,27 @@ async function openDetachedWindow(button) {
 
 function addDetachButton(box) {
     const header = box.querySelector(SEL.chatHeader);
-    if (!header || header.querySelector(`.${cls('chat-window-button')}`)) return;
+    if (header && !header.querySelector(`.${cls('chat-window-button')}`)) {
+        const button = createDetachButton(cls('chat-window-button'));
+        const close = header.querySelector(SEL.chatCloseButton);
+        header.insertBefore(button, close || null);
+    }
 
+    const toggle = box.querySelector(SEL.chatToggleButton);
+    if (!toggle || box.querySelector(`.${cls('chat-collapsed-controls')}`)) return;
+    const controls = document.createElement('div');
+    controls.className = cls('chat-collapsed-controls');
+    const button = createDetachButton(
+        `${cls('chat-window-collapsed-button')} ${cls('chat-window-button')}`
+    );
+    toggle.before(controls);
+    controls.append(toggle, button);
+}
+
+function createDetachButton(className) {
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = cls('chat-window-button');
+    button.className = className;
     button.textContent = '⧉';
     button.title = 'Открыть чат в отдельном окне';
     button.setAttribute('aria-label', button.title);
@@ -117,9 +133,7 @@ function addDetachButton(box) {
         event.stopPropagation();
         openDetachedWindow(button);
     });
-
-    const close = header.querySelector(SEL.chatCloseButton);
-    header.insertBefore(button, close || null);
+    return button;
 }
 
 export function startChatWindowIntegration() {
